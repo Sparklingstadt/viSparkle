@@ -1,5 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { FileText, LayoutGrid, Palette, Ticket } from 'lucide-react';
+import {
+    FileText,
+    Heart,
+    Newspaper,
+    Palette,
+    Ticket,
+    Users,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -12,17 +19,24 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { feed } from '@/routes';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
+import { index as creatorSupporters } from '@/routes/creator/supporters';
+import { index as supporting } from '@/routes/supporting';
 import { edit as creatorProfile } from '@/routes/creator/profile';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'ダッシュボード',
-        href: dashboard(),
-        icon: LayoutGrid,
+        title: 'フィード',
+        href: feed(),
+        icon: Newspaper,
+    },
+    {
+        title: '支援中',
+        href: supporting(),
+        icon: Heart,
     },
     {
         title: 'クリエイター管理',
@@ -39,6 +53,11 @@ const mainNavItems: NavItem[] = [
         href: creatorPosts(),
         icon: FileText,
     },
+    {
+        title: '支援者',
+        href: creatorSupporters(),
+        icon: Users,
+    },
 ];
 
 export function AppSidebar() {
@@ -48,7 +67,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={feed()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

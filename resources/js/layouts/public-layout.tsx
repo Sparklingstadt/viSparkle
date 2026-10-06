@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
-import { dashboard, home, login, register } from '@/routes';
+import { feed, home, login, register } from '@/routes';
 
 export default function PublicLayout({
     children,
@@ -20,7 +20,7 @@ export default function PublicLayout({
                     <nav className="flex items-center gap-2">
                         {auth.user ? (
                             <Button asChild variant="outline" size="sm">
-                                <Link href={dashboard()}>マイページ</Link>
+                                <Link href={feed()}>マイページ</Link>
                             </Button>
                         ) : (
                             <>

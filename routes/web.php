@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', HomeController::class)->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::redirect('dashboard', '/feed')->name('dashboard');
 });
 
 require __DIR__.'/settings.php';
 require __DIR__.'/creator.php';
+require __DIR__.'/fan.php';
 
 Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
 Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
