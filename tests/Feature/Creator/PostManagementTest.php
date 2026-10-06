@@ -176,3 +176,18 @@ it('returns 404 for another creators post', function (string $method, string $ro
     'destroy' => ['delete', 'creator.posts.destroy'],
     'upload' => ['post', 'creator.posts.files.store'],
 ]);
+
+it('preserves whitespace in body text nodes', function () {
+    $post = Post::factory()->for($this->creator)->create();
+    $body = ttDoc(ttParagraph(
+        ttText('太字', [['type' => 'bold']]),
+        ttText(' '),
+        ttText('斜体', [['type' => 'italic']]),
+        ttText(' and more '),
+    ));
+
+    $this->put(route('creator.posts.update', $post), savePayload(['body' => $body, 'title' => '  タイトル  ', 'excerpt' => '  抜粋  ']))
+        ->assertSessionHasNoErrors();
+
+    expect($post->fresh())->body->toEqual($body)->title->toBe('タイトル')->excerpt->toBe('抜粋');
+});

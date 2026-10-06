@@ -82,10 +82,11 @@ class PostController extends Controller
 
         $action = $request->validated('action');
         $title = trim((string) $request->validated('title'));
+        $excerpt = trim((string) $request->validated('excerpt'));
 
         $post->fill([
             'title' => $title === '' ? '無題' : $title,
-            'excerpt' => $request->validated('excerpt'),
+            'excerpt' => $excerpt === '' ? null : $excerpt,
             'body' => $request->validated('body'),
             'required_price' => $request->validated('required_price'),
             'cover_file_id' => $request->validated('cover_file_id'),

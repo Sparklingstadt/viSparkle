@@ -20,6 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias(['creator' => EnsureUserIsCreator::class]);
 
+        // Post bodies are Tiptap JSON where whitespace-only text nodes are meaningful; the controller trims title/excerpt itself.
+        // Global middleware runs before routing, so match the post update endpoint (PUT creator/posts/{id}) by path.
+        $keepPostBody = fn (Request $request) => $request->isMethod('PUT') && preg_match('#^creator/posts/\d+$#', $request->path()) === 1;
+        $middleware->trimStrings(except: [$keepPostBody]);
+        $middleware->convertEmptyStringsToNull(except: [$keepPostBody]);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
