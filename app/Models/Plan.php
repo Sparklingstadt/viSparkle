@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -34,6 +35,27 @@ class Plan extends Model
         return [
             'price' => 'integer',
             'is_accepting' => 'boolean',
+        ];
+    }
+
+    public function coverUrl(): ?string
+    {
+        return $this->cover_path === null ? null : Storage::disk('public')->url($this->cover_path);
+    }
+
+    /**
+     * @return array{id: int, name: string, description: string|null, price: int, cover_url: string|null, is_accepting: bool, active_supporters_count: int}
+     */
+    public function toData(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'price' => $this->price,
+            'cover_url' => $this->coverUrl(),
+            'is_accepting' => $this->is_accepting,
+            'active_supporters_count' => (int) ($this->active_supports_count ?? 0),
         ];
     }
 
