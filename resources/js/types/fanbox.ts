@@ -1,0 +1,92 @@
+export type CreatorSummary = {
+    slug: string;
+    display_name: string;
+    avatar_url: string | null;
+};
+
+export type CreatorProfile = CreatorSummary & {
+    bio: string | null;
+    header_url: string | null;
+};
+
+export type PlanData = {
+    id: number;
+    name: string;
+    description: string | null;
+    price: number;
+    cover_url: string | null;
+    is_accepting: boolean;
+    active_supporters_count: number;
+};
+
+export type TiptapAttrs = Record<string, string | number | boolean | null>;
+
+export type TiptapMark = {
+    type: string;
+    attrs?: TiptapAttrs;
+};
+
+export type TiptapNode = {
+    type: string;
+    attrs?: TiptapAttrs;
+    content?: TiptapNode[];
+    text?: string;
+    marks?: TiptapMark[];
+};
+
+export type PostStatus = 'draft' | 'published';
+
+export type PostFileData = {
+    id: number;
+    kind: 'image' | 'attachment';
+    url: string;
+    thumb_url: string;
+    original_name: string;
+    size: number;
+};
+
+export type EditorPost = {
+    id: number;
+    title: string;
+    excerpt: string | null;
+    body: TiptapNode | null;
+    required_price: number;
+    status: PostStatus;
+    published_at: string | null;
+    cover_file_id: number | null;
+    images: PostFileData[];
+    attachments: PostFileData[];
+};
+
+export type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+    total: number;
+};
+
+export type PostSummary = {
+    id: number;
+    title: string;
+    excerpt: string | null;
+    required_price: number;
+    published_at: string | null;
+    cover_thumb_url: string | null;
+    locked: boolean;
+    creator: CreatorSummary;
+};
+
+export type PostAttachment = {
+    id: number;
+    original_name: string;
+    size: number;
+    url: string;
+};
+
+export type PostDetail = PostSummary & {
+    body?: TiptapNode | null;
+    image_urls?: Record<string, string>;
+    attachments?: PostAttachment[];
+};

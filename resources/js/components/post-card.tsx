@@ -1,0 +1,50 @@
+import { Link } from '@inertiajs/react';
+import { Lock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { formatDate, formatYen } from '@/lib/format';
+import { show } from '@/routes/posts';
+import type { PostSummary } from '@/types';
+
+export function PostCard({
+    post,
+    showCreator = false,
+}: {
+    post: PostSummary;
+    showCreator?: boolean;
+}) {
+    return (
+        <Link
+            href={show({ creator: post.creator.slug, post: post.id })}
+            className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+        >
+            <div className="relative aspect-video bg-muted">
+                {post.cover_thumb_url && (
+                    <img
+                        src={post.cover_thumb_url}
+                        alt=""
+                        loading="lazy"
+                        className={`size-full object-cover ${post.locked ? 'blur-md' : ''}`}
+                    />
+                )}
+                {post.locked && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Badge className="gap-1">
+                            <Lock className="size-3" />
+                            {formatYen(post.required_price)}〜
+                        </Badge>
+                    </div>
+                )}
+            </div>
+            <div className="space-y-1 p-3">
+                <p className="line-clamp-2 font-medium">{post.title}</p>
+                <p className="text-xs text-muted-foreground">
+                    {showCreator && `${post.creator.display_name} · `}
+                    {formatDate(post.published_at)}
+                    {!post.locked && post.required_price > 0 && (
+                        <> · {formatYen(post.required_price)}〜</>
+                    )}
+                </p>
+            </div>
+        </Link>
+    );
+}
