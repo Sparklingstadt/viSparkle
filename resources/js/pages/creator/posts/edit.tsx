@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatBytes, formatYen } from '@/lib/format';
+import { withoutUnknownImages } from '@/lib/tiptap';
 import { deletePostFile, uploadPostFile } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
@@ -78,7 +79,24 @@ export default function PostEdit({
     };
 
     const submit = (action: Action) => {
-        form.transform((data) => ({ ...data, action }));
+        const cleaned = form.data.body
+            ? withoutUnknownImages(
+                  form.data.body,
+                  images.map((image) => image.id),
+              )
+            : null;
+
+        if (cleaned && cleaned.removed > 0) {
+            toast.warning(
+                `アップロードされていない画像を${cleaned.removed}件取り除きました。画像は「画像を挿入」から追加してください。`,
+            );
+        }
+
+        form.transform((data) => ({
+            ...data,
+            body: cleaned ? cleaned.doc : data.body,
+            action,
+        }));
         form.put(PostController.update.url(post.id), {
             preserveScroll: true,
             onSuccess: () => {
@@ -245,6 +263,9 @@ export default function PostEdit({
 
                 <section className="grid gap-2">
                     <Label>カバー画像（本文中の画像から選択）</Label>
+                    <p className="text-xs text-muted-foreground">
+                        カバー画像の縮小版は、支援していない人にも表示されます（一覧ではぼかし表示）。限定公開したい画像は選ばないでください。
+                    </p>
                     {images.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                             本文に画像を追加すると選択できます。

@@ -125,8 +125,12 @@ class TiptapDocumentValidator
             $this->fail('本文の形式が正しくありません。');
         }
 
-        if ($node['type'] === 'image' && ! array_key_exists('fileId', $node['attrs'] ?? [])) {
-            $this->fail('画像の指定が正しくありません。');
+        if ($node['type'] === 'image') {
+            $fileId = is_array($node['attrs'] ?? null) ? ($node['attrs']['fileId'] ?? null) : null;
+
+            if (! is_int($fileId) || ! in_array($fileId, $this->allowedImageIds, true)) {
+                $this->fail('本文に見つからない画像があります。その画像を削除してから、もう一度追加してください。');
+            }
         }
 
         $this->validateAttrs($node['attrs'] ?? null, $spec['attrs']);

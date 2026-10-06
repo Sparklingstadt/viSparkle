@@ -65,6 +65,10 @@ it('rejects invalid documents', function (array $doc) {
     'text without string' => [ttDoc(ttParagraph(['type' => 'text', 'text' => ['x']]))],
     'content not a list' => [['type' => 'doc', 'content' => 'x']],
     'too deep' => [ttNested(21)],
+    'image attrs not an array' => [ttDoc(['type' => 'image', 'attrs' => 'x'])],
+    'node attrs not an array' => [ttDoc(['type' => 'heading', 'attrs' => 'x'])],
+    'mark attrs not an array' => [ttDoc(ttParagraph(ttText('x', [['type' => 'link', 'attrs' => 'x']])))],
+    'pasted image without file' => [ttDoc(['type' => 'image', 'attrs' => ['fileId' => null]])],
 ]);
 
 it('rejects oversized bodies', function () {
@@ -89,4 +93,16 @@ it('reports errors under the body key', function () {
 it('extracts unique image ids in order', function () {
     expect(tiptap()->imageIds(ttDoc(ttImage(3), ttParagraph(ttText('x')), ttImage(5), ttImage(3))))->toBe([3, 5])
         ->and(tiptap()->imageIds(ttDoc()))->toBe([]);
+});
+
+it('explains a missing image clearly', function () {
+    try {
+        tiptap()->validate(ttDoc(ttImage(99)), [5]);
+    } catch (ValidationException $e) {
+        expect($e->errors()['body'][0])->toBe('本文に見つからない画像があります。その画像を削除してから、もう一度追加してください。');
+
+        return;
+    }
+
+    $this->fail('Expected a ValidationException.');
 });
