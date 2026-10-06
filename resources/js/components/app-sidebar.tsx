@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { LayoutGrid, Palette, Ticket } from 'lucide-react';
+import { FileText, LayoutGrid, Palette, Ticket } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as creatorPlans } from '@/routes/creator/plans';
+import { index as creatorPosts } from '@/routes/creator/posts';
 import { edit as creatorProfile } from '@/routes/creator/profile';
 import type { NavItem } from '@/types';
 
@@ -32,6 +33,11 @@ const mainNavItems: NavItem[] = [
         title: 'プラン管理',
         href: creatorPlans(),
         icon: Ticket,
+    },
+    {
+        title: '投稿管理',
+        href: creatorPosts(),
+        icon: FileText,
     },
 ];
 

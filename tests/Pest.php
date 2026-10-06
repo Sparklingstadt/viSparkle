@@ -97,3 +97,27 @@ function gifUpload(int $width = 1200, int $height = 900, string $name = 'anim.gi
 
     return UploadedFile::fake()->createWithContent($name, (string) ob_get_clean());
 }
+
+/*
+| Tiptap document builders
+*/
+
+function ttText(string $value, array $marks = []): array
+{
+    return array_filter(['type' => 'text', 'text' => $value, 'marks' => $marks]);
+}
+
+function ttDoc(array ...$nodes): array
+{
+    return ['type' => 'doc', 'content' => $nodes];
+}
+
+function ttParagraph(array ...$inline): array
+{
+    return ['type' => 'paragraph', 'content' => $inline];
+}
+
+function ttImage(int $fileId): array
+{
+    return ['type' => 'image', 'attrs' => ['fileId' => $fileId]];
+}

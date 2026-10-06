@@ -104,6 +104,7 @@ class TiptapDocumentValidator
                 'target' => $nullableString,
                 'rel' => $nullableString,
                 'class' => fn (mixed $v) => $v === null,
+                'title' => $nullableString,
             ],
         ];
     }

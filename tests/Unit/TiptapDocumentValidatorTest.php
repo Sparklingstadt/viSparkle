@@ -11,26 +11,6 @@ function tiptap(): TiptapDocumentValidator
     return new TiptapDocumentValidator;
 }
 
-function ttText(string $value, array $marks = []): array
-{
-    return array_filter(['type' => 'text', 'text' => $value, 'marks' => $marks]);
-}
-
-function ttDoc(array ...$nodes): array
-{
-    return ['type' => 'doc', 'content' => $nodes];
-}
-
-function ttParagraph(array ...$inline): array
-{
-    return ['type' => 'paragraph', 'content' => $inline];
-}
-
-function ttImage(int $fileId): array
-{
-    return ['type' => 'image', 'attrs' => ['fileId' => $fileId]];
-}
-
 function ttNested(int $depth): array
 {
     $node = ttParagraph(ttText('deep'));
@@ -47,12 +27,12 @@ function ttValidDoc(): array
         ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [ttText('見出し')]],
         ttParagraph(
             ttText('太字', [['type' => 'bold']]),
-            ttText('リンク', [['type' => 'link', 'attrs' => ['href' => 'https://example.com', 'target' => '_blank', 'rel' => 'noopener']]]),
+            ttText('リンク', [['type' => 'link', 'attrs' => ['href' => 'https://example.com', 'target' => '_blank', 'rel' => 'noopener', 'class' => null, 'title' => null]]]),
             ['type' => 'hardBreak'],
             ttText('斜体と打ち消し', [['type' => 'italic'], ['type' => 'strike']]),
         ),
         ['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [ttParagraph(ttText('a'))]]]],
-        ['type' => 'orderedList', 'attrs' => ['start' => 1], 'content' => [['type' => 'listItem', 'content' => [ttParagraph(ttText('b'))]]]],
+        ['type' => 'orderedList', 'attrs' => ['start' => 1, 'type' => null], 'content' => [['type' => 'listItem', 'content' => [ttParagraph(ttText('b'))]]]],
         ['type' => 'blockquote', 'content' => [ttParagraph(ttText('引用'))]],
         ['type' => 'horizontalRule'],
         ttImage(5),
