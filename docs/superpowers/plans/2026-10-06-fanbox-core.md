@@ -74,11 +74,13 @@ tests/Feature/{Creator,Public,Fan,Entitlement}/..., tests/Unit/...
 ### Task 1: プロジェクト基盤（スターターキット・Sail・Pest・ストレージ・設定）
 
 **Files:**
+
 - Create: リポジトリ直下にスターターキット一式、`config/fanbox.php`、`docker-compose.yml`（sail:install）、`tests/Pest.php`
 - Modify: `.env.example`, `.env`, `config/filesystems.php`, `config/app.php`, `phpunit.xml`, `.gitignore`
 - Test: `tests/Feature/InfrastructureTest.php`
 
 **Interfaces:**
+
 - Produces: ディスク `private`（s3, 非公開バケット `fanbox-private`）、`public`（s3, 公開バケット `fanbox-public`, `visibility=public`）、`config('fanbox.*')` キー: `image_max_kb=10240, image_mimes=['jpg','jpeg','png','gif','webp'], attachment_max_kb=102400, attachments_per_post=20, images_per_post=100, signed_url_minutes=5, plan_min_price=100, plan_max_price=50000, plans_per_creator=10, image_max_edge=2560, thumb_max_edge=640, body_max_bytes=524288, reserved_slugs=[...]`
 
 - [ ] **Step 1:** `composer create-project laravel/react-starter-kit:dev-main` を一時ディレクトリに作り（composer:latest コンテナ、`--no-scripts --ignore-platform-reqs`）、`vendor` と `node_modules` を除いてリポジトリ直下へコピー。`.env.example` → `.env`。
@@ -116,20 +118,22 @@ it('uses japanese locale and tokyo timezone', function () {
 ### Task 2: ドメインモデルとマイグレーション
 
 **Files:**
+
 - Create: `app/Enums/{SupportStatus,PostStatus,PostFileKind}.php`, `app/Models/{Creator,Plan,Support,Post,PostFile}.php`, マイグレーション5本、`database/factories/{Creator,Plan,Support,Post,PostFile}Factory.php`
 - Modify: `app/Models/User.php`
 - Test: `tests/Feature/Models/DomainModelTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - `enum SupportStatus: string { Active='active'; Ended='ended'; }`、`enum PostStatus: string { Draft='draft'; Published='published'; }`、`enum PostFileKind: string { Image='image'; Attachment='attachment'; }`
-  - `User::creator(): HasOne`、`User::supports(): HasMany`
-  - `Creator::user()`, `plans()`（sort, price 順）, `posts()`, `supports()`, `getRouteKeyName(): 'slug'`, `resolveRouteBinding($value, $field)` は取得後 `$creator->slug !== $value` なら null（MySQL の大文字小文字を区別しない照合順序でも `/@Alice` を 404 にする）
-  - `Plan::creator()`, `supports()`, `activeSupports()`
-  - `Support::user()`, `creator()`, `plan()`、scope `active()`、casts status→SupportStatus, started_at/ended_at→datetime
-  - `Post::creator()`, `files()`, `images()`, `attachments()`, `cover(): BelongsTo(PostFile, 'cover_file_id')`、scope `published()`（status=published かつ published_at not null、published_at desc）、`isPublished(): bool`、casts body→array
-  - `PostFile::post()`、casts kind→PostFileKind
-  - Factories: `Creator::factory()`（user 付き、slug は `fake()->unique()->regexify('[a-z][a-z0-9]{5,10}')`）、`Plan::factory()->for($creator)->price(500)`、`Post::factory()->published()->requiring(500)`、`Post::factory()->draft()`、`Support::factory()->active()->for($user)->forPlan($plan)`（creator_id・price を plan から設定）、`Support::factory()->ended()`
+    - `enum SupportStatus: string { Active='active'; Ended='ended'; }`、`enum PostStatus: string { Draft='draft'; Published='published'; }`、`enum PostFileKind: string { Image='image'; Attachment='attachment'; }`
+    - `User::creator(): HasOne`、`User::supports(): HasMany`
+    - `Creator::user()`, `plans()`（sort, price 順）, `posts()`, `supports()`, `getRouteKeyName(): 'slug'`, `resolveRouteBinding($value, $field)` は取得後 `$creator->slug !== $value` なら null（MySQL の大文字小文字を区別しない照合順序でも `/@Alice` を 404 にする）
+    - `Plan::creator()`, `supports()`, `activeSupports()`
+    - `Support::user()`, `creator()`, `plan()`、scope `active()`、casts status→SupportStatus, started_at/ended_at→datetime
+    - `Post::creator()`, `files()`, `images()`, `attachments()`, `cover(): BelongsTo(PostFile, 'cover_file_id')`、scope `published()`（status=published かつ published_at not null、published_at desc）、`isPublished(): bool`、casts body→array
+    - `PostFile::post()`、casts kind→PostFileKind
+    - Factories: `Creator::factory()`（user 付き、slug は `fake()->unique()->regexify('[a-z][a-z0-9]{5,10}')`）、`Plan::factory()->for($creator)->price(500)`、`Post::factory()->published()->requiring(500)`、`Post::factory()->draft()`、`Support::factory()->active()->for($user)->forPlan($plan)`（creator_id・price を plan から設定）、`Support::factory()->ended()`
 - 制約: creators.user_id unique, creators.slug unique, plans (creator_id, price) unique, supports.plan_id nullable nullOnDelete, posts.cover_file_id nullable nullOnDelete（post_files 作成後の別マイグレーションで FK 追加）, post_files.post_id cascadeOnDelete, index posts(creator_id, status, published_at), index supports(user_id, creator_id, status)
 
 - [ ] **Step 1: 失敗するテストを書く**
@@ -184,17 +188,19 @@ it('deletes files when post is deleted', function () {
 ### Task 3: Entitlement と PostPolicy（権限マトリクス）
 
 **Files:**
+
 - Create: `app/Services/Entitlement.php`, `app/Policies/PostPolicy.php`
 - Test: `tests/Feature/Entitlement/EntitlementMatrixTest.php`
 
 **Interfaces:**
+
 - Consumes: Task 2 のモデル
 - Produces:
-  - `Entitlement::for(?User $viewer): Entitlement` — 生成時に viewer の active 支援を **1クエリ** で `array<int creatorId, int price>` に読み込む。viewer の creator id も保持。
-  - `Entitlement::canView(Post $post): bool` — spec §6 の擬似コード通り（投稿者本人 → true / 非公開 → false / 0円 → true / 未ログイン → false / support.price >= required_price）
-  - `Entitlement::supportPriceFor(int $creatorId): ?int`
-  - `PostPolicy::view(?User $user, Post $post): bool` → `Entitlement::for($user)->canView($post)`。`PostPolicy::manage(User $user, Post $post): bool` → 投稿者本人のみ。
-  - Entitlement はリクエスト内で使い回せるよう `app()->scoped()` ではなく呼び出し側が保持する（Presenter に渡す）。
+    - `Entitlement::for(?User $viewer): Entitlement` — 生成時に viewer の active 支援を **1クエリ** で `array<int creatorId, int price>` に読み込む。viewer の creator id も保持。
+    - `Entitlement::canView(Post $post): bool` — spec §6 の擬似コード通り（投稿者本人 → true / 非公開 → false / 0円 → true / 未ログイン → false / support.price >= required_price）
+    - `Entitlement::supportPriceFor(int $creatorId): ?int`
+    - `PostPolicy::view(?User $user, Post $post): bool` → `Entitlement::for($user)->canView($post)`。`PostPolicy::manage(User $user, Post $post): bool` → 投稿者本人のみ。
+    - Entitlement はリクエスト内で使い回せるよう `app()->scoped()` ではなく呼び出し側が保持する（Presenter に渡す）。
 
 - [ ] **Step 1: 失敗するテストを書く** — dataset で 8 閲覧者 × 3 投稿 = 24 ケース
 
@@ -241,17 +247,19 @@ it('authorizes via policy', function () {
 ### Task 4: クリエイター登録・プロフィール・公開レイアウト
 
 **Files:**
+
 - Create: `app/Rules/CreatorSlug.php`, `app/Http/Middleware/EnsureUserIsCreator.php`, `app/Http/Controllers/Creator/{CreatorRegistrationController,ProfileController}.php`, `app/Http/Requests/Creator/{RegisterCreatorRequest,UpdateCreatorProfileRequest}.php`, `routes/creator.php`, `resources/js/pages/creator/{register,profile}.tsx`, `resources/js/layouts/public-layout.tsx`, `resources/js/types/fanbox.ts`
 - Modify: `routes/web.php`（`require creator.php`）, `bootstrap/app.php`（middleware alias `creator`）, `resources/js/app.tsx`（`public/` → PublicLayout）, `resources/js/components/app-sidebar.tsx`（ナビ: フィード / 支援中 / クリエイター管理）, `app/Http/Middleware/HandleInertiaRequests.php`（`auth.creator` に `{slug, display_name, avatar_url}|null` を共有）
 - Test: `tests/Feature/Creator/CreatorRegistrationTest.php`, `tests/Feature/Creator/CreatorProfileTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - ルート名: `creator.register`（GET/POST `/creator/register`）、`creator.profile.edit`（GET `/creator/profile`）、`creator.profile.update`（POST `/creator/profile`、multipart のため POST）
-  - middleware alias `creator`: クリエイター未登録なら `creator.register` へリダイレクト。`$request->user()->creator` を前提にできる。
-  - `Creator::avatarUrl(): ?string` / `headerUrl(): ?string`（`Storage::disk('public')->url()`）
-  - TS 型 `CreatorSummary { slug: string; display_name: string; avatar_url: string | null }`（`types/fanbox.ts`）
-  - `PublicLayout`: ヘッダー（ロゴ、未ログインならログイン/新規登録、ログイン済みならユーザーメニュー）＋中央寄せコンテナ
+    - ルート名: `creator.register`（GET/POST `/creator/register`）、`creator.profile.edit`（GET `/creator/profile`）、`creator.profile.update`（POST `/creator/profile`、multipart のため POST）
+    - middleware alias `creator`: クリエイター未登録なら `creator.register` へリダイレクト。`$request->user()->creator` を前提にできる。
+    - `Creator::avatarUrl(): ?string` / `headerUrl(): ?string`（`Storage::disk('public')->url()`）
+    - TS 型 `CreatorSummary { slug: string; display_name: string; avatar_url: string | null }`（`types/fanbox.ts`）
+    - `PublicLayout`: ヘッダー（ロゴ、未ログインならログイン/新規登録、ログイン済みならユーザーメニュー）＋中央寄せコンテナ
 - 振る舞い: 登録済みユーザーが `/creator/register` に来たら `creator.profile.edit` へリダイレクト。slug は登録時に `strtolower` しない（大文字は 422）。アイコン/ヘッダーは image, max 10MB、`creators/{id}/avatar/{ulid}.{ext}` に保存し、旧ファイル削除。表示名 max 50、bio max 2000。すべて `auth`, `verified` 配下。
 
 - [ ] **Step 1: 失敗するテストを書く**
@@ -290,16 +298,18 @@ it('does not allow changing slug', fn () => /* update に slug を送っても�
 ### Task 5: プラン管理
 
 **Files:**
+
 - Create: `app/Http/Controllers/Creator/PlanController.php`, `app/Http/Requests/Creator/{StorePlanRequest,UpdatePlanRequest}.php`, `app/Policies/PlanPolicy.php`, `resources/js/pages/creator/plans/index.tsx`, `resources/js/components/plan-card.tsx`
 - Modify: `routes/creator.php`
 - Test: `tests/Feature/Creator/PlanManagementTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - ルート: `creator.plans.index`（GET）、`creator.plans.store`（POST）、`creator.plans.update`（POST `/creator/plans/{plan}`, multipart）、`creator.plans.destroy`（DELETE）
-  - `PlanPolicy::manage(User, Plan)` 他人のプランは 404（コントローラで `abort_unless(..., 404)`）
-  - TS 型 `PlanData { id; name; description: string|null; price: number; cover_url: string|null; is_accepting: boolean; active_supporters_count: number }`
-  - `plan-card.tsx` は Task 9 の公開ページでも使う（props: `plan: PlanData`, `action?: ReactNode`）
+    - ルート: `creator.plans.index`（GET）、`creator.plans.store`（POST）、`creator.plans.update`（POST `/creator/plans/{plan}`, multipart）、`creator.plans.destroy`（DELETE）
+    - `PlanPolicy::manage(User, Plan)` 他人のプランは 404（コントローラで `abort_unless(..., 404)`）
+    - TS 型 `PlanData { id; name; description: string|null; price: number; cover_url: string|null; is_accepting: boolean; active_supporters_count: number }`
+    - `plan-card.tsx` は Task 9 の公開ページでも使う（props: `plan: PlanData`, `action?: ReactNode`）
 - 振る舞い: price は 100〜50000 の整数、(creator, price) 重複 422、11 件目 422。update で price は受け付けない（送られても無視）。`is_accepting` 切替可。active 支援があるプランの削除は 422（エラーメッセージ「支援者がいるプランは削除できません。受付を停止してください。」）。
 
 - [ ] **Step 1: 失敗するテスト**
@@ -324,19 +334,21 @@ it('returns 404 for another creators plan', ...);
 ### Task 6: ファイル保存と署名付きURL
 
 **Files:**
+
 - Create: `app/Services/PostFileStorer.php`, `app/Services/PostFileUrls.php`, `tests/Fixtures/`（テスト内で生成するため空でも可）
 - Test: `tests/Feature/Files/PostFileStorerTest.php`, `tests/Feature/Files/PostFileUrlsTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - `PostFileStorer::store(Post $post, UploadedFile $file, PostFileKind $kind): PostFile`
-    - パス `creators/{creator_id}/posts/{post_id}/{ulid}.{ext}`（縮小版は `{ulid}_thumb.{ext}`）、ディスク `private`
-    - 画像（gif 以外）: Intervention（GD）で読み込み→ `scaleDown(2560)` → 同形式で再エンコード（EXIF は再エンコードで消える）。縮小版 `scaleDown(640)`。width/height を保存。
-    - gif: 原本をそのまま保存、縮小版は先頭フレームを 640 に縮小し保存。
-    - 添付: そのまま保存、thumb なし。
-    - 保存は DB トランザクション内。ストレージ書き込み失敗時は例外を投げて DB をロールバックし、書き込み済みファイルを削除。
-  - `PostFileStorer::delete(PostFile $file): void` — DB 削除後に path / thumb_path を削除（失敗はログのみ）
-  - `PostFileUrls::url(PostFile $file): string` / `thumbUrl(PostFile $file): string`（thumb 無しなら url） — `Storage::disk('private')->temporaryUrl($path, now()->addMinutes(config('fanbox.signed_url_minutes')), $options)`。添付は `$options = ['ResponseContentDisposition' => 'attachment; filename*=UTF-8\'\''.rawurlencode($original_name)]`。
+    - `PostFileStorer::store(Post $post, UploadedFile $file, PostFileKind $kind): PostFile`
+        - パス `creators/{creator_id}/posts/{post_id}/{ulid}.{ext}`（縮小版は `{ulid}_thumb.{ext}`）、ディスク `private`
+        - 画像（gif 以外）: Intervention（GD）で読み込み→ `scaleDown(2560)` → 同形式で再エンコード（EXIF は再エンコードで消える）。縮小版 `scaleDown(640)`。width/height を保存。
+        - gif: 原本をそのまま保存、縮小版は先頭フレームを 640 に縮小し保存。
+        - 添付: そのまま保存、thumb なし。
+        - 保存は DB トランザクション内。ストレージ書き込み失敗時は例外を投げて DB をロールバックし、書き込み済みファイルを削除。
+    - `PostFileStorer::delete(PostFile $file): void` — DB 削除後に path / thumb_path を削除（失敗はログのみ）
+    - `PostFileUrls::url(PostFile $file): string` / `thumbUrl(PostFile $file): string`（thumb 無しなら url） — `Storage::disk('private')->temporaryUrl($path, now()->addMinutes(config('fanbox.signed_url_minutes')), $options)`。添付は `$options = ['ResponseContentDisposition' => 'attachment; filename*=UTF-8\'\''.rawurlencode($original_name)]`。
 - テスト補助: `tests/Pest.php` に `fakePrivateDisk(): void` — `Storage::fake('private')` の後 `Storage::disk('private')->buildTemporaryUrlsUsing(fn ($path, $exp, $opt) => "https://signed.test/{$path}?expires={$exp->timestamp}".(isset($opt['ResponseContentDisposition']) ? '&cd=1' : ''))`。
 
 - [ ] **Step 1: 失敗するテスト**
@@ -373,18 +385,20 @@ it('deletes stored files', ...);
 ### Task 7: Tiptap 本文バリデータ
 
 **Files:**
+
 - Create: `app/Services/Tiptap/TiptapDocumentValidator.php`
 - Test: `tests/Unit/TiptapDocumentValidatorTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - `TiptapDocumentValidator::validate(array $doc, array $allowedImageIds): void` — 違反時 `ValidationException::withMessages(['body' => '...'])`
-    - 許可ノード: doc, paragraph, heading(attrs.level ∈ {2,3}), text, bulletList, orderedList, listItem, blockquote, horizontalRule, hardBreak, image(attrs = {fileId:int} のみ)
-    - 許可マーク: bold, italic, strike, link(attrs.href は `http://` or `https://` 始まり。attrs キーは href, target, rel のみ)
-    - ノードの許可キー: type, content, text, marks, attrs。未知キー・未知 attrs は拒否
-    - `json_encode($doc)` が `config('fanbox.body_max_bytes')` 超で拒否
-    - 深さ 20 超で拒否
-  - `TiptapDocumentValidator::imageIds(array $doc): array<int>` — 本文中の image fileId 一覧（重複除去）
+    - `TiptapDocumentValidator::validate(array $doc, array $allowedImageIds): void` — 違反時 `ValidationException::withMessages(['body' => '...'])`
+        - 許可ノード: doc, paragraph, heading(attrs.level ∈ {2,3}), text, bulletList, orderedList, listItem, blockquote, horizontalRule, hardBreak, image(attrs = {fileId:int} のみ)
+        - 許可マーク: bold, italic, strike, link(attrs.href は `http://` or `https://` 始まり。attrs キーは href, target, rel のみ)
+        - ノードの許可キー: type, content, text, marks, attrs。未知キー・未知 attrs は拒否
+        - `json_encode($doc)` が `config('fanbox.body_max_bytes')` 超で拒否
+        - 深さ 20 超で拒否
+    - `TiptapDocumentValidator::imageIds(array $doc): array<int>` — 本文中の image fileId 一覧（重複除去）
 
 - [ ] **Step 1: 失敗するテスト**（有効文書は PASS、各違反で例外）
 
@@ -414,22 +428,24 @@ it('extracts image ids', fn () => expect(validator()->imageIds(docWithImages([3,
 ### Task 8: 投稿管理（クリエイター）とエディタ
 
 **Files:**
+
 - Create: `app/Http/Controllers/Creator/{PostController,PostFileController}.php`, `app/Http/Requests/Creator/{UpdatePostRequest,StorePostFileRequest}.php`, `resources/js/pages/creator/posts/{index,edit}.tsx`, `resources/js/components/tiptap/post-editor.tsx`
 - Modify: `routes/creator.php`, `package.json`（`@tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-image`）
 - Test: `tests/Feature/Creator/PostManagementTest.php`, `tests/Feature/Creator/PostFileUploadTest.php`
 
 **Interfaces:**
+
 - Consumes: `PostFileStorer`, `PostFileUrls`, `TiptapDocumentValidator`, `PostPolicy::manage`
 - Produces:
-  - ルート: `creator.posts.index`, `creator.posts.store`（POST → 空の下書き作成 → `creator.posts.edit` へ）, `creator.posts.edit`, `creator.posts.update`（PUT, `action` ∈ {save, publish, unpublish}）, `creator.posts.destroy`, `creator.posts.files.store`（POST, `throttle:60,1`, JSON 応答 `{id, kind, url, thumb_url, original_name, size}`）, `creator.posts.files.destroy`
-  - 他人の投稿は全ルート 404。
-  - update 入力: `title` (required on publish, max 100; 下書き保存時は nullable で空なら「無題」), `excerpt` (nullable max 300), `body` (nullable array), `required_price` (int; 0 または自分のプラン金額、または**既存値と同じ値**), `cover_file_id` (nullable, この投稿の image)
-  - publish: status=published、`published_at` は null のときのみ now()。unpublish: status=draft（published_at は保持）。
-  - 保存後、本文 `imageIds` と cover 以外の image を `PostFileStorer::delete`。
-  - destroy: 全ファイルを `PostFileStorer::delete` → post 削除。
-  - ファイル上限: 画像 `mimes:jpg,jpeg,png,gif,webp|max:10240`、添付 `max:102400`、件数上限超過で 422。
-  - エディタ画面 props: `post`（本文含む・全ファイルの URL 解決済み）、`priceOptions: number[]`（0 + プラン金額 + 現在値, 昇順・重複除去）
-  - `post-editor.tsx`: Tiptap（StarterKit: heading levels [2,3], code/codeBlock 無効; Image 拡張は `fileId` 属性を持ち、src は表示時に `urls[fileId]` から解決）。画像ボタン/ドロップ → `files.store` に fetch（XSRF ヘッダ）→ 挿入。添付リスト・カバー選択・必要金額セレクト・「下書き保存」「公開」「公開取り消し」。
+    - ルート: `creator.posts.index`, `creator.posts.store`（POST → 空の下書き作成 → `creator.posts.edit` へ）, `creator.posts.edit`, `creator.posts.update`（PUT, `action` ∈ {save, publish, unpublish}）, `creator.posts.destroy`, `creator.posts.files.store`（POST, `throttle:60,1`, JSON 応答 `{id, kind, url, thumb_url, original_name, size}`）, `creator.posts.files.destroy`
+    - 他人の投稿は全ルート 404。
+    - update 入力: `title` (required on publish, max 100; 下書き保存時は nullable で空なら「無題」), `excerpt` (nullable max 300), `body` (nullable array), `required_price` (int; 0 または自分のプラン金額、または**既存値と同じ値**), `cover_file_id` (nullable, この投稿の image)
+    - publish: status=published、`published_at` は null のときのみ now()。unpublish: status=draft（published_at は保持）。
+    - 保存後、本文 `imageIds` と cover 以外の image を `PostFileStorer::delete`。
+    - destroy: 全ファイルを `PostFileStorer::delete` → post 削除。
+    - ファイル上限: 画像 `mimes:jpg,jpeg,png,gif,webp|max:10240`、添付 `max:102400`、件数上限超過で 422。
+    - エディタ画面 props: `post`（本文含む・全ファイルの URL 解決済み）、`priceOptions: number[]`（0 + プラン金額 + 現在値, 昇順・重複除去）
+    - `post-editor.tsx`: Tiptap（StarterKit: heading levels [2,3], code/codeBlock 無効; Image 拡張は `fileId` 属性を持ち、src は表示時に `urls[fileId]` から解決）。画像ボタン/ドロップ → `files.store` に fetch（XSRF ヘッダ）→ 挿入。添付リスト・カバー選択・必要金額セレクト・「下書き保存」「公開」「公開取り消し」。
 - [ ] **Step 1: 失敗するテスト**
 
 ```php
@@ -459,22 +475,24 @@ it('rejects deleting a file of another post', ...); // 404
 ### Task 9: PostPresenter と公開ページ
 
 **Files:**
+
 - Create: `app/Presenters/PostPresenter.php`, `app/Http/Controllers/Public/{HomeController,CreatorPageController,PostPageController}.php`, `resources/js/pages/public/{home,creator,post}.tsx`, `resources/js/components/{post-card,locked-post}.tsx`, `resources/js/components/tiptap/post-renderer.tsx`
 - Modify: `routes/web.php`（`/` を HomeController に、`/@{creator:slug}`、`/@{creator:slug}/posts/{post}`）, `resources/js/types/fanbox.ts`
 - Test: `tests/Feature/Public/CreatorPageTest.php`, `tests/Feature/Public/PostPageTest.php`, `tests/Feature/Public/LeakageTest.php`
 
 **Interfaces:**
+
 - Consumes: `Entitlement`, `PostFileUrls`, `TiptapDocumentValidator::imageIds`
 - Produces:
-  - `PostPresenter::summary(Post $post, Entitlement $ent): array` → `{id, title, excerpt, required_price, published_at, cover_thumb_url|null, locked: bool, creator: CreatorSummary}`
-  - `PostPresenter::detail(Post $post, Entitlement $ent): array` → summary + 権限ありなら `{body, image_urls: Record<fileId, url>, attachments: [{id, original_name, size, url}]}`、権限なしなら summary のみ（キー自体を含めない）
-  - 呼び出し前に `creator` と `cover` を eager load する前提（Presenter 内でクエリを発生させない）
-  - ルート名: `home`, `creators.show`, `posts.show`。`posts.show` は `$post->creator_id !== $creator->id` で 404、`! $post->isPublished() && 本人以外` で 404。
-  - creators.show props: `creator`（profile + header_url + bio）, `plans: PlanData[]`（受付中のみ、本人なら全件）, `posts`（`summary` の paginate 20）, `viewerSupportPrice: number|null`
-  - home props: `posts`（全クリエイターの 0円公開の新着 20、summary）, `creators`（新着 12）
-  - TS: `PostSummary`, `PostDetail`, `TiptapNode`
-  - `post-renderer.tsx`: TiptapNode を再帰で React 要素に変換（許可ノードのみ、未知は無視）。link は `rel="noopener noreferrer nofollow" target="_blank"`。image は `image_urls[fileId]`。
-  - `locked-post.tsx`: 🔒、必要金額「月額 ¥{n} 以上のプランで閲覧できます」、プラン一覧へのリンク
+    - `PostPresenter::summary(Post $post, Entitlement $ent): array` → `{id, title, excerpt, required_price, published_at, cover_thumb_url|null, locked: bool, creator: CreatorSummary}`
+    - `PostPresenter::detail(Post $post, Entitlement $ent): array` → summary + 権限ありなら `{body, image_urls: Record<fileId, url>, attachments: [{id, original_name, size, url}]}`、権限なしなら summary のみ（キー自体を含めない）
+    - 呼び出し前に `creator` と `cover` を eager load する前提（Presenter 内でクエリを発生させない）
+    - ルート名: `home`, `creators.show`, `posts.show`。`posts.show` は `$post->creator_id !== $creator->id` で 404、`! $post->isPublished() && 本人以外` で 404。
+    - creators.show props: `creator`（profile + header_url + bio）, `plans: PlanData[]`（受付中のみ、本人なら全件）, `posts`（`summary` の paginate 20）, `viewerSupportPrice: number|null`
+    - home props: `posts`（全クリエイターの 0円公開の新着 20、summary）, `creators`（新着 12）
+    - TS: `PostSummary`, `PostDetail`, `TiptapNode`
+    - `post-renderer.tsx`: TiptapNode を再帰で React 要素に変換（許可ノードのみ、未知は無視）。link は `rel="noopener noreferrer nofollow" target="_blank"`。image は `image_urls[fileId]`。
+    - `locked-post.tsx`: 🔒、必要金額「月額 ¥{n} 以上のプランで閲覧できます」、プラン一覧へのリンク
 - [ ] **Step 1: 失敗するテスト**
 
 ```php
@@ -509,16 +527,18 @@ it('renders creator page with constant query count', function () {
 ### Task 10: ダミー支援・支援中一覧・フィード・支援者一覧
 
 **Files:**
+
 - Create: `app/Services/SupportService.php`, `app/Http/Controllers/Fan/{SupportController,SupportingController,FeedController}.php`, `app/Http/Controllers/Creator/SupporterController.php`, `routes/fan.php`, `resources/js/pages/fan/{feed,supporting}.tsx`, `resources/js/pages/creator/supporters.tsx`
 - Modify: `routes/web.php`, `routes/creator.php`, `resources/js/pages/public/creator.tsx`（プランに「支援する」/「支援中」/「このプランに変更」ボタン）
 - Test: `tests/Feature/Fan/SupportTest.php`, `tests/Feature/Fan/FeedTest.php`, `tests/Feature/Creator/SupportersTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - `SupportService::start(User $user, Plan $plan): Support` — トランザクション内で `Support::where(user, creator)->active()->lockForUpdate()` → 既存 active を ended（ended_at=now）→ 新規 active（price=plan.price, started_at=now）。自分のクリエイター → `DomainException`→ 422、`! is_accepting` → 422、同一プランで既に active → 既存を返す。
-  - `SupportService::end(Support $support): void` — status=ended, ended_at=now
-  - ルート: `supports.store`（POST `/@{creator:slug}/plans/{plan}/support`, `throttle:10,1`, auth+verified）、`supports.destroy`（DELETE `/supports/{support}`, 本人以外 404）、`supporting.index`（GET `/supporting`）、`feed`（GET `/feed`, 支援中クリエイターの公開投稿 summary paginate 20）、`creator.supporters.index`（プラン別 active 人数 + 支援者 display name/name の一覧 paginate 50）
-  - `dashboard` ルートは `feed` へリダイレクトに変更し、ログイン後の遷移先を `feed` にする（`config/fortify.php` の `home`）。
+    - `SupportService::start(User $user, Plan $plan): Support` — トランザクション内で `Support::where(user, creator)->active()->lockForUpdate()` → 既存 active を ended（ended_at=now）→ 新規 active（price=plan.price, started_at=now）。自分のクリエイター → `DomainException`→ 422、`! is_accepting` → 422、同一プランで既に active → 既存を返す。
+    - `SupportService::end(Support $support): void` — status=ended, ended_at=now
+    - ルート: `supports.store`（POST `/@{creator:slug}/plans/{plan}/support`, `throttle:10,1`, auth+verified）、`supports.destroy`（DELETE `/supports/{support}`, 本人以外 404）、`supporting.index`（GET `/supporting`）、`feed`（GET `/feed`, 支援中クリエイターの公開投稿 summary paginate 20）、`creator.supporters.index`（プラン別 active 人数 + 支援者 display name/name の一覧 paginate 50）
+    - `dashboard` ルートは `feed` へリダイレクトに変更し、ログイン後の遷移先を `feed` にする（`config/fortify.php` の `home`）。
 - [ ] **Step 1: 失敗するテスト**
 
 ```php
@@ -545,11 +565,13 @@ it('lists supporters per plan for the creator', ...);
 ### Task 11: 孤児ファイル掃除コマンド
 
 **Files:**
+
 - Create: `app/Console/Commands/PruneOrphanFiles.php`
 - Modify: `routes/console.php`（`Schedule::command('fanbox:prune-orphan-files')->daily()`）
 - Test: `tests/Feature/Console/PruneOrphanFilesTest.php`
 
 **Interfaces:**
+
 - Produces: `fanbox:prune-orphan-files {--dry-run}` — `private` ディスクの `creators/` 配下を走査し、`post_files.path` / `thumb_path` にも `creators.avatar_path` 等にも無く、**最終更新が 24 時間より前**のファイルを削除（アップロード処理中のファイルを消さないため）。`public` ディスクは `creators.avatar_path / header_path / plans.cover_path` と照合。削除件数を出力。
 
 - [ ] **Step 1: 失敗するテスト** — 参照ありは残る / 参照なし・古いは消える / 参照なし・新しいは残る / `--dry-run` は消さない
@@ -561,6 +583,7 @@ it('lists supporters per plan for the creator', ...);
 ### Task 12: デモデータと最終検証
 
 **Files:**
+
 - Modify: `database/seeders/DatabaseSeeder.php`, `README.md`
 - Test: 既存全テスト
 
