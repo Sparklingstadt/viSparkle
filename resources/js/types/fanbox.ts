@@ -66,3 +66,27 @@ export type Paginated<T> = {
     next_page_url: string | null;
     total: number;
 };
+
+export type PostSummary = {
+    id: number;
+    title: string;
+    excerpt: string | null;
+    required_price: number;
+    published_at: string | null;
+    cover_thumb_url: string | null;
+    locked: boolean;
+    creator: CreatorSummary;
+};
+
+export type PostAttachment = {
+    id: number;
+    original_name: string;
+    size: number;
+    url: string;
+};
+
+export type PostDetail = PostSummary & {
+    body?: TiptapNode | null;
+    image_urls?: Record<string, string>;
+    attachments?: PostAttachment[];
+};
