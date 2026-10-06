@@ -48,3 +48,52 @@ function something()
 {
     // ..
 }
+
+/*
+|--------------------------------------------------------------------------
+| Fanbox helpers
+|--------------------------------------------------------------------------
+*/
+
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Fake the private disk and make temporary URLs deterministic:
+ * "https://signed.test/{path}?expires={timestamp}" plus "&cd=1" when a Content-Disposition override is requested.
+ */
+function fakePrivateDisk(): void
+{
+    Storage::fake('private');
+    Storage::disk('private')->buildTemporaryUrlsUsing(
+        fn (string $path, DateTimeInterface $expiration, array $options) => "https://signed.test/{$path}?expires={$expiration->getTimestamp()}"
+            .(isset($options['ResponseContentDisposition']) ? '&cd=1' : '')
+    );
+}
+
+/**
+ * A JPEG carrying an EXIF (APP1) segment, as phones produce.
+ */
+function jpegWithExif(int $width = 3000, int $height = 2000, string $name = 'photo.jpg'): UploadedFile
+{
+    $gd = imagecreatetruecolor($width, $height);
+    imagefilledrectangle($gd, 0, 0, $width, $height, imagecolorallocate($gd, 200, 120, 40));
+    ob_start();
+    imagejpeg($gd, null, 80);
+    $jpeg = (string) ob_get_clean();
+
+    // Big-endian TIFF header with an empty IFD0, wrapped in an APP1 "Exif" segment.
+    $payload = "Exif\0\0"."MM\0\x2A\0\0\0\x08"."\0\0"."\0\0\0\0";
+    $app1 = "\xFF\xE1".pack('n', strlen($payload) + 2).$payload;
+
+    return UploadedFile::fake()->createWithContent($name, substr($jpeg, 0, 2).$app1.substr($jpeg, 2));
+}
+
+function gifUpload(int $width = 1200, int $height = 900, string $name = 'anim.gif'): UploadedFile
+{
+    $gd = imagecreatetruecolor($width, $height);
+    ob_start();
+    imagegif($gd);
+
+    return UploadedFile::fake()->createWithContent($name, (string) ob_get_clean());
+}
