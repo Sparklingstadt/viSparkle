@@ -35,21 +35,24 @@ function applyMarks(text: ReactNode, marks: TiptapMark[] = []): ReactNode {
     }, text);
 }
 
+type Context = {
+    imageUrls: Record<string, string>;
+    onImageError?: () => void;
+};
+
 function renderNodes(
     nodes: TiptapNode[] | undefined,
-    imageUrls: Record<string, string>,
+    context: Context,
 ): ReactNode[] {
-    return (nodes ?? []).map((node, index) =>
-        renderNode(node, imageUrls, index),
-    );
+    return (nodes ?? []).map((node, index) => renderNode(node, context, index));
 }
 
 function renderNode(
     node: TiptapNode,
-    imageUrls: Record<string, string>,
+    context: Context,
     key: number,
 ): ReactNode {
-    const children = () => renderNodes(node.content, imageUrls);
+    const children = () => renderNodes(node.content, context);
 
     switch (node.type) {
         case 'paragraph':
@@ -81,10 +84,16 @@ function renderNode(
                 <span key={key}>{applyMarks(node.text ?? '', node.marks)}</span>
             );
         case 'image': {
-            const url = imageUrls[String(node.attrs?.fileId)];
+            const url = context.imageUrls[String(node.attrs?.fileId)];
 
             return url ? (
-                <img key={key} src={url} alt="" loading="lazy" />
+                <img
+                    key={key}
+                    src={url}
+                    alt=""
+                    loading="lazy"
+                    onError={context.onImageError}
+                />
             ) : null;
         }
         default:
@@ -95,9 +104,11 @@ function renderNode(
 export function PostRenderer({
     doc,
     imageUrls,
+    onImageError,
 }: {
     doc: TiptapNode | null | undefined;
     imageUrls: Record<string, string>;
+    onImageError?: () => void;
 }) {
     if (!doc) {
         return null;
@@ -105,7 +116,7 @@ export function PostRenderer({
 
     return (
         <div className="prose max-w-none dark:prose-invert">
-            {renderNodes(doc.content, imageUrls)}
+            {renderNodes(doc.content, { imageUrls, onImageError })}
         </div>
     );
 }

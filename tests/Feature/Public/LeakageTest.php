@@ -97,7 +97,7 @@ it('shows the full post to a qualifying supporter', function () {
         ->where('post.body.content.0.content.0.text', 'SECRET-BODY-TEXT')
         ->where("post.image_urls.{$this->image->id}", fn (string $url) => str_contains($url, $this->image->path))
         ->where('post.attachments.0.original_name', 'secret.zip')
-        ->where('post.attachments.0.url', fn (string $url) => str_ends_with($url, '&cd=1')));
+        ->where('post.attachments.0.url', route('posts.files.show', [$this->creator, $this->post, $this->attachment])));
 });
 
 it('shows the full post to its author', function () {

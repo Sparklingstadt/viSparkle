@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Download, Paperclip } from 'lucide-react';
+import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
@@ -25,6 +26,17 @@ export default function PostPage({
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
 }) {
+    const lastRefresh = useRef(0);
+    // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
+    const refreshUrls = () => {
+        if (Date.now() - lastRefresh.current < 60_000) {
+            return;
+        }
+
+        lastRefresh.current = Date.now();
+        router.reload({ only: ['post'] });
+    };
+
     const unlocking = plans.filter((plan) => plan.price >= post.required_price);
 
     return (
@@ -38,6 +50,7 @@ export default function PostPage({
                     <img
                         src={post.cover_thumb_url}
                         alt=""
+                        onError={refreshUrls}
                         className={`aspect-video w-full rounded-xl object-cover ${post.locked ? 'blur-md' : ''}`}
                     />
                 )}
@@ -101,6 +114,7 @@ export default function PostPage({
                         <PostRenderer
                             doc={post.body}
                             imageUrls={post.image_urls ?? {}}
+                            onImageError={refreshUrls}
                         />
                         {(post.attachments ?? []).length > 0 && (
                             <section className="space-y-2">
@@ -126,9 +140,6 @@ export default function PostPage({
                                         </li>
                                     ))}
                                 </ul>
-                                <p className="text-xs text-muted-foreground">
-                                    ダウンロードリンクの有効期限は5分です。期限切れの場合はページを再読み込みしてください。
-                                </p>
                             </section>
                         )}
                     </>

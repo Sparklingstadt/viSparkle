@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,3 +18,7 @@ require __DIR__.'/fan.php';
 
 Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
 Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
+Route::get('/@{creator}/posts/{post}/files/{file}', PostFileDownloadController::class)
+    ->whereNumber(['post', 'file'])
+    ->middleware('throttle:120,1')
+    ->name('posts.files.show');

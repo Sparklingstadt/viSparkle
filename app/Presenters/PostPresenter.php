@@ -60,7 +60,7 @@ class PostPresenter
                     'id' => $file->id,
                     'original_name' => $file->original_name,
                     'size' => $file->size,
-                    'url' => $this->urls->url($file),
+                    'url' => route('posts.files.show', [$post->creator, $post, $file]),
                 ]),
         ];
     }
