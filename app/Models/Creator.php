@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -42,6 +43,24 @@ class Creator extends Model
         return $creator !== null && ($field ?? $this->getRouteKeyName()) === 'slug' && $creator->slug !== $value
             ? null
             : $creator;
+    }
+
+    public function avatarUrl(): ?string
+    {
+        return $this->avatar_path === null ? null : Storage::disk('public')->url($this->avatar_path);
+    }
+
+    public function headerUrl(): ?string
+    {
+        return $this->header_path === null ? null : Storage::disk('public')->url($this->header_path);
+    }
+
+    /**
+     * @return array{slug: string, display_name: string, avatar_url: string|null}
+     */
+    public function toSummary(): array
+    {
+        return ['slug' => $this->slug, 'display_name' => $this->display_name, 'avatar_url' => $this->avatarUrl()];
     }
 
     /** @return BelongsTo<User, $this> */

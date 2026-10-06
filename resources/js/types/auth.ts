@@ -1,3 +1,5 @@
+import type { CreatorSummary } from './fanbox';
+
 export type User = {
     id: number;
     name: string;
@@ -12,6 +14,7 @@ export type User = {
 
 export type Auth = {
     user: User;
+    creator: CreatorSummary | null;
 };
 
 export type Passkey = {
