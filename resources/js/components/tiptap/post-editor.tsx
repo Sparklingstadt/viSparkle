@@ -49,11 +49,15 @@ const PostImage = Image.extend<ImageOptions & { resolveUrl: ResolveUrl }>({
         };
     },
     renderHTML({ node, HTMLAttributes }) {
+        const src = this.options.resolveUrl(node.attrs.fileId as number);
+
         return [
             'img',
-            mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-                src: this.options.resolveUrl(node.attrs.fileId as number) ?? '',
-            }),
+            mergeAttributes(
+                this.options.HTMLAttributes,
+                HTMLAttributes,
+                src ? { src } : { alt: '画像を読み込めません' },
+            ),
         ];
     },
 });
@@ -224,21 +228,29 @@ export function PostEditor({
     initialContent: TiptapNode | null;
     imageUrls: Record<number, string>;
     onChange: (doc: TiptapNode) => void;
-    onUploadImage: (file: File) => Promise<number | null>;
+    onUploadImage: (file: File) => Promise<{ id: number; url: string } | null>;
 }) {
     const urlsRef = useRef(imageUrls);
-    urlsRef.current = imageUrls;
+    urlsRef.current = { ...urlsRef.current, ...imageUrls };
     const fileInput = useRef<HTMLInputElement>(null);
 
     const insertImages = async (editor: Editor, files: File[]) => {
         for (const file of files.filter((f) => f.type.startsWith('image/'))) {
-            const fileId = await onUploadImage(file);
+            const uploaded = await onUploadImage(file);
 
-            if (fileId !== null) {
+            if (uploaded !== null) {
+                // Register the URL before inserting: the node renders immediately, before props catch up.
+                urlsRef.current = {
+                    ...urlsRef.current,
+                    [uploaded.id]: uploaded.url,
+                };
                 editor
                     .chain()
                     .focus()
-                    .insertContent({ type: 'image', attrs: { fileId } })
+                    .insertContent({
+                        type: 'image',
+                        attrs: { fileId: uploaded.id },
+                    })
                     .run();
             }
         }

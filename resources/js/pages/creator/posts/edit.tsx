@@ -232,7 +232,7 @@ export default function PostEdit({
 
                             setUploadedImages((list) => [...list, uploaded]);
 
-                            return uploaded.id;
+                            return { id: uploaded.id, url: uploaded.url };
                         }}
                     />
                     {uploading > 0 && (
