@@ -82,3 +82,19 @@ it('returns 404 when deleting a file of another post', function () {
     $this->deleteJson(route('creator.posts.files.destroy', [$this->post, $other]))->assertNotFound();
     expect(PostFile::find($other->id))->not->toBeNull();
 });
+
+it('rejects images with too many pixels before decoding', function () {
+    $this->postJson(route('creator.posts.files.store', $this->post), ['kind' => 'image', 'file' => pngClaiming(20000, 20000)])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('file');
+
+    expect(PostFile::count())->toBe(0);
+});
+
+it('rejects undecodable images with 422 instead of 500', function () {
+    $this->postJson(route('creator.posts.files.store', $this->post), ['kind' => 'image', 'file' => corruptJpeg()])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('file');
+
+    expect(PostFile::count())->toBe(0)->and(Storage::disk('private')->allFiles())->toBe([]);
+});

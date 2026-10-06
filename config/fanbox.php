@@ -15,6 +15,8 @@ return [
     'images_per_post' => 100,
     'image_max_edge' => 2560,
     'thumb_max_edge' => 640,
+    // Decoding cost is width x height x 4 bytes; refuse anything larger before decoding.
+    'image_max_pixels' => 50_000_000,
     'signed_url_minutes' => 5,
 
     /*

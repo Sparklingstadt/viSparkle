@@ -121,3 +121,22 @@ function ttImage(int $fileId): array
 {
     return ['type' => 'image', 'attrs' => ['fileId' => $fileId]];
 }
+
+/**
+ * A tiny PNG whose header claims the given dimensions (a "decompression bomb" shape).
+ */
+function pngClaiming(int $width, int $height, string $name = 'bomb.png'): UploadedFile
+{
+    $gd = imagecreatetruecolor(10, 10);
+    ob_start();
+    imagepng($gd);
+    $png = (string) ob_get_clean();
+    $png = substr_replace($png, pack('NN', $width, $height), 16, 8);
+
+    return UploadedFile::fake()->createWithContent($name, $png);
+}
+
+function corruptJpeg(string $name = 'broken.jpg'): UploadedFile
+{
+    return UploadedFile::fake()->createWithContent($name, "\xFF\xD8\xFF\xE0".str_repeat("\x00garbage", 200));
+}

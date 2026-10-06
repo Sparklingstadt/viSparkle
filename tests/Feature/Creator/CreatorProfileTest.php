@@ -81,3 +81,29 @@ it('rejects non-image avatars and oversized images', function (UploadedFile $fil
     'pdf' => fn () => UploadedFile::fake()->create('a.pdf', 10, 'application/pdf'),
     'oversized' => fn () => UploadedFile::fake()->image('a.jpg')->size(10241),
 ]);
+
+it('strips exif from avatar and header images', function () {
+    $creator = Creator::factory()->create();
+
+    $this->actingAs($creator->user)->post(route('creator.profile.update'), [
+        'display_name' => 'A',
+        'avatar' => jpegWithExif(4000, 3000, 'me.jpg'),
+        'header' => jpegWithExif(800, 200, 'h.jpg'),
+    ])->assertSessionHasNoErrors();
+
+    $creator->refresh();
+    $avatar = Storage::disk('public')->get($creator->avatar_path);
+    expect($avatar)->not->toContain('Exif')
+        ->and(Storage::disk('public')->get($creator->header_path))->not->toContain('Exif')
+        ->and(getimagesizefromstring($avatar)[0])->toBe(2560);
+});
+
+it('rejects oversized-dimension avatars', function () {
+    $creator = Creator::factory()->create();
+
+    $this->actingAs($creator->user)
+        ->post(route('creator.profile.update'), ['display_name' => 'A', 'avatar' => pngClaiming(20000, 20000)])
+        ->assertSessionHasErrors('avatar');
+
+    expect($creator->fresh()->avatar_path)->toBeNull();
+});

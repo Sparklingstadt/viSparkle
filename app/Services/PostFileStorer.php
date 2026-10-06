@@ -10,32 +10,19 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\Encoders\GifEncoder;
-use Intervention\Image\Encoders\JpegEncoder;
-use Intervention\Image\Encoders\PngEncoder;
-use Intervention\Image\Encoders\WebpEncoder;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\EncoderInterface;
-use Intervention\Image\Interfaces\ImageInterface;
 use RuntimeException;
 use Throwable;
 
 /**
  * Stores post uploads on the private disk.
  *
- * Images (except GIF) are decoded and re-encoded, which drops EXIF and other
+ * Images (except GIF) are re-encoded via ImageSanitizer, which drops EXIF and other
  * metadata such as GPS coordinates, and scaled to a display size plus a thumbnail.
  * GIFs are kept byte-for-byte to preserve animation; their thumbnail is the first frame.
  */
 class PostFileStorer
 {
-    private const EXTENSIONS = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/webp' => 'webp',
-        'image/gif' => 'gif',
-    ];
+    public function __construct(private readonly ImageSanitizer $images) {}
 
     public function store(Post $post, UploadedFile $upload, PostFileKind $kind): PostFile
     {
@@ -76,26 +63,25 @@ class PostFileStorer
      */
     private function storeImage(Filesystem $disk, string $base, UploadedFile $upload, array &$written): array
     {
-        $mime = (string) $upload->getMimeType();
-        $extension = self::EXTENSIONS[$mime] ?? throw new RuntimeException("Unsupported image type [{$mime}].");
+        ['image' => $image, 'mime' => $mime, 'extension' => $extension] = $this->images->decode($upload, 'file');
         $path = "{$base}.{$extension}";
         $thumbPath = "{$base}_thumb.{$extension}";
 
-        $image = $this->images()->decodePath($upload->getRealPath());
-
         if ($mime === 'image/gif') {
+            // Keep animated GIFs intact; only the first frame was decoded, for the thumbnail.
             $contents = (string) file_get_contents($upload->getRealPath());
-            $width = $image->width();
-            $height = $image->height();
         } else {
             $image->scaleDown(config('fanbox.image_max_edge'), config('fanbox.image_max_edge'));
-            $contents = (string) $image->encode($this->encoderFor($mime));
-            $width = $image->width();
-            $height = $image->height();
+            $contents = $this->images->encode($image, $mime);
         }
 
+        $width = $image->width();
+        $height = $image->height();
+
         $this->put($disk, $path, $contents, $written);
-        $this->put($disk, $thumbPath, $this->thumbnail($image, $mime), $written);
+
+        $image->scaleDown(config('fanbox.thumb_max_edge'), config('fanbox.thumb_max_edge'));
+        $this->put($disk, $thumbPath, $this->images->encode($image, $mime), $written);
 
         return [
             'path' => $path,
@@ -137,17 +123,6 @@ class PostFileStorer
         ];
     }
 
-    private function thumbnail(ImageInterface $image, string $mime): string
-    {
-        if ($image->isAnimated()) {
-            $image->removeAnimation(0);
-        }
-
-        $image->scaleDown(config('fanbox.thumb_max_edge'), config('fanbox.thumb_max_edge'));
-
-        return (string) $image->encode($this->encoderFor($mime));
-    }
-
     /**
      * @param  string|resource  $contents
      * @param  list<string>  $written
@@ -159,20 +134,5 @@ class PostFileStorer
         }
 
         $written[] = $path;
-    }
-
-    private function encoderFor(string $mime): EncoderInterface
-    {
-        return match ($mime) {
-            'image/png' => new PngEncoder(strip: true),
-            'image/webp' => new WebpEncoder(quality: 85, strip: true),
-            'image/gif' => new GifEncoder,
-            default => new JpegEncoder(quality: 85, strip: true),
-        };
-    }
-
-    private function images(): ImageManager
-    {
-        return new ImageManager(Driver::class, autoOrientation: true, strip: true);
     }
 }

@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\StorePlanRequest;
 use App\Http\Requests\Creator\UpdatePlanRequest;
 use App\Models\Plan;
+use App\Services\ImageSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -96,6 +96,6 @@ class PlanController extends Controller
 
     private function storeCover(int $creatorId, UploadedFile $file): string
     {
-        return $file->storeAs("creators/{$creatorId}/plans", Str::lower((string) Str::ulid()).'.'.$file->extension(), 'public');
+        return app(ImageSanitizer::class)->storePublic($file, "creators/{$creatorId}/plans", 'cover');
     }
 }

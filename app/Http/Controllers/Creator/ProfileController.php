@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Creator;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\UpdateCreatorProfileRequest;
 use App\Models\Creator;
+use App\Services\ImageSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -53,8 +53,6 @@ class ProfileController extends Controller
 
     private function storeImage(Creator $creator, string $field, UploadedFile $file): string
     {
-        $name = Str::lower((string) Str::ulid()).'.'.$file->extension();
-
-        return $file->storeAs("creators/{$creator->id}/{$field}", $name, 'public');
+        return app(ImageSanitizer::class)->storePublic($file, "creators/{$creator->id}/{$field}", $field);
     }
 }

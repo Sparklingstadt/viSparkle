@@ -116,3 +116,10 @@ it('returns 404 for another creators plan', function (string $method, string $ro
     'update' => ['post', 'creator.plans.update'],
     'destroy' => ['delete', 'creator.plans.destroy'],
 ]);
+
+it('strips exif from plan covers', function () {
+    $this->post(route('creator.plans.store'), planPayload(['cover' => jpegWithExif(800, 400, 'c.jpg')]))
+        ->assertSessionHasNoErrors();
+
+    expect(Storage::disk('public')->get($this->creator->plans()->sole()->cover_path))->not->toContain('Exif');
+});
