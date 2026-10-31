@@ -26,15 +26,15 @@ export default function Profile({
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title="プロフィール設定" />
 
-            <h1 className="sr-only">Profile settings</h1>
+            <h1 className="sr-only">プロフィール設定</h1>
 
             <div className="space-y-6">
                 <Heading
                     variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
+                    title="プロフィール"
+                    description="ユーザー名とメールアドレスを変更できます"
                 />
 
                 <Form
@@ -47,7 +47,7 @@ export default function Profile({
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">ユーザー名</Label>
 
                                 <Input
                                     id="name"
@@ -56,7 +56,7 @@ export default function Profile({
                                     name="name"
                                     required
                                     autoComplete="name"
-                                    placeholder="Full name"
+                                    placeholder="例: 山田 花子"
                                 />
 
                                 <InputError
@@ -66,7 +66,7 @@ export default function Profile({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email">メールアドレス</Label>
 
                                 <Input
                                     id="email"
@@ -76,7 +76,7 @@ export default function Profile({
                                     name="email"
                                     required
                                     autoComplete="username"
-                                    placeholder="Email address"
+                                    placeholder="メールアドレス"
                                 />
 
                                 <InputError
@@ -89,22 +89,20 @@ export default function Profile({
                                 auth.user.email_verified_at === null && (
                                     <div>
                                         <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
+                                            メールアドレスが未確認です。{' '}
                                             <Link
                                                 href={send()}
                                                 as="button"
                                                 className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                                             >
-                                                Click here to re-send the
-                                                verification email.
+                                                確認メールを再送信する
                                             </Link>
                                         </p>
 
                                         {status ===
                                             'verification-link-sent' && (
                                             <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
+                                                新しい確認用リンクをメールで送信しました。
                                             </div>
                                         )}
                                     </div>
@@ -115,7 +113,7 @@ export default function Profile({
                                     disabled={processing}
                                     data-test="update-profile-button"
                                 >
-                                    Save
+                                    保存する
                                 </Button>
                             </div>
                         </>
@@ -131,7 +129,7 @@ export default function Profile({
 Profile.layout = {
     breadcrumbs: [
         {
-            title: 'Profile settings',
+            title: 'プロフィール設定',
             href: edit(),
         },
     ],

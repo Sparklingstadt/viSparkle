@@ -14,27 +14,27 @@ import PasskeyVerify from '@/components/passkey-verify';
 export default function ConfirmPassword() {
     return (
         <>
-            <Head title="Confirm password" />
+            <Head title="パスワードの確認" />
 
             <PasskeyVerify
                 routes={{
                     options: confirmOptions(),
                     submit: confirmStore(),
                 }}
-                label="Confirm with passkey"
-                loadingLabel="Confirming..."
-                separator="Or confirm with password"
+                label="パスキーで確認"
+                loadingLabel="確認中…"
+                separator="またはパスワードで確認"
             />
 
             <Form {...store.form()} resetOnSuccess={['password']}>
                 {({ processing, errors }) => (
                     <div className="space-y-6">
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">パスワード</Label>
                             <PasswordInput
                                 id="password"
                                 name="password"
-                                placeholder="Password"
+                                placeholder="パスワード"
                                 autoComplete="current-password"
                                 autoFocus
                             />
@@ -49,7 +49,7 @@ export default function ConfirmPassword() {
                                 data-test="confirm-password-button"
                             >
                                 {processing && <Spinner />}
-                                Confirm password
+                                確認する
                             </Button>
                         </div>
                     </div>
@@ -60,7 +60,6 @@ export default function ConfirmPassword() {
 }
 
 ConfirmPassword.layout = {
-    title: 'Confirm password',
-    description:
-        'This is a secure area of the application. Please confirm your password before continuing.',
+    title: 'パスワードの確認',
+    description: 'この操作を続けるには、パスワードを再入力してください。',
 };

@@ -104,7 +104,7 @@ function TwoFactorSetupStep({
                     <div className="relative flex w-full items-center justify-center">
                         <div className="absolute inset-0 top-1/2 h-px w-full bg-border" />
                         <span className="relative bg-card px-2 py-1">
-                            or, enter the code manually
+                            または、コードを手動で入力
                         </span>
                     </div>
 
@@ -210,7 +210,7 @@ function TwoFactorVerificationStep({
                                 onClick={onBack}
                                 disabled={processing}
                             >
-                                Back
+                                戻る
                             </Button>
                             <Button
                                 type="submit"
@@ -219,7 +219,7 @@ function TwoFactorVerificationStep({
                                     processing || code.length < OTP_MAX_LENGTH
                                 }
                             >
-                                Confirm
+                                確認する
                             </Button>
                         </div>
                     </div>
@@ -262,26 +262,26 @@ export default function TwoFactorSetupModal({
     }>(() => {
         if (twoFactorEnabled) {
             return {
-                title: 'Two-factor authentication enabled',
+                title: '二段階認証を有効にしました',
                 description:
-                    'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-                buttonText: 'Close',
+                    '二段階認証が有効になりました。認証アプリでQRコードを読み取るか、セットアップキーを入力してください。',
+                buttonText: '閉じる',
             };
         }
 
         if (showVerificationStep) {
             return {
-                title: 'Verify authentication code',
+                title: '認証コードの確認',
                 description:
-                    'Enter the 6-digit code from your authenticator app',
+                    '認証アプリに表示されている6桁のコードを入力してください',
                 buttonText: 'Continue',
             };
         }
 
         return {
-            title: 'Enable two-factor authentication',
+            title: '二段階認証を有効にする',
             description:
-                'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
+                '設定を完了するには、認証アプリでQRコードを読み取るか、セットアップキーを入力してください',
             buttonText: 'Continue',
         };
     }, [twoFactorEnabled, showVerificationStep]);

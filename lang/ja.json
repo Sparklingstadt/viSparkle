@@ -166,7 +166,7 @@
     "Railgun Error": "レールガンエラー",
     "Range Not Satisfiable": "範囲外のレンジ",
     "Record": "記録",
-    "Regards,": "よろしくお願いします,",
+    "Regards,": "今後ともよろしくお願いいたします。",
     "Register": "登録",
     "Request Header Fields Too Large": "要求ヘッダーフィールドが大きすぎます",
     "Request Timeout": "リクエストタイムアウト",
@@ -273,5 +273,6 @@
     "Yes": "はい。",
     "You are receiving this email because we received a password reset request for your account.": "パスワード再設定のリクエストを受け付けました。",
     "You left the team \":name\"": "「:name」チームから退出しました。",
-    "You've been invited to join :teamName": ":teamName への参加に招待されています"
+    "You've been invited to join :teamName": ":teamName への参加に招待されています",
+    "Reset Password Notification": "パスワード再設定のお知らせ"
 }
