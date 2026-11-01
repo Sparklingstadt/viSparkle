@@ -15,6 +15,7 @@ type Row = {
     required_price: number;
     published_at: string | null;
     updated_at: string;
+    hidden: boolean;
 };
 
 export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
@@ -58,6 +59,11 @@ export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
+                                        {post.hidden && (
+                                            <Badge variant="destructive">
+                                                非公開（運営）
+                                            </Badge>
+                                        )}
                                         <Badge variant="outline">
                                             {post.required_price === 0
                                                 ? '全体公開'

@@ -48,7 +48,7 @@ it('describes post and creator targets, and deleted ones', function () {
             ->where('reports.data.0.target.url', null)
             ->where('reports.data.1.target.url', route('creators.show', $creator))
             ->where('reports.data.2.target.label', 'こんにちは')
-            ->where('reports.data.2.target.url', route('posts.show', [$post->creator, $post]))
+            ->where('reports.data.2.target.url', route('admin.posts.show', $post))
             ->where('reports.data.2.reason_label', '不適切な内容')
             ->where('reports.data.2.body', '詳細'));
 });

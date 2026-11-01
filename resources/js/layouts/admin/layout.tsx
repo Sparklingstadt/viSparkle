@@ -6,6 +6,7 @@ import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes/admin';
 import { index as payments } from '@/routes/admin/payments';
 import { index as reports } from '@/routes/admin/reports';
+import { index as users } from '@/routes/admin/users';
 import type { NavItem } from '@/types';
 
 // Add new admin sections here; every page under pages/admin/ gets this nav.
@@ -13,6 +14,7 @@ const adminNavItems: (NavItem & { exact?: boolean })[] = [
     { title: 'ダッシュボード', href: dashboard(), exact: true },
     { title: '通報', href: reports() },
     { title: '支払い', href: payments() },
+    { title: '会員', href: users() },
 ];
 
 export default function AdminLayout({ children }: PropsWithChildren) {

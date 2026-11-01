@@ -33,7 +33,7 @@ class ReportController extends Controller
             ->withQueryString();
 
         // Targets are polymorphic by enum, so load them in one query per type instead of per row.
-        $posts = Post::query()->with('creator')
+        $posts = Post::query()
             ->whereIn('id', $reports->getCollection()->where('target_type', ReportTarget::Post)->pluck('target_id'))
             ->get()->keyBy('id');
         $creators = Creator::query()
@@ -91,7 +91,7 @@ class ReportController extends Controller
             $post = $posts->get($report->target_id);
 
             return $post
-                ? ['label' => $post->title, 'url' => route('posts.show', [$post->creator, $post])]
+                ? ['label' => $post->title, 'url' => route('admin.posts.show', $post)]
                 : ['label' => '削除済み', 'url' => null];
         }
 

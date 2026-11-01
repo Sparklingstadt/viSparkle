@@ -63,14 +63,21 @@ class Creator extends Model
 
     /**
      * Resolve by exact slug: MySQL's default collation is case-insensitive, so "/@Alice" would otherwise match "alice".
+     * A creator whose owner is suspended does not exist for any route (every {creator} route is public or fan-facing).
      */
     public function resolveRouteBinding($value, $field = null): ?Model
     {
         $creator = parent::resolveRouteBinding($value, $field);
 
-        return $creator instanceof self && ($field ?? $this->getRouteKeyName()) === 'slug' && $creator->slug !== $value
-            ? null
-            : $creator;
+        if (! $creator instanceof self) {
+            return $creator;
+        }
+
+        if (($field ?? $this->getRouteKeyName()) === 'slug' && $creator->slug !== $value) {
+            return null;
+        }
+
+        return $creator->user->isSuspended() ? null : $creator;
     }
 
     public function avatarUrl(): ?string

@@ -20,7 +20,7 @@ class PostPageController extends Controller
         $entitlement = Entitlement::for($viewer);
 
         abort_unless($post->creator_id === $creator->id, 404);
-        abort_unless($post->isPublished() || $entitlement->isAuthorOf($post), 404);
+        abort_unless(($post->isPublished() && ! $post->isHidden()) || $entitlement->isAuthorOf($post), 404);
 
         $post->setRelation('creator', $creator)->load('cover');
         $isOwner = $entitlement->isAuthorOf($post);
@@ -43,6 +43,8 @@ class PostPageController extends Controller
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
             'reportReasons' => ReportReason::options(),
+            // Only the author is told why the operators hid the post; everyone else gets a 404 above.
+            'hiddenReason' => $isOwner && $post->isHidden() ? (string) $post->hidden_reason : null,
         ]);
     }
 }

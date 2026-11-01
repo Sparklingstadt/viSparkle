@@ -11,8 +11,9 @@ use App\Models\User;
 /**
  * The single source of truth for "who may see which post".
  *
- * A post is visible to its author, or when published and either free or the
- * viewer's active support for that creator is at least the required price.
+ * A post is visible to its author, or when published, not hidden by the
+ * operators, and either free or the viewer's active support for that creator
+ * is at least the required price.
  * The support's price snapshot is used, so changing a plan never changes
  * existing supporters' access.
  */
@@ -64,7 +65,7 @@ final class Entitlement
             return true;
         }
 
-        if (! $post->isPublished()) {
+        if (! $post->isPublished() || $post->isHidden()) {
             return false;
         }
 

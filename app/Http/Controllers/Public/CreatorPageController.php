@@ -27,6 +27,7 @@ class CreatorPageController extends Controller
 
         $posts = $creator->posts()
             ->published()
+            ->visible()
             ->with('cover')
             ->paginate(20)
             ->through(function (Post $post) use ($creator, $presenter, $entitlement) {

@@ -2,6 +2,7 @@
 
 use App\Enums\ReportStatus;
 use App\Models\Payment;
+use App\Models\Post;
 use App\Models\Report;
 use App\Models\Support;
 use App\Models\User;
@@ -12,6 +13,10 @@ dataset('admin routes', [
     'report update' => ['patch', fn () => route('admin.reports.update', Report::factory()->create())],
     'payments' => ['get', fn () => route('admin.payments.index')],
     'payment refund' => ['post', fn () => route('admin.payments.refund', Payment::factory()->create())],
+    'post' => ['get', fn () => route('admin.posts.show', Post::factory()->create())],
+    'post update' => ['patch', fn () => route('admin.posts.update', Post::factory()->create())],
+    'users' => ['get', fn () => route('admin.users.index')],
+    'user update' => ['patch', fn () => route('admin.users.update', User::factory()->create())],
 ]);
 
 it('returns 404 to non-admins on every admin route', function (string $method, Closure $url) {

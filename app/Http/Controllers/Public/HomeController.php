@@ -18,7 +18,9 @@ class HomeController extends Controller
         $entitlement = Entitlement::for($request->user());
 
         $posts = Post::published()
+            ->visible()
             ->where('required_price', 0)
+            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->with(['creator', 'cover'])
             ->limit(20)
             ->get()
