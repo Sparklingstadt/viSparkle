@@ -147,24 +147,30 @@ class StripeGateway implements PaymentGateway
 
     public function createConnectAccount(Creator $creator): string
     {
-        $account = $this->call(fn () => $this->client->accounts->create([
-            'type' => 'express',
-            'country' => 'JP',
-            'email' => $creator->user->email,
-            'capabilities' => ['transfers' => ['requested' => true]],
+        // Stripe no longer allows v1 account creation for new Connect integrations. A v2 "recipient" account with
+        // the Express dashboard receives our destination-charge transfers; the platform carries fees and losses
+        // (as recommended for destination charges). v1 retrieve and login links still work on these accounts.
+        $account = $this->call(fn () => $this->client->v2->core->accounts->create([
+            'contact_email' => $creator->user->email,
+            'display_name' => $creator->display_name,
+            'identity' => ['country' => 'jp'],
+            'dashboard' => 'express',
+            'defaults' => ['responsibilities' => ['fees_collector' => 'application', 'losses_collector' => 'application']],
+            'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
             'metadata' => ['creator_id' => (string) $creator->id],
-        ], ['idempotency_key' => "creator-{$creator->id}-account"]));
+        ], ['idempotency_key' => "creator-{$creator->id}-account-v2"]));
 
         return $account->id;
     }
 
     public function createAccountOnboardingLink(string $accountId, string $refreshUrl, string $returnUrl): string
     {
-        $link = $this->call(fn () => $this->client->accountLinks->create([
+        $link = $this->call(fn () => $this->client->v2->core->accountLinks->create([
             'account' => $accountId,
-            'refresh_url' => $refreshUrl,
-            'return_url' => $returnUrl,
-            'type' => 'account_onboarding',
+            'use_case' => [
+                'type' => 'account_onboarding',
+                'account_onboarding' => ['refresh_url' => $refreshUrl, 'return_url' => $returnUrl],
+            ],
         ]));
 
         return $link->url;
