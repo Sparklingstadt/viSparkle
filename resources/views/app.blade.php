@@ -33,6 +33,20 @@
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <meta name="theme-color" content="#7c3aed">
+
+        {{-- Site-wide share card. Pages render client-side, so crawlers see these defaults for every URL. --}}
+        <meta name="description" content="クリエイターを月額で応援できるサービス。支援するとプランに応じた限定投稿が見られます。">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="{{ config('app.name', 'viSparkle') }}">
+        <meta property="og:title" content="{{ config('app.name', 'viSparkle') }} — クリエイターを、月額で応援しよう">
+        <meta property="og:description" content="クリエイターを月額で応援できるサービス。支援するとプランに応じた限定投稿が見られます。">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:image" content="{{ asset('images/og.png') }}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:locale" content="ja_JP">
+        <meta name="twitter:card" content="summary_large_image">
 
         @fonts
 
