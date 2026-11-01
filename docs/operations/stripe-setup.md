@@ -2,7 +2,7 @@
 
 viSparkle の課金は Stripe（プラットフォーム＋Connect Express）で動く。本番で課金を始める前に、この手順で Stripe 側とアプリ側を設定する。設計の根拠は `docs/superpowers/specs/2026-11-01-fanbox-payments-design.md` を参照。
 
-> **本番で実際に課金を始める前に必須**: 特定商取引法に基づく表記と利用規約への同意は、まだ実装されていない（サブプロジェクト3で対応予定）。これらが入るまでは、本番キーで一般のユーザーから課金してはならない。
+> **本番で実際に課金を始める前に必須**: 特定商取引法に基づく表記と利用規約・プライバシーポリシーへの同意は実装済み。残っているのは、運営者情報（`LEGAL_*`）の入力と、規約類の専門家による確認（§7 のチェックリスト）。
 
 ## 1. 前提
 
@@ -99,6 +99,7 @@ Stripe は、Checkout Session の作成時に `payment_method_types` を指定�
 - ダイアログの「支援も解約する」を選ぶと、支援（サブスクリプション）も即時に解約する。選ばなければ支援は続く。
 - 返金済みの支払いは再度返金できない（422）。返金の失敗はトーストで表示し、ログ（`billing.ops_failed`）と `admin_actions`（`payment.refund_failed`）に残る。
 - Stripe ダッシュボードから返金した場合も、`charge.refunded` で返金額が取り込まれる。クリエイターの収益画面は返金後の額（`amount - refunded_amount`）で集計する。
+- 返金の API 呼び出しには請求書ごとの冪等性キーを付けているため、失敗した返金を同じ請求書で再実行すると、Stripe が24時間は最初の結果をそのまま返す。失敗が続くときは、24時間たってからやり直すか、Stripe ダッシュボードから返金する（`charge.refunded` で取り込まれる）。
 - ダッシュボードから返金するときは、**「送金を取り消す（Reverse transfer）」と「手数料を返金する（Refund application fee）」を必ず選ぶ**。選ばないと運営が返金額を負担することになる。
 
 **チャージバック**（カード会社への異議申し立て）は次のとおり扱う。
@@ -197,7 +198,9 @@ stripe listen \
 - [ ] `.env` が `BILLING_DRIVER=stripe` と本番のキー・シークレット3つを持っている
 - [ ] キューワーカーが動いている（Laravel Cloud では Managed queue `default` が Monitoring → Queues に出ている）
 - [ ] §6 の確認がテストモードですべて通った
-- [ ] **特商法表記・利用規約への同意（サブプロジェクト3）が実装された**
+- [ ] 特商法の事業者情報（`LEGAL_*`。`docs/operations/laravel-cloud.md` §4）を設定し、`/legal/tokushoho` に「準備中」が出ない（個人で住所・電話を伏せるときは `LEGAL_DISCLOSE_ON_REQUEST=true`）。**本番キー（`sk_live_` / `rk_live_`）のまま未設定だと、支援の申し込みは断られる**（`legal.not_ready`）
+- [ ] 利用規約・プライバシーポリシー（`resources/legal/terms.md` / `privacy.md`）を専門家に確認してもらい、直したうえで直した場合は `version:` を上げた。**利用規約（`terms.md`）の `version:` を上げると、全会員に再同意を求める**（同意画面が出る）。プライバシーポリシーの `version:` は表示用で、再同意は求めない。確認前のひな形のまま公開しない
+- [ ] 管理者を作った（`php artisan fanbox:admin you@example.com`。`laravel-cloud.md` §6）
 - [ ] 失敗したジョブの確認・再実行の方法（本番は Monitoring → Queues）を運用担当が把握している
 - [ ] **テストキーから本番キーに切り替えるとき、DB を作り直したか、テストモードで保存された Stripe の ID を消した。** テストモードの ID は本番モードでは無効なので、そのまま残すと顧客・価格・接続アカウントの取得に失敗する。作り直さない場合は、`users.stripe_customer_id`、`plans.stripe_product_id` / `plans.stripe_price_id`、`creators.stripe_account_id` / `creators.payouts_enabled` / `creators.details_submitted` をクリアする（クリエイターは口座登録をやり直す）
 - [ ] **既存の DB にマイグレーションを流す前に、同じ支援者・クリエイターの組（`supports` の `user_id` と `creator_id`）で `active` の支援が重複していないことを確認した。** 重複があると一意インデックスの作成に失敗する。たとえば次の SQL が0件であること:
