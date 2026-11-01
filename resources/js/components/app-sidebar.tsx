@@ -6,6 +6,7 @@ import {
     Palette,
     Ticket,
     Users,
+    Wallet,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -20,6 +21,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { feed } from '@/routes';
+import { index as creatorEarnings } from '@/routes/creator/earnings';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
 import { index as creatorSupporters } from '@/routes/creator/supporters';
@@ -57,6 +59,11 @@ const mainNavItems: NavItem[] = [
         title: '支援者',
         href: creatorSupporters(),
         icon: Users,
+    },
+    {
+        title: '収益',
+        href: creatorEarnings(),
+        icon: Wallet,
     },
 ];
 

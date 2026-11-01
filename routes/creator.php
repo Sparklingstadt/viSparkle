@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Creator\CreatorRegistrationController;
+use App\Http\Controllers\Creator\EarningsController;
 use App\Http\Controllers\Creator\PlanController;
 use App\Http\Controllers\Creator\PostController;
 use App\Http\Controllers\Creator\PostFileController;
@@ -22,6 +23,11 @@ Route::middleware(['auth', 'verified'])->prefix('creator')->name('creator.')->gr
         Route::delete('plans/{plan}', [PlanController::class, 'destroy'])->name('plans.destroy');
 
         Route::get('supporters', [SupporterController::class, 'index'])->name('supporters.index');
+
+        Route::get('earnings', [EarningsController::class, 'index'])->name('earnings.index');
+        Route::post('earnings/onboarding', [EarningsController::class, 'onboarding'])->name('earnings.onboarding');
+        Route::get('earnings/onboarding/return', [EarningsController::class, 'onboardingReturn'])->name('earnings.onboarding.return');
+        Route::post('earnings/dashboard', [EarningsController::class, 'dashboard'])->name('earnings.dashboard');
 
         Route::get('posts', [PostController::class, 'index'])->name('posts.index');
         Route::post('posts', [PostController::class, 'store'])->name('posts.store');
