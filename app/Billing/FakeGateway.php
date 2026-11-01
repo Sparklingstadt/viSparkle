@@ -484,7 +484,7 @@ class FakeGateway implements PaymentGateway
             itemId: (string) $subscription['item_id'],
             priceId: (string) $subscription['price_id'],
             unitAmount: (int) $subscription['unit_amount'],
-            currentPeriodEnd: CarbonImmutable::createFromTimestamp((int) $subscription['period_end']),
+            currentPeriodEnd: CarbonImmutable::createFromTimestamp((int) $subscription['period_end'], config('app.timezone')),
             cancelAtPeriodEnd: (bool) $subscription['cancel_at_period_end'],
             metadata: $subscription['metadata'],
         );
@@ -501,7 +501,7 @@ class FakeGateway implements PaymentGateway
             customerId: (string) $invoice['customer_id'],
             status: (string) $invoice['status'],
             amountPaid: (int) $invoice['amount_paid'],
-            paidAt: CarbonImmutable::createFromTimestamp((int) $invoice['paid_at']),
+            paidAt: CarbonImmutable::createFromTimestamp((int) $invoice['paid_at'], config('app.timezone')),
         );
     }
 }

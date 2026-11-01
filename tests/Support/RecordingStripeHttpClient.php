@@ -4,6 +4,7 @@ namespace Tests\Support;
 
 use RuntimeException;
 use Stripe\HttpClient\ClientInterface;
+use Stripe\Util\CaseInsensitiveArray;
 
 /**
  * Stand-in for stripe-php's HTTP layer: records every request and replays queued JSON responses.
@@ -34,7 +35,7 @@ class RecordingStripeHttpClient implements ClientInterface
      * @param  bool  $hasFile
      * @param  'v1'|'v2'  $apiMode
      * @param  int|null  $maxNetworkRetries
-     * @return array{string, int, array<string, string>}
+     * @return array{string, int, CaseInsensitiveArray}
      */
     public function request($method, $absUrl, $headers, $params, $hasFile, $apiMode = 'v1', $maxNetworkRetries = null)
     {
@@ -48,7 +49,8 @@ class RecordingStripeHttpClient implements ClientInterface
 
         $response = array_shift($this->responses) ?? throw new RuntimeException("No queued Stripe response for {$method} {$absUrl}.");
 
-        return [$response[0], $response[1], ['request-id' => 'req_test']];
+        // Like CurlClient, hand back case-insensitive headers (the error factory looks up 'Request-Id').
+        return [$response[0], $response[1], new CaseInsensitiveArray(['Request-Id' => 'req_test'])];
     }
 
     /**

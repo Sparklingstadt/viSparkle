@@ -3,11 +3,13 @@
 use App\Billing\BillingException;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\PaymentFailedException;
+use App\Billing\PaymentGateway;
 use App\Billing\StripeGateway;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Log;
 use Stripe\ApiRequestor;
 use Stripe\Invoice;
 use Stripe\StripeClient;
@@ -72,7 +74,9 @@ it('creates a destination-charge checkout session', function () {
         ->and($request['params']['subscription_data']['application_fee_percent'])->toBe(10)
         ->and($request['params']['subscription_data']['transfer_data']['destination'])->toBe('acct_x')
         ->and($request['params']['subscription_data']['metadata'])->toBe(['plan_id' => '7'])
-        ->and($request['params']['metadata'])->toBe(['plan_id' => '7']);
+        ->and($request['params']['metadata'])->toBe(['plan_id' => '7'])
+        ->and($request['params']['success_url'])->toBe('https://app.test/success')
+        ->and($request['params']['cancel_url'])->toBe('https://app.test/cancel');
     expect($session->id)->toBe('cs_x')
         ->and($session->url)->toBe('https://checkout.stripe.test/cs_x')
         ->and($session->status)->toBe('open')
@@ -126,6 +130,7 @@ it('reads the period end from the subscription item', function () {
     $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom(stripeSubscriptionBody()));
 
     expect($subscription->currentPeriodEnd?->timestamp)->toBe(1793836800)
+        ->and($subscription->currentPeriodEnd->timezone->getName())->toBe(config('app.timezone'))
         ->and($subscription->id)->toBe('sub_x')
         ->and($subscription->customerId)->toBe('cus_x')
         ->and($subscription->status)->toBe('active')
@@ -170,7 +175,8 @@ it('reads the invoice subscription from the parent details', function () {
         ->and($invoice->customerId)->toBe('cus_x')
         ->and($invoice->status)->toBe('paid')
         ->and($invoice->amountPaid)->toBe(500)
-        ->and($invoice->paidAt?->timestamp)->toBe(1793836800);
+        ->and($invoice->paidAt?->timestamp)->toBe(1793836800)
+        ->and($invoice->paidAt->timezone->getName())->toBe(config('app.timezone'));
 });
 
 it('falls back to the legacy invoice subscription field', function () {
@@ -184,11 +190,45 @@ it('falls back to the legacy invoice subscription field', function () {
 });
 
 it('wraps API errors', function (int $status) {
+    Log::spy();
     $this->http->queue(['error' => ['type' => $status === 402 ? 'card_error' : 'api_error', 'message' => 'Boom']], $status);
 
     expect(fn () => $this->gateway->retrieveSubscription('sub_x'))
         ->toThrow(BillingException::class, 'Boom');
+
+    Log::shouldHaveReceived('error')->withArgs(fn (string $message, array $context) => $context['request_id'] === 'req_test')->once();
 })->with([402, 500]);
+
+it('reports a declined card on an upgrade as a failed payment', function () {
+    $this->http->queue(['error' => ['type' => 'card_error', 'code' => 'card_declined', 'message' => 'Your card was declined.']], 402);
+
+    expect(fn () => $this->gateway->changeSubscriptionPrice('sub_x', 'si_x', 'price_y', true))
+        ->toThrow(PaymentFailedException::class, 'Your card was declined.');
+});
+
+it('keeps other API errors on a plan change as plain billing errors', function () {
+    $this->http->queue(['error' => ['type' => 'api_error', 'message' => 'Boom']], 500);
+
+    try {
+        $this->gateway->changeSubscriptionPrice('sub_x', 'si_x', 'price_y', true);
+        $this->fail('Expected a BillingException.');
+    } catch (BillingException $e) {
+        expect($e)->not->toBeInstanceOf(PaymentFailedException::class);
+    }
+});
+
+it('refuses to build the stripe driver without a secret', function (?string $secret) {
+    config(['fanbox.billing.driver' => 'stripe', 'fanbox.billing.stripe.secret' => $secret]);
+
+    expect(fn () => app(PaymentGateway::class))
+        ->toThrow(BillingException::class, 'Stripe secret is not configured.');
+})->with([[null], ['']]);
+
+it('builds the stripe driver when a secret is configured', function () {
+    config(['fanbox.billing.driver' => 'stripe', 'fanbox.billing.stripe.secret' => 'sk_test_x']);
+
+    expect(app(PaymentGateway::class))->toBeInstanceOf(StripeGateway::class);
+});
 
 it('creates the plan price once', function () {
     $creator = Creator::factory()->create(['display_name' => 'Alice']);

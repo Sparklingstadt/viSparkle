@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\CardException;
 use Stripe\Invoice;
 use Stripe\StripeClient;
 use Stripe\StripeObject;
@@ -108,11 +109,18 @@ class StripeGateway implements PaymentGateway
 
     public function changeSubscriptionPrice(string $subscriptionId, string $itemId, string $priceId, bool $chargeProrationNow): SubscriptionData
     {
-        $subscription = $this->call(fn () => $this->client->subscriptions->update($subscriptionId, [
-            'items' => [['id' => $itemId, 'price' => $priceId]],
-            'proration_behavior' => $chargeProrationNow ? 'always_invoice' : 'none',
-            'payment_behavior' => $chargeProrationNow ? 'pending_if_incomplete' : 'allow_incomplete',
-        ]));
+        try {
+            $subscription = $this->call(fn () => $this->client->subscriptions->update($subscriptionId, [
+                'items' => [['id' => $itemId, 'price' => $priceId]],
+                'proration_behavior' => $chargeProrationNow ? 'always_invoice' : 'none',
+                'payment_behavior' => $chargeProrationNow ? 'pending_if_incomplete' : 'allow_incomplete',
+            ]));
+        } catch (BillingException $e) {
+            // A declined card on the proration invoice is a failed upgrade, not a gateway outage.
+            throw $e->getPrevious() instanceof CardException
+                ? new PaymentFailedException($e->getMessage(), previous: $e->getPrevious())
+                : $e;
+        }
 
         // With pending_if_incomplete the change is held back until the proration invoice is paid.
         if (($subscription->toArray()['pending_update'] ?? null) !== null) {
@@ -199,7 +207,7 @@ class StripeGateway implements PaymentGateway
             itemId: isset($item['id']) ? (string) $item['id'] : null,
             priceId: isset($item['price']['id']) ? (string) $item['price']['id'] : null,
             unitAmount: isset($item['price']['unit_amount']) ? (int) $item['price']['unit_amount'] : null,
-            currentPeriodEnd: $periodEnd === null ? null : CarbonImmutable::createFromTimestamp((int) $periodEnd),
+            currentPeriodEnd: $periodEnd === null ? null : CarbonImmutable::createFromTimestamp((int) $periodEnd, config('app.timezone')),
             cancelAtPeriodEnd: ($data['cancel_at_period_end'] ?? false) === true,
             metadata: self::stringMap($data['metadata'] ?? []),
         );
@@ -220,7 +228,7 @@ class StripeGateway implements PaymentGateway
             customerId: self::idOf($data['customer'] ?? null) ?? '',
             status: (string) ($data['status'] ?? ''),
             amountPaid: (int) ($data['amount_paid'] ?? 0),
-            paidAt: $paidAt === null ? null : CarbonImmutable::createFromTimestamp((int) $paidAt),
+            paidAt: $paidAt === null ? null : CarbonImmutable::createFromTimestamp((int) $paidAt, config('app.timezone')),
         );
     }
 

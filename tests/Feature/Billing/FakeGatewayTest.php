@@ -44,12 +44,16 @@ it('completes a checkout into an active subscription carrying metadata', functio
         ->and($subscription->unitAmount)->toBe(500)
         ->and($subscription->cancelAtPeriodEnd)->toBeFalse()
         ->and($subscription->metadata['user_id'])->toBe((string) $user->id)
-        ->and($subscription->currentPeriodEnd->diffInDays(now()->addMonth(), true))->toBeLessThan(1);
+        ->and($subscription->currentPeriodEnd->diffInDays(now()->addMonth(), true))->toBeLessThan(1)
+        ->and(abs($subscription->currentPeriodEnd->timestamp - now()->addMonth()->timestamp))->toBeLessThan(5)
+        ->and($subscription->currentPeriodEnd->timezone->getName())->toBe(config('app.timezone'));
 
     $invoice = $gateway->retrieveInvoice($gateway->latestInvoiceId($subscription->id));
     expect($invoice->amountPaid)->toBe(500)
         ->and($invoice->status)->toBe('paid')
-        ->and($invoice->subscriptionId)->toBe($subscription->id);
+        ->and($invoice->subscriptionId)->toBe($subscription->id)
+        ->and(abs($invoice->paidAt->timestamp - now()->timestamp))->toBeLessThan(5)
+        ->and($invoice->paidAt->timezone->getName())->toBe(config('app.timezone'));
 });
 
 it('schedules and undoes cancellation', function () {

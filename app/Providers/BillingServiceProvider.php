@@ -19,7 +19,7 @@ class BillingServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PaymentGateway::class, function (Application $app): PaymentGateway {
             return match ($driver = config('fanbox.billing.driver')) {
-                'stripe' => new StripeGateway(new StripeClient((string) config('fanbox.billing.stripe.secret'))),
+                'stripe' => new StripeGateway(new StripeClient($this->stripeSecret())),
                 'fake' => $app->make(FakeGateway::class),
                 default => throw new InvalidArgumentException("Unknown billing driver [{$driver}]."),
             };
@@ -37,5 +37,16 @@ class BillingServiceProvider extends ServiceProvider
 
             return new FakeGateway(Cache::store());
         });
+    }
+
+    private function stripeSecret(): string
+    {
+        $secret = config('fanbox.billing.stripe.secret');
+
+        if (! is_string($secret) || $secret === '') {
+            throw new BillingException('Stripe secret is not configured.');
+        }
+
+        return $secret;
     }
 }
