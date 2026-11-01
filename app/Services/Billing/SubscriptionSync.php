@@ -1,0 +1,200 @@
+<?php
+
+namespace App\Services\Billing;
+
+use App\Billing\BillingException;
+use App\Billing\Data\SubscriptionData;
+use App\Billing\PaymentGateway;
+use App\Enums\SupportStatus;
+use App\Models\Creator;
+use App\Models\Plan;
+use App\Models\Support;
+use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * The single writer of a support's billing state: mirrors the latest Stripe subscription onto its support row.
+ * Always re-reads the subscription, so duplicate and out-of-order events converge on the same result.
+ */
+class SubscriptionSync
+{
+    /** @var array<string, SupportStatus> Stripe statuses not listed here (`incomplete`) never create or change a support. */
+    private const STATUSES = [
+        'active' => SupportStatus::Active,
+        'trialing' => SupportStatus::Active,
+        'past_due' => SupportStatus::Active,
+        'canceled' => SupportStatus::Ended,
+        'unpaid' => SupportStatus::Ended,
+        'incomplete_expired' => SupportStatus::Ended,
+        'paused' => SupportStatus::Ended,
+    ];
+
+    public function __construct(private readonly PaymentGateway $gateway) {}
+
+    /**
+     * @throws BillingException
+     */
+    public function sync(string $subscriptionId): ?Support
+    {
+        return $this->apply($this->gateway->retrieveSubscription($subscriptionId));
+    }
+
+    public function apply(SubscriptionData $data): ?Support
+    {
+        try {
+            $result = DB::transaction(fn () => $this->write($data));
+        } catch (UniqueConstraintViolationException $e) {
+            // Another active support for the same user and creator was committed by a writer that skipped our lock.
+            $ids = $this->metadataIds($data);
+            $other = $ids === null ? null : $this->activeSupport($ids['user_id'], $ids['creator_id'], $data->id);
+
+            if ($other === null) {
+                throw $e;
+            }
+
+            $result = ['duplicate' => $other];
+        }
+
+        if (isset($result['duplicate'])) {
+            $this->cancelDuplicate($data, $result['duplicate']);
+
+            return $result['duplicate'];
+        }
+
+        return $result['support'] ?? null;
+    }
+
+    /**
+     * @return array{support?: Support|null, duplicate?: Support}
+     */
+    private function write(SubscriptionData $data): array
+    {
+        $ids = $this->metadataIds($data);
+        $userId = Support::query()->where('stripe_subscription_id', $data->id)->value('user_id') ?? $ids['user_id'] ?? null;
+
+        // Lock the user first (as SupportService does), then the support, so syncs for the same user run one at a time.
+        $user = $userId === null ? null : User::query()->whereKey($userId)->lockForUpdate()->first();
+        $support = Support::query()->where('stripe_subscription_id', $data->id)->lockForUpdate()->first();
+
+        $owner = $support === null ? $ids['user_id'] ?? null : $support->user_id;
+
+        if ($user === null || $user->id !== $owner || $user->stripe_customer_id !== $data->customerId) {
+            return $this->mismatch($data, $support);
+        }
+
+        $status = self::STATUSES[$data->status] ?? null;
+
+        if ($status === null) {
+            return ['support' => $support];
+        }
+
+        if ($support === null) {
+            if ($ids === null || ! Creator::query()->whereKey($ids['creator_id'])->exists()) {
+                return $this->mismatch($data, null);
+            }
+
+            $support = (new Support)->forceFill([
+                'user_id' => $user->id,
+                'creator_id' => $ids['creator_id'],
+                'plan_id' => Plan::query()->where('creator_id', $ids['creator_id'])->whereKey($ids['plan_id'])->value('id'),
+                'started_at' => now(),
+            ]);
+        }
+
+        if ($status === SupportStatus::Active && $support->status !== SupportStatus::Active) {
+            $other = $this->activeSupport($support->user_id, $support->creator_id, $data->id);
+
+            if ($other !== null) {
+                return ['duplicate' => $other];
+            }
+        }
+
+        $planId = $data->priceId === null ? null : Plan::query()
+            ->where('stripe_price_id', $data->priceId)
+            ->where('creator_id', $support->creator_id)
+            ->value('id');
+
+        $support->forceFill([
+            'stripe_subscription_id' => $data->id,
+            'plan_id' => $planId ?? $support->plan_id,
+            'price' => $data->unitAmount ?? ($support->exists ? $support->price : $support->plan?->price) ?? 0,
+            'status' => $status,
+            'stripe_status' => $data->status,
+            'current_period_end' => $data->currentPeriodEnd,
+            'cancel_at_period_end' => $data->cancelAtPeriodEnd,
+            'ended_at' => match (true) {
+                $status === SupportStatus::Active => null,
+                $support->status === SupportStatus::Ended => $support->ended_at,
+                default => now(),
+            },
+        ])->save();
+
+        return ['support' => $support];
+    }
+
+    /**
+     * The subscription's customer, metadata and support do not belong together: record it and leave the data alone.
+     *
+     * @return array{support: null}
+     */
+    private function mismatch(SubscriptionData $data, ?Support $support): array
+    {
+        Log::warning('billing.metadata_mismatch', [
+            'subscription' => $data->id,
+            'customer' => $data->customerId,
+            'metadata' => $data->metadata,
+            'support_id' => $support?->id,
+        ]);
+
+        return ['support' => null];
+    }
+
+    /**
+     * @return array{user_id: int, creator_id: int, plan_id: int}|null
+     */
+    private function metadataIds(SubscriptionData $data): ?array
+    {
+        $ids = [];
+
+        foreach (['user_id', 'creator_id', 'plan_id'] as $key) {
+            $value = $data->metadata[$key] ?? null;
+
+            if (! is_string($value) || ! ctype_digit($value)) {
+                return null;
+            }
+
+            $ids[$key] = (int) $value;
+        }
+
+        return $ids;
+    }
+
+    private function activeSupport(int $userId, int $creatorId, string $exceptSubscriptionId): ?Support
+    {
+        return Support::active()
+            ->where('user_id', $userId)
+            ->where('creator_id', $creatorId)
+            ->where(fn ($query) => $query->whereNull('stripe_subscription_id')->orWhere('stripe_subscription_id', '!=', $exceptSubscriptionId))
+            ->first();
+    }
+
+    /**
+     * A second subscription for a creator the user already supports: cancel it now (refunds are manual).
+     */
+    private function cancelDuplicate(SubscriptionData $data, Support $existing): void
+    {
+        Log::error('billing.duplicate_subscription', [
+            'subscription' => $data->id,
+            'user_id' => $existing->user_id,
+            'creator_id' => $existing->creator_id,
+        ]);
+
+        try {
+            $this->gateway->cancelSubscriptionNow($data->id);
+        } catch (BillingException $e) {
+            Log::error('billing.duplicate_cancel_failed', ['subscription' => $data->id, 'message' => $e->getMessage()]);
+        }
+    }
+}

@@ -55,8 +55,13 @@ function something()
 |--------------------------------------------------------------------------
 */
 
+use App\Billing\Data\CheckoutRequest;
+use App\Billing\Data\SubscriptionData;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
+use App\Models\Plan;
+use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -156,4 +161,30 @@ function fakeBilling(): FakeGateway
     assert($gateway instanceof FakeGateway);
 
     return $gateway;
+}
+
+/**
+ * Check out the plan on the fake gateway as the user and return the subscription (not yet synced).
+ * Creates and saves the user's Stripe customer when missing; metadata defaults to the user/creator/plan.
+ *
+ * @param  array<string, string>|null  $metadata
+ */
+function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $metadata = null): SubscriptionData
+{
+    if ($user->stripe_customer_id === null) {
+        $user->forceFill(['stripe_customer_id' => $gateway->createCustomer($user)])->save();
+    }
+
+    $session = $gateway->createCheckoutSession(new CheckoutRequest(
+        customerId: (string) $user->stripe_customer_id,
+        priceId: $gateway->ensurePrice($plan)->priceId,
+        destinationAccountId: (string) $plan->creator->stripe_account_id,
+        feePercent: 10,
+        metadata: $metadata ?? ['user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        successUrl: 'https://app.test/success',
+        cancelUrl: 'https://app.test/cancel',
+        expiresAt: CarbonImmutable::now()->addMinutes(30),
+    ));
+
+    return $gateway->completeCheckout($session->id);
 }
