@@ -269,6 +269,9 @@ class StripeGateway implements PaymentGateway
     /**
      * Run one Stripe call, turning provider errors into BillingException.
      *
+     * stripe-php raises advisory "Stripe-Notice" headers as E_USER_WARNING after a successful
+     * request; Laravel would turn that into an exception and lose the response, so log it instead.
+     *
      * @template T
      *
      * @param  Closure(): T  $call
@@ -276,6 +279,12 @@ class StripeGateway implements PaymentGateway
      */
     private function call(Closure $call): mixed
     {
+        set_error_handler(function (int $level, string $message): bool {
+            Log::warning('billing.stripe_notice', ['message' => $message]);
+
+            return true;
+        }, E_USER_WARNING);
+
         try {
             return $call();
         } catch (ApiErrorException $e) {
@@ -286,6 +295,8 @@ class StripeGateway implements PaymentGateway
             ]);
 
             throw new BillingException($e->getMessage(), previous: $e);
+        } finally {
+            restore_error_handler();
         }
     }
 }

@@ -14,15 +14,16 @@ class RecordingStripeHttpClient implements ClientInterface
     /** @var list<array{method: string, url: string, path: string, params: array<string, mixed>, headers: list<string>}> */
     public array $requests = [];
 
-    /** @var list<array{string, int}> */
+    /** @var list<array{string, int, array<string, string>}> */
     private array $responses = [];
 
     /**
      * @param  array<string, mixed>  $body
+     * @param  array<string, string>  $headers  extra response headers (e.g. Stripe-Notice)
      */
-    public function queue(array $body, int $status = 200): self
+    public function queue(array $body, int $status = 200, array $headers = []): self
     {
-        $this->responses[] = [json_encode($body, JSON_THROW_ON_ERROR), $status];
+        $this->responses[] = [json_encode($body, JSON_THROW_ON_ERROR), $status, $headers];
 
         return $this;
     }
@@ -50,7 +51,7 @@ class RecordingStripeHttpClient implements ClientInterface
         $response = array_shift($this->responses) ?? throw new RuntimeException("No queued Stripe response for {$method} {$absUrl}.");
 
         // Like CurlClient, hand back case-insensitive headers (the error factory looks up 'Request-Id').
-        return [$response[0], $response[1], new CaseInsensitiveArray(['Request-Id' => 'req_test'])];
+        return [$response[0], $response[1], new CaseInsensitiveArray(['Request-Id' => 'req_test', ...$response[2]])];
     }
 
     /**

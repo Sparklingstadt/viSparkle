@@ -295,6 +295,18 @@ it('creates a connect account for the creator', function () {
         ->and($this->http->header(0, 'Idempotency-Key'))->toBe("creator-{$creator->id}-account");
 });
 
+it('logs stripe notices instead of failing the call', function () {
+    Log::spy();
+    $creator = Creator::factory()->create();
+    $this->http->queue(['id' => 'acct_x', 'object' => 'account'], headers: ['Stripe-Notice' => 'We recommend building your integration using Accounts v2.']);
+
+    expect($this->gateway->createConnectAccount($creator))->toBe('acct_x');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context) => $message === 'billing.stripe_notice' && str_contains($context['message'], 'Accounts v2'))
+        ->once();
+});
+
 it('returns onboarding, dashboard and portal URLs', function () {
     $this->http->queue(['object' => 'account_link', 'url' => 'https://connect.stripe.test/onboard'])
         ->queue(['object' => 'login_link', 'url' => 'https://connect.stripe.test/dashboard'])
