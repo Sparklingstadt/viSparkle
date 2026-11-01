@@ -63,8 +63,8 @@ class LegalDocuments
             throw new RuntimeException("Unknown legal document [{$name}].");
         }
 
-        // Keyed by mtime, so editing the file is picked up without clearing the cache.
-        return Cache::rememberForever("legal:{$name}:".filemtime($path), function () use ($path, $name): array {
+        // Keyed by content hash, so editing the file is picked up without clearing the cache.
+        return Cache::rememberForever("legal:{$name}:".md5_file($path), function () use ($path, $name): array {
             $source = (string) file_get_contents($path);
 
             if (! preg_match(self::FRONTMATTER, $source, $match) || ! preg_match('/^version:\s*(\S+)\s*$/m', $match[1], $version)) {

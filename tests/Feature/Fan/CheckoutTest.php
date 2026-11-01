@@ -314,6 +314,7 @@ it('refuses checkout in production with a live stripe key until the legal detail
     }
 })->with([
     'live key, not ready' => ['sk_live_x', false, false],
+    'restricted live key, not ready' => ['rk_live_x', false, false],
     'test key, not ready' => ['sk_test_x', false, true],
     'live key, ready' => ['sk_live_x', true, true],
 ]);
