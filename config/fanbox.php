@@ -59,6 +59,9 @@ return [
             'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET'),
         ],
         'checkout_expires_minutes' => 30,
+        // Prefix for Stripe idempotency keys, so environments sharing one Stripe account (e.g. local and production on
+        // the same test-mode keys) never reuse each other's keys. Defaults to "{APP_ENV}/{APP_URL host}".
+        'idempotency_prefix' => env('BILLING_IDEMPOTENCY_PREFIX', env('APP_ENV', 'production').'/'.(parse_url((string) env('APP_URL', ''), PHP_URL_HOST) ?: 'app')),
     ],
 
 ];
