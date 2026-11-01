@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Ten more demo creators for local browsing. Their accounts use the password "password" and have no payout
@@ -108,32 +109,178 @@ class DemoCreatorsSeeder extends Seeder
         ]],
     ];
 
+    /**
+     * Two colours per creator (avatar background / header gradient), keyed by slug.
+     *
+     * @var array<string, array{string, string}>
+     */
+    private const PALETTES = [
+        'demo-creator' => ['#6366f1', '#ec4899'],
+        'sakura-illust' => ['#f472b6', '#fde68a'],
+        'kuroneko-manga' => ['#1f2937', '#f59e0b'],
+        'pixel-forge' => ['#16a34a', '#0ea5e9'],
+        'aoi-music' => ['#2563eb', '#a5b4fc'],
+        'tanaka-photo' => ['#b45309', '#fcd34d'],
+        'moko-craft' => ['#f9a8d4', '#a7f3d0'],
+        'night-novel' => ['#312e81', '#c4b5fd'],
+        'hiro-3d' => ['#0f766e', '#f97316'],
+        'yuki-cooking' => ['#dc2626', '#fef3c7'],
+        'studio-lumen' => ['#0369a1', '#facc15'],
+    ];
+
+    /**
+     * Safe to re-run: existing creators keep their plans and posts and only get missing images.
+     */
     public function run(): void
     {
         foreach (self::CREATORS as $index => [$slug, $name, $bio, $plans, $posts]) {
+            if (Creator::where('slug', $slug)->exists()) {
+                continue;
+            }
+
             $creator = Creator::factory()
                 ->for(User::factory()->state(['name' => $name, 'email' => "{$slug}@example.com"]))
                 ->create(['slug' => $slug, 'display_name' => $name, 'bio' => $bio]);
 
-            foreach ($plans as $sort => [$price, $planName, $description]) {
-                Plan::factory()->for($creator)->create(['price' => $price, 'name' => $planName, 'description' => $description, 'sort' => $sort]);
-            }
-
-            foreach ($posts as $i => [$price, $title, $excerpt]) {
-                Post::factory()->for($creator)->published()->requiring($price)->create([
-                    'title' => $title,
-                    'excerpt' => $excerpt,
-                    'published_at' => now()->subDays(30 - $index * 2 - $i)->setTime(12, 0),
-                    'body' => [
-                        'type' => 'doc',
-                        'content' => [
-                            ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => $title]]],
-                            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $excerpt]]],
-                            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'いつも応援してくださり、ありがとうございます。']]],
-                        ],
-                    ],
-                ]);
-            }
+            $this->createContent($creator, $index, $plans, $posts);
         }
+
+        foreach (Creator::whereIn('slug', array_keys(self::PALETTES))->get() as $creator) {
+            $this->paintImages($creator, self::PALETTES[$creator->slug]);
+        }
+    }
+
+    /**
+     * @param  list<array{int, string, string}>  $plans
+     * @param  list<array{int, string, string}>  $posts
+     */
+    private function createContent(Creator $creator, int $index, array $plans, array $posts): void
+    {
+        foreach ($plans as $sort => [$price, $planName, $description]) {
+            Plan::factory()->for($creator)->create(['price' => $price, 'name' => $planName, 'description' => $description, 'sort' => $sort]);
+        }
+
+        foreach ($posts as $i => [$price, $title, $excerpt]) {
+            Post::factory()->for($creator)->published()->requiring($price)->create([
+                'title' => $title,
+                'excerpt' => $excerpt,
+                'published_at' => now()->subDays(30 - $index * 2 - $i)->setTime(12, 0),
+                'body' => [
+                    'type' => 'doc',
+                    'content' => [
+                        ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => $title]]],
+                        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $excerpt]]],
+                        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'いつも応援してくださり、ありがとうございます。']]],
+                    ],
+                ],
+            ]);
+        }
+    }
+
+    /**
+     * A flat avatar with the slug's initial and a gradient header with soft circles, stored on the public disk.
+     *
+     * @param  array{string, string}  $palette
+     */
+    private function paintImages(Creator $creator, array $palette): void
+    {
+        $updates = [];
+
+        if ($creator->avatar_path === null) {
+            $path = "creators/{$creator->id}/avatar/demo.png";
+            Storage::disk('public')->put($path, $this->avatar(strtoupper($creator->slug[0]), $palette));
+            $updates['avatar_path'] = $path;
+        }
+
+        if ($creator->header_path === null) {
+            $path = "creators/{$creator->id}/header/demo.png";
+            Storage::disk('public')->put($path, $this->header($palette));
+            $updates['header_path'] = $path;
+        }
+
+        if ($updates !== []) {
+            $creator->update($updates);
+        }
+    }
+
+    /**
+     * @param  array{string, string}  $palette
+     */
+    private function avatar(string $letter, array $palette): string
+    {
+        $size = 400;
+        $image = imagecreatetruecolor($size, $size);
+        imagefill($image, 0, 0, $this->color($image, $palette[0]));
+        imagefilledellipse($image, 300, 90, 260, 260, $this->color($image, $palette[1], 70));
+
+        // Render the letter with GD's built-in font, then scale it up for a chunky pixel look.
+        $glyph = imagecreatetruecolor(9, 15);
+        $background = $this->color($glyph, $palette[0]);
+        imagefill($glyph, 0, 0, $background);
+        imagecolortransparent($glyph, $background);
+        imagestring($glyph, 5, 0, 0, $letter, $this->color($glyph, '#ffffff'));
+        imagecopyresized($image, $glyph, 128, 80, 0, 0, 162, 270, 9, 15);
+
+        return $this->png($image);
+    }
+
+    /**
+     * @param  array{string, string}  $palette
+     */
+    private function header(array $palette): string
+    {
+        [$width, $height] = [1500, 500];
+        $image = imagecreatetruecolor($width, $height);
+        [$from, $to] = [$this->rgb($palette[0]), $this->rgb($palette[1])];
+
+        for ($x = 0; $x < $width; $x++) {
+            $t = $x / ($width - 1);
+            [$r, $g, $b] = array_map(fn (int $a, int $b) => $this->byte((int) round($a + ($b - $a) * $t)), $from, $to);
+            imageline($image, $x, 0, $x, $height, (int) imagecolorallocate($image, $r, $g, $b));
+        }
+
+        foreach ([[220, 380, 360], [760, 80, 220], [1260, 330, 420], [1050, 470, 160]] as [$cx, $cy, $d]) {
+            imagefilledellipse($image, $cx, $cy, $d, $d, $this->color($image, '#ffffff', 100));
+        }
+
+        return $this->png($image);
+    }
+
+    /**
+     * @return array{int<0, 255>, int<0, 255>, int<0, 255>}
+     */
+    private function rgb(string $hex): array
+    {
+        return [
+            $this->byte((int) hexdec(substr($hex, 1, 2))),
+            $this->byte((int) hexdec(substr($hex, 3, 2))),
+            $this->byte((int) hexdec(substr($hex, 5, 2))),
+        ];
+    }
+
+    /**
+     * @return int<0, 255>
+     */
+    private function byte(int $value): int
+    {
+        return max(0, min(255, $value));
+    }
+
+    /**
+     * @param  int<0, 127>  $alpha  0 (opaque) to 127 (transparent)
+     */
+    private function color(\GdImage $image, string $hex, int $alpha = 0): int
+    {
+        [$r, $g, $b] = $this->rgb($hex);
+
+        return (int) imagecolorallocatealpha($image, $r, $g, $b, $alpha);
+    }
+
+    private function png(\GdImage $image): string
+    {
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
     }
 }
