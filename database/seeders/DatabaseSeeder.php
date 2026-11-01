@@ -54,5 +54,7 @@ class DatabaseSeeder extends Seeder
                 ],
             ]);
         }
+
+        $this->call(DemoCreatorsSeeder::class);
     }
 }
