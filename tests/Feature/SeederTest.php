@@ -3,6 +3,7 @@
 use App\Models\Creator;
 use App\Models\User;
 use Database\Seeders\DemoCreatorsSeeder;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 it('seeds demo accounts, plans and posts', function () {
@@ -55,6 +56,28 @@ it('gives every demo creator an avatar and a header image', function () {
         expect(getimagesizefromstring(Storage::disk('public')->get($creator->avatar_path))[0])->toBe(400)
             ->and(getimagesizefromstring(Storage::disk('public')->get($creator->header_path))[0])->toBe(1500);
     }
+});
+
+it('gives demo accounts an unknown password in production', function () {
+    Storage::fake('public');
+    app()->detectEnvironment(fn () => 'production');
+
+    // The exact command used on Laravel Cloud.
+    $this->artisan('db:seed', ['--class' => DemoCreatorsSeeder::class, '--force' => true])->assertSuccessful();
+
+    $user = User::where('email', 'sakura-illust@example.com')->sole();
+
+    expect(Creator::count())->toBe(10)
+        ->and(Hash::check('password', $user->password))->toBeFalse()
+        ->and($user->email_verified_at)->not->toBeNull();
+});
+
+it('keeps the known demo password locally', function () {
+    Storage::fake('public');
+
+    $this->seed(DemoCreatorsSeeder::class);
+
+    expect(Hash::check('password', User::where('email', 'sakura-illust@example.com')->sole()->password))->toBeTrue();
 });
 
 it('can be re-run without duplicating creators or replacing images', function () {
