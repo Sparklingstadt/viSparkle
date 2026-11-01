@@ -1,15 +1,27 @@
 import { Head, Link } from '@inertiajs/react';
 import { PostCard } from '@/components/post-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { home } from '@/routes';
 import { show } from '@/routes/creators';
 import type { CreatorSummary, PostSummary } from '@/types';
+
+type PostSort = 'new' | 'popular';
+
+const sortTabs: { label: string; sort: PostSort }[] = [
+    { label: '新着', sort: 'new' },
+    { label: '人気', sort: 'popular' },
+];
 
 export default function Home({
     posts,
     creators,
+    sort,
 }: {
     posts: PostSummary[];
     creators: CreatorSummary[];
+    sort: PostSort;
 }) {
     return (
         <>
@@ -60,14 +72,61 @@ export default function Home({
                 </section>
 
                 <section className="space-y-4">
-                    <h2 className="text-lg font-semibold">
-                        新着の全体公開投稿
-                    </h2>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {posts.map((post) => (
-                            <PostCard key={post.id} post={post} showCreator />
-                        ))}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-lg font-semibold">
+                            {sort === 'popular'
+                                ? '人気の全体公開投稿'
+                                : '新着の全体公開投稿'}
+                        </h2>
+                        <div className="flex gap-1" role="tablist">
+                            {sortTabs.map((tab) => (
+                                <Button
+                                    key={tab.sort}
+                                    size="sm"
+                                    variant="ghost"
+                                    asChild
+                                    className={cn({
+                                        'bg-muted': tab.sort === sort,
+                                    })}
+                                >
+                                    <Link
+                                        href={home({
+                                            query:
+                                                tab.sort === 'popular'
+                                                    ? { sort: 'popular' }
+                                                    : {},
+                                        })}
+                                        role="tab"
+                                        aria-selected={tab.sort === sort}
+                                        preserveScroll
+                                        only={['posts', 'sort']}
+                                    >
+                                        {tab.label}
+                                    </Link>
+                                </Button>
+                            ))}
+                        </div>
                     </div>
+                    {sort === 'popular' && (
+                        <p className="text-sm text-muted-foreground">
+                            直近30日に公開された投稿を、閲覧数の多い順に表示しています。
+                        </p>
+                    )}
+                    {posts.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            まだ投稿がありません。
+                        </p>
+                    ) : (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {posts.map((post) => (
+                                <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    showCreator
+                                />
+                            ))}
+                        </div>
+                    )}
                 </section>
             </div>
         </>
