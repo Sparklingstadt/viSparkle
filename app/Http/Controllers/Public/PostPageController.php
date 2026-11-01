@@ -36,6 +36,8 @@ class PostPageController extends Controller
             'isOwner' => $isOwner,
             'viewerSupportPrice' => $entitlement->supportPriceFor($creator->id),
             'viewerPlanId' => $support?->plan_id,
+            'viewerSupportId' => $support?->id,
+            'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
         ]);
     }

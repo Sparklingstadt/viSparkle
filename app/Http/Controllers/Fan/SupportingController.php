@@ -23,8 +23,15 @@ class SupportingController extends Controller
                 'plan_name' => $support->plan?->name,
                 'price' => $support->price,
                 'started_at' => $support->started_at,
+                'is_billing' => $support->isBilling(),
+                'stripe_status' => $support->stripe_status,
+                'current_period_end' => $support->current_period_end,
+                'cancel_at_period_end' => $support->cancel_at_period_end,
             ]);
 
-        return Inertia::render('fan/supporting', ['supports' => $supports]);
+        return Inertia::render('fan/supporting', [
+            'supports' => $supports,
+            'hasBillingAccount' => $request->user()->stripe_customer_id !== null,
+        ]);
     }
 }

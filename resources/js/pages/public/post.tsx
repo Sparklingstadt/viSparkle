@@ -18,6 +18,8 @@ export default function PostPage({
     isOwner,
     viewerSupportPrice,
     viewerPlanId,
+    viewerSupportId,
+    viewerSupportCancelling,
     acceptsSupports,
 }: {
     post: PostDetail;
@@ -26,6 +28,8 @@ export default function PostPage({
     isOwner: boolean;
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
+    viewerSupportId: number | null;
+    viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
 }) {
     const lastRefresh = useRef(0);
@@ -102,7 +106,15 @@ export default function PostPage({
                                                     creatorSlug={creator.slug}
                                                     plan={plan}
                                                     viewerPlanId={viewerPlanId}
-                                                    viewerSupportId={null}
+                                                    viewerSupportId={
+                                                        viewerSupportId
+                                                    }
+                                                    viewerSupportPrice={
+                                                        viewerSupportPrice
+                                                    }
+                                                    viewerSupportCancelling={
+                                                        viewerSupportCancelling
+                                                    }
                                                     acceptsSupports={
                                                         acceptsSupports
                                                     }

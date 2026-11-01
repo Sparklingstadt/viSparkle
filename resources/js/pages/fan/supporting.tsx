@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import Heading from '@/components/heading';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,15 +15,38 @@ type Row = {
     plan_name: string | null;
     price: number;
     started_at: string;
+    is_billing: boolean;
+    stripe_status: string | null;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean;
 };
 
-export default function Supporting({ supports }: { supports: Row[] }) {
+const openPortal = () => router.post(BillingPortalController.url());
+
+export default function Supporting({
+    supports,
+    hasBillingAccount,
+}: {
+    supports: Row[];
+    hasBillingAccount: boolean;
+}) {
     return (
         <>
             <Head title="支援中のクリエイター" />
 
             <div className="space-y-6 p-4">
-                <Heading title="支援中のクリエイター" />
+                <div className="flex items-start justify-between gap-4">
+                    <Heading title="支援中のクリエイター" />
+                    {hasBillingAccount && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={openPortal}
+                        >
+                            お支払い方法・請求履歴
+                        </Button>
+                    )}
+                </div>
 
                 {supports.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -65,28 +89,86 @@ export default function Supporting({ supports }: { supports: Row[] }) {
                                         </p>
                                     </div>
                                 </Link>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (confirm('支援を停止しますか？')) {
-                                            router.delete(
-                                                SupportController.destroy.url(
-                                                    support.id,
-                                                ),
-                                                { preserveScroll: true },
-                                            );
-                                        }
-                                    }}
-                                >
-                                    支援を停止
-                                </Button>
+                                <div className="flex shrink-0 flex-col items-end gap-2">
+                                    <SupportStatusText support={support} />
+                                    {support.stripe_status === 'past_due' && (
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={openPortal}
+                                        >
+                                            お支払い方法を更新
+                                        </Button>
+                                    )}
+                                    {support.cancel_at_period_end ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                router.post(
+                                                    SupportController.resume.url(
+                                                        support.id,
+                                                    ),
+                                                    {},
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        >
+                                            再開する
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (
+                                                    confirm(
+                                                        support.is_billing
+                                                            ? '支援を停止しますか？次回のお支払い日の前日まで閲覧できます。'
+                                                            : '支援を停止しますか？',
+                                                    )
+                                                ) {
+                                                    router.delete(
+                                                        SupportController.destroy.url(
+                                                            support.id,
+                                                        ),
+                                                        {
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            支援を停止
+                                        </Button>
+                                    )}
+                                </div>
                             </li>
                         ))}
                     </ul>
                 )}
             </div>
         </>
+    );
+}
+
+function SupportStatusText({ support }: { support: Row }) {
+    if (support.stripe_status === 'past_due') {
+        return (
+            <p className="text-xs text-destructive">お支払いに失敗しています</p>
+        );
+    }
+
+    if (!support.current_period_end) {
+        return null;
+    }
+
+    return (
+        <p className="text-xs text-muted-foreground">
+            {support.cancel_at_period_end
+                ? `${formatDate(support.current_period_end)}に終了`
+                : `次回のお支払い: ${formatDate(support.current_period_end)}`}
+        </p>
     );
 }
 

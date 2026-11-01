@@ -10,8 +10,10 @@ export default function CreatorPage({
     plans,
     posts,
     isOwner,
+    viewerSupportPrice,
     viewerPlanId,
     viewerSupportId,
+    viewerSupportCancelling,
     acceptsSupports,
 }: {
     creator: CreatorProfile;
@@ -51,6 +53,12 @@ export default function CreatorPage({
                                                 viewerPlanId={viewerPlanId}
                                                 viewerSupportId={
                                                     viewerSupportId
+                                                }
+                                                viewerSupportPrice={
+                                                    viewerSupportPrice
+                                                }
+                                                viewerSupportCancelling={
+                                                    viewerSupportCancelling
                                                 }
                                                 acceptsSupports={
                                                     acceptsSupports
