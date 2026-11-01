@@ -69,7 +69,6 @@ class StripeGateway implements PaymentGateway
             'mode' => 'subscription',
             'customer' => $request->customerId,
             'line_items' => [['price' => $request->priceId, 'quantity' => 1]],
-            'payment_method_types' => ['card'],
             'locale' => 'ja',
             'expires_at' => $request->expiresAt->getTimestamp(),
             'success_url' => $request->successUrl,

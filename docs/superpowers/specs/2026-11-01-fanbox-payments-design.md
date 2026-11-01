@@ -37,7 +37,7 @@
     - `transfer_data.destination` = クリエイターの Connect アカウント
     - `application_fee_percent` = 運営手数料（`config('fanbox.billing.platform_fee_percent')`、既定 10）
     - `on_behalf_of` は指定しない（販売者は運営。Stripe 手数料は運営が負担し、運営手数料から賄う）
-- **決済画面**: Stripe Checkout（ホスト型、`mode=subscription`、`locale=ja`、カードのみ）。カード情報は自サーバーを通らない。3D セキュアは Checkout が処理する
+- **決済画面**: Stripe Checkout（ホスト型、`mode=subscription`、`locale=ja`。支払い方法は Stripe ダッシュボードの設定で決める。2026年時点の Stripe は `payment_method_types` の指定を受け付けない）。カード情報は自サーバーを通らない。3D セキュアは Checkout が処理する
 - **価格**: プラン1件につき Stripe の Product と月額 Price（JPY・税込）を1組。プラン金額は作成後に変更できないので Price も不変。初回の支援時に遅延作成し `plans` に ID を保存する（作成時は冪等キー `plan-{id}-price` を使う）
 - **請求日**: 支援開始日を起点とする毎月請求（Stripe 既定）
 - **顧客**: ユーザー1人につき Stripe Customer 1件。初回の支援時に遅延作成し `users.stripe_customer_id` に保存（冪等キー `user-{id}-customer`）
