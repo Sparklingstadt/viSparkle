@@ -105,16 +105,20 @@ STRIPE_SECRET=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...
 
-# 本物のメール送信サービスを使う（例: Resend）
-MAIL_MAILER=resend
-RESEND_API_KEY=...
-MAIL_FROM_ADDRESS=no-reply@（送信元ドメイン）
-MAIL_FROM_NAME="${APP_NAME}"
+# メール送信は Resend を使う予定（§7。独自ドメインの取得後に設定する）
+# MAIL_MAILER=smtp
+# MAIL_HOST=smtp.resend.com
+# MAIL_PORT=587
+# MAIL_USERNAME=resend
+# MAIL_PASSWORD=re_...
+# MAIL_ENCRYPTION=tls
+# MAIL_FROM_ADDRESS=no-reply@（独自ドメイン）
+# MAIL_FROM_NAME="${APP_NAME}"
 ```
 
 - `APP_KEY` は Cloud が生成する。生成されていなければ、ローカルで `php artisan key:generate --show` を実行し、出力を設定する。
 - `BILLING_DRIVER=fake` は `APP_ENV=production` では例外になって使えない。Stripe のテストキーで動かすのが正しい形。
-- メールは、`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない。送信サービス（Resend / Postmark / SES など）でドメインを認証してから設定する。
+- メールは、`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない（内容はログに出る）。送信サービスは Resend に決めている。設定は §7。
 - 環境変数を変えたら、再デプロイして反映させる。
 
 ## 5. 初回デプロイと確認
@@ -136,3 +140,42 @@ MAIL_FROM_NAME="${APP_NAME}"
 - `APP_URL`
 - Stripe の Webhook 宛先2つ
 - 送信元メールのドメイン設定
+
+## 7. メール送信（Resend、今後対応）
+
+**状況（2026-11-01 時点）**: 未設定。送信サービスは **Resend** を使うと決めている。独自ドメインをまだ持っていないため、取得してから設定する。
+
+それまでのあいだ、本番は `MAIL_MAILER=log` のまま運用する。会員登録の認証メールやパスワード再設定のメールは届かない。その内容は **Monitoring → Logs** に出るので、テスト中は、ログから `verify-email` を含む URL を拾って開けば認証できる。一般公開の前に、必ずこの節を終わらせる。
+
+### なぜ独自ドメインが要るか
+
+Resend（ほかの配信サービスも同じ）は、迷惑メール対策として送信元ドメインの所有確認（SPF・DKIM の DNS レコード）を求める。`visparkle.laravel.cloud` は Laravel Cloud のドメインで DNS を設定できないため、送信元に使えない。
+
+### 手順
+
+1. **独自ドメインを取得する**（例: `visparkle.jp` / `visparkle.com`）。`.jp` はお名前.com などで取得する（Cloudflare Registrar は `.jp` を扱っていない）。
+2. **Laravel Cloud にドメインをつなぐ**（§6）。`APP_URL` と Stripe の Webhook 宛先2つも、新しいドメインに合わせる。
+3. **Resend に登録し、Domains にドメインを追加する。** 表示される DNS レコード（SPF・DKIM、任意で DMARC）を、ドメインの DNS に追加し、Resend 上で Verified になるのを待つ。送信元はサブドメインでもよい（例: `mail.visparkle.jp`）。
+4. **API キーを作る**（権限は Sending access、対象はそのドメイン）。
+5. **Laravel Cloud の環境変数に設定し、再デプロイする。** SMTP で接続するので、パッケージの追加は要らない（`MAIL_MAILER=resend` を使う場合は `resend/resend-php` が要る）。
+
+```ini
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=587
+MAIL_USERNAME=resend
+MAIL_PASSWORD=re_...            # Resend の API キー
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=no-reply@（独自ドメイン）
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+6. **確認する。**
+    - [ ] 新規登録で認証メールが届き、リンクから認証できる
+    - [ ] パスワード再設定のメールが届く
+    - [ ] 迷惑メールフォルダに入らない（Gmail の「メッセージのソースを表示」で SPF・DKIM が PASS）
+
+### メモ
+
+- 無料枠は月 3,000 通・1 日 100 通（2026-11 時点）。会員が増えたら有料プランを検討する。
+- 支払いの領収書は Stripe が送る（`stripe-setup.md` §2.7）。アプリから送るのは、認証・パスワード再設定などのアカウント関連だけ（独自の通知はサブプロジェクト4）。
