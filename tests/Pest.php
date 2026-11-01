@@ -188,3 +188,13 @@ function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $meta
 
     return $gateway->completeCheckout($session->id);
 }
+
+/**
+ * A Stripe-Signature header value for the payload, signed now with the secret.
+ */
+function stripeSignature(string $payload, string $secret): string
+{
+    $timestamp = time();
+
+    return "t={$timestamp},v1=".hash_hmac('sha256', "{$timestamp}.{$payload}", $secret);
+}

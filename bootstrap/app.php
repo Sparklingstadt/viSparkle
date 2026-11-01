@@ -28,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trimStrings(except: [$keepPostBody]);
         $middleware->convertEmptyStringsToNull(except: [$keepPostBody]);
 
+        $middleware->validateCsrfTokens(except: ['stripe/*']);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
@@ -41,7 +43,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // A payment gateway failure is shown as a toast on the page the user came from, not as a 500.
         $exceptions->render(function (BillingException $e, Request $request) {
-            if ($request->expectsJson()) {
+            // Webhook callers are not browsers: let a gateway failure surface as a plain 500 so Stripe retries.
+            if ($request->expectsJson() || $request->is('stripe/*')) {
                 return null;
             }
 
