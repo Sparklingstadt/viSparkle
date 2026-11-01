@@ -34,6 +34,14 @@ it('hides a post with a reason and records it', function () {
         ->and(AdminAction::sole())->action->toBe('post.hidden')->note->toBe('著作権侵害');
 });
 
+it('leaves the post updated_at alone when hiding', function () {
+    $post = Post::factory()->for($this->creator)->published()->create(['updated_at' => now()->subWeek()]);
+
+    $this->actingAs($this->admin)->patch(route('admin.posts.update', $post), ['hidden' => true, 'reason' => '著作権侵害']);
+
+    expect($post->fresh()->updated_at->toDateTimeString())->toBe($post->updated_at->toDateTimeString());
+});
+
 it('requires a reason to hide', function () {
     $post = Post::factory()->for($this->creator)->published()->create();
 

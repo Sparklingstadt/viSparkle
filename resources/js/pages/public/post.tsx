@@ -91,7 +91,10 @@ export default function PostPage({
                 <header className="space-y-2">
                     <h1 className="text-2xl font-bold">{post.title}</h1>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        <span>{formatDate(post.published_at)}</span>
+                        {post.published_at && (
+                            <span>投稿日 {formatDate(post.published_at)}</span>
+                        )}
+                        <span>最終更新日 {formatDate(post.updated_at)}</span>
                         <Badge variant="outline">
                             {post.required_price === 0
                                 ? '全体公開'

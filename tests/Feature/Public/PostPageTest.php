@@ -19,6 +19,19 @@ it('shows a free post to everyone', function () {
             ->has('post.body'));
 });
 
+it('shows both the published and last updated dates', function () {
+    $post = Post::factory()->published()->requiring(500)->create([
+        'published_at' => '2026-10-01 10:00:00',
+        'updated_at' => '2026-10-15 10:00:00',
+    ]);
+
+    $this->get(route('posts.show', [$post->creator, $post]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('post.locked', true)
+            ->where('post.published_at', fn ($at) => str_starts_with($at, '2026-10-01'))
+            ->where('post.updated_at', fn ($at) => str_starts_with($at, '2026-10-15')));
+});
+
 it('404s drafts for others and shows them to the author', function () {
     $post = Post::factory()->draft()->create();
 
