@@ -172,7 +172,7 @@ Webhook・完了画面のどちらからも `SubscriptionSync::sync(サブスク
 ### 7.5 クリエイターの口座登録
 
 - `/creator/earnings`（収益）画面
-    - 未登録: 「Stripe で口座を登録する」→ Express アカウントを作成（国 JP、capability `transfers`）し、オンボーディングのリンクへ遷移
+    - 未登録: 「Stripe で口座を登録する」→ Accounts v2 で受取人アカウントを作成（国 JP、Express ダッシュボード、機能 `stripe_balance.stripe_transfers`、手数料・損失の責任は運営）し、オンボーディングのリンクへ遷移
     - 登録途中: 「登録を続ける」（新しいオンボーディングのリンク）
     - 登録済み: 「Stripe ダッシュボードを開く」（入金履歴・振込先の変更は Stripe 側）
     - 戻り先（return / refresh URL）では Stripe からアカウントを取得して状態を同期する
