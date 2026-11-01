@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * Ten demo creators with plans, posts and images. Locally their accounts use the password "password"; in
  * production each gets a long random password nobody knows, so the pages show but nobody can log in as them.
  * Locally (fake billing) eight of them get a fake payout account so their plans can be supported; the other two
- * stay "準備中". In production none has a payout account, since a made-up Stripe account would break checkout.
+ * stay "準備中". In production none has a payout account, since a made-up Stripe account would break checkout;
+ * `php artisan fanbox:demo-payout-accounts` opens real Stripe test-mode accounts for the eight instead.
  *
  * Uses no model factories (Faker is a dev dependency), so it also runs on production:
  *   php artisan db:seed --class=DemoCreatorsSeeder --force
@@ -175,11 +176,19 @@ class DemoCreatorsSeeder extends Seeder
         }
     }
 
+    /**
+     * Slugs of the demo creators meant to accept supports.
+     *
+     * @return list<string>
+     */
+    public static function acceptingSupports(): array
+    {
+        return array_values(array_diff(array_column(self::CREATORS, 0), self::NOT_ACCEPTING_SUPPORTS));
+    }
+
     private function openFakePayoutAccounts(): void
     {
-        $slugs = array_diff(array_column(self::CREATORS, 0), self::NOT_ACCEPTING_SUPPORTS);
-
-        foreach (Creator::whereIn('slug', $slugs)->get() as $creator) {
+        foreach (Creator::whereIn('slug', self::acceptingSupports())->get() as $creator) {
             $accountId = "acct_fake_{$creator->slug}";
             $creator->forceFill(['stripe_account_id' => $accountId, 'payouts_enabled' => true, 'details_submitted' => true])->save();
             app(FakeGateway::class)->setAccount($accountId, true, true);
