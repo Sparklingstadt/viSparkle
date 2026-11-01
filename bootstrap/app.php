@@ -1,6 +1,7 @@
 <?php
 
 use App\Billing\BillingException;
+use App\Http\Middleware\EnsureTermsAccepted;
 use App\Http\Middleware\EnsureUserIsCreator;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
+            EnsureTermsAccepted::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
     })

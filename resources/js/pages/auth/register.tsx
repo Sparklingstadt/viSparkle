@@ -3,10 +3,12 @@ import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
+import { privacy, terms } from '@/routes/legal';
 import { store } from '@/routes/register';
 
 type Props = {
@@ -90,10 +92,46 @@ export default function Register({ passwordRules }: Props) {
                                 />
                             </div>
 
+                            <div className="grid gap-2">
+                                <div className="flex items-center space-x-3">
+                                    <Checkbox
+                                        id="terms"
+                                        name="terms"
+                                        value="1"
+                                        required
+                                        tabIndex={5}
+                                    />
+                                    <Label
+                                        htmlFor="terms"
+                                        className="leading-6"
+                                    >
+                                        <a
+                                            href={terms.url()}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="underline"
+                                        >
+                                            利用規約
+                                        </a>
+                                        と
+                                        <a
+                                            href={privacy.url()}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="underline"
+                                        >
+                                            プライバシーポリシー
+                                        </a>
+                                        に同意します
+                                    </Label>
+                                </div>
+                                <InputError message={errors.terms} />
+                            </div>
+
                             <Button
                                 type="submit"
                                 className="mt-2 w-full"
-                                tabIndex={5}
+                                tabIndex={6}
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}
@@ -103,7 +141,7 @@ export default function Register({ passwordRules }: Props) {
 
                         <div className="text-center text-sm text-muted-foreground">
                             すでにアカウントをお持ちの方は{' '}
-                            <TextLink href={login()} tabIndex={6}>
+                            <TextLink href={login()} tabIndex={7}>
                                 ログイン
                             </TextLink>
                         </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Legal\AcceptTermsController;
 use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LegalController;
@@ -13,6 +14,11 @@ Route::controller(LegalController::class)->prefix('legal')->name('legal.')->grou
     Route::get('tokushoho', 'tokushoho')->name('tokushoho');
     Route::get('terms', 'terms')->name('terms');
     Route::get('privacy', 'privacy')->name('privacy');
+});
+
+Route::middleware('auth')->controller(AcceptTermsController::class)->group(function () {
+    Route::get('legal/accept', 'show')->name('legal.accept');
+    Route::post('legal/accept', 'store')->name('legal.accept.store');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
