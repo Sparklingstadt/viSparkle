@@ -4,6 +4,7 @@
 
 - 設計書: `docs/superpowers/specs/`
 - 実装計画: `docs/superpowers/plans/`
+- デプロイ（Laravel Cloud）: `docs/operations/laravel-cloud.md`
 
 ## 開発環境
 
