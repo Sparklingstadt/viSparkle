@@ -36,9 +36,17 @@ viSparkle は [Laravel Cloud](https://cloud.laravel.com) で動かす。Cloud �
 
 Stripe の Webhook は `ProcessStripeEvent` ジョブとしてキューで処理する。ワーカーが動いていないと、支払いが反映されない。
 
-- App cluster の **Background processes** に **Queue worker** を追加する（接続は `database`、キューは `default`）。
-- **Scale to Zero は有効にしない。** 環境が眠っているあいだ、キューのジョブは環境を起こさない。費用を抑えるために Scale to Zero を使う場合は、常時起動の Worker cluster か Managed queues でワーカーを動かす。
-- デプロイのたびに、Cloud がワーカーを自動で再起動する。`queue:restart` をデプロイコマンドに入れる必要はない。
+**Managed queue** を使う（Laravel Cloud の推奨。ワーカーの起動・台数・再起動を Cloud が管理する）。
+
+1. キャンバスのツールバーで **Add compute → Managed queue** を選ぶ。
+2. Queue name は `default`、Queue type は **Standard**、Compute class は **Flex**、Memory は **256 MiB**、Workers は 0〜3 程度にする。
+3. 環境変数に `QUEUE_CONNECTION` を自分で設定しない（設定していたら消す）。Managed queue をデプロイすると、Cloud が `QUEUE_CONNECTION=cloud` を設定する。
+4. デプロイする。**Monitoring → Queues** に `default` が出れば動いている。
+
+- Flex のワーカーは、ジョブが届くと自動で起きる。App cluster の Scale to Zero と併用してよい（App cluster の中で `queue:work` を動かす方式だと、環境が眠っているあいだジョブが止まる）。
+- Flex のジョブは90秒以内に終わる必要がある。`ProcessStripeEvent` は Stripe の取得と DB 更新だけなので、十分に収まる。
+- 失敗したジョブは `failed_jobs` テーブルではなく **Monitoring → Queues** に表示され、そこから確認・再実行・削除する。`php artisan queue:failed` / `queue:retry` は Managed queue では使えない。
+- `queue:restart` をデプロイコマンドに入れる必要はない。
 
 ### 2.4 スケジューラ
 
@@ -89,7 +97,7 @@ APP_MAINTENANCE_STORE=database
 
 SESSION_DRIVER=database
 CACHE_STORE=database
-QUEUE_CONNECTION=database
+# QUEUE_CONNECTION は設定しない（Managed queue をデプロイすると Cloud が cloud に設定する）
 
 BILLING_DRIVER=stripe
 BILLING_PLATFORM_FEE_PERCENT=10
