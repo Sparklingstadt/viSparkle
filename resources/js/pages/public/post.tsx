@@ -13,6 +13,7 @@ import { PostRenderer } from '@/components/tiptap/post-renderer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate, formatYen } from '@/lib/format';
+import { placeholderCover } from '@/lib/placeholder';
 import { edit } from '@/routes/creator/posts';
 import type { CreatorProfile, PlanData, PostDetail } from '@/types';
 
@@ -72,12 +73,18 @@ export default function PostPage({
                     </Alert>
                 )}
 
-                {post.cover_thumb_url && (
+                {post.cover_thumb_url ? (
                     <img
                         src={post.cover_thumb_url}
                         alt=""
                         onError={refreshUrls}
                         className={`aspect-video w-full rounded-xl object-cover ${post.locked ? 'blur-md' : ''}`}
+                    />
+                ) : (
+                    <img
+                        src={placeholderCover(post.id)}
+                        alt=""
+                        className="aspect-video w-full rounded-xl object-cover"
                     />
                 )}
 
