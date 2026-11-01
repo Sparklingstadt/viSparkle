@@ -35,15 +35,6 @@ class CheckoutService
      */
     public function begin(User $user, Plan $plan): string
     {
-        // Live payments (sk_live_ or restricted rk_live_ keys) need the 特商法 details published first; test keys are never blocked.
-        if (app()->isProduction()
-            && str_contains((string) config('fanbox.billing.stripe.secret'), '_live_')
-            && ! LegalDocuments::ready()) {
-            Log::error('legal.not_ready');
-
-            throw ValidationException::withMessages(['plan' => '現在お申し込みを受け付けていません。']);
-        }
-
         $this->assertCanBegin($user, $plan);
 
         $creator = $plan->creator;
@@ -93,6 +84,15 @@ class CheckoutService
      */
     public function assertCanBegin(User $user, Plan $plan): void
     {
+        // Live payments (sk_live_ or restricted rk_live_ keys) need the 特商法 details published first; test keys are never blocked.
+        if (app()->isProduction()
+            && str_contains((string) config('fanbox.billing.stripe.secret'), '_live_')
+            && ! LegalDocuments::ready()) {
+            Log::error('legal.not_ready');
+
+            throw ValidationException::withMessages(['plan' => '現在お申し込みを受け付けていません。']);
+        }
+
         $creator = $plan->creator;
 
         if ($creator->user_id === $user->id) {
