@@ -44,23 +44,9 @@ class CheckoutService
             throw ValidationException::withMessages(['plan' => '現在お申し込みを受け付けていません。']);
         }
 
+        $this->assertCanBegin($user, $plan);
+
         $creator = $plan->creator;
-
-        if ($creator->user_id === $user->id) {
-            throw ValidationException::withMessages(['plan' => '自分自身を支援することはできません。']);
-        }
-
-        if (! $creator->canAcceptSupports()) {
-            throw ValidationException::withMessages(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
-        }
-
-        if (! $plan->is_accepting) {
-            throw ValidationException::withMessages(['plan' => 'このプランは現在受付を停止しています。']);
-        }
-
-        if (Support::active()->where('user_id', $user->id)->where('creator_id', $creator->id)->exists()) {
-            throw ValidationException::withMessages(['plan' => 'すでに支援中です。プランの変更は「このプランに変更」から行ってください。']);
-        }
 
         $customerId = $this->customerId($user);
         $price = $this->gateway->ensurePrice($plan);
@@ -98,6 +84,32 @@ class CheckoutService
         $this->cache->put($key, $session->id, now()->addMinutes($minutes));
 
         return $session->url;
+    }
+
+    /**
+     * Check the support can start; also run when the confirmation page is shown.
+     *
+     * @throws ValidationException
+     */
+    public function assertCanBegin(User $user, Plan $plan): void
+    {
+        $creator = $plan->creator;
+
+        if ($creator->user_id === $user->id) {
+            throw ValidationException::withMessages(['plan' => '自分自身を支援することはできません。']);
+        }
+
+        if (! $creator->canAcceptSupports()) {
+            throw ValidationException::withMessages(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
+        }
+
+        if (! $plan->is_accepting) {
+            throw ValidationException::withMessages(['plan' => 'このプランは現在受付を停止しています。']);
+        }
+
+        if (Support::active()->where('user_id', $user->id)->where('creator_id', $creator->id)->exists()) {
+            throw ValidationException::withMessages(['plan' => 'すでに支援中です。プランの変更は「このプランに変更」から行ってください。']);
+        }
     }
 
     /**

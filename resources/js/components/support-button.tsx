@@ -1,6 +1,7 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import CheckoutConfirmController from '@/actions/App/Http/Controllers/Fan/CheckoutConfirmController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import { Button } from '@/components/ui/button';
 import { login } from '@/routes';
@@ -119,6 +120,21 @@ export function SupportButton({
         );
     }
 
+    if (viewerPlanId === null) {
+        return (
+            <Button asChild className="w-full">
+                <Link
+                    href={CheckoutConfirmController.url({
+                        creator: creatorSlug,
+                        plan: plan.id,
+                    })}
+                >
+                    このプランで支援する
+                </Link>
+            </Button>
+        );
+    }
+
     const isUpgrade =
         viewerSupportPrice !== null && plan.price > viewerSupportPrice;
 
@@ -127,19 +143,6 @@ export function SupportButton({
             className="w-full"
             disabled={processing}
             onClick={() => {
-                if (viewerPlanId === null) {
-                    router.post(
-                        SupportController.store.url({
-                            creator: creatorSlug,
-                            plan: plan.id,
-                        }),
-                        {},
-                        request,
-                    );
-
-                    return;
-                }
-
                 if (viewerSupportId === null) {
                     return;
                 }
@@ -161,9 +164,7 @@ export function SupportButton({
                 );
             }}
         >
-            {viewerPlanId === null
-                ? 'このプランで支援する'
-                : 'このプランに変更'}
+            このプランに変更
         </Button>
     );
 }
