@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
@@ -28,6 +29,7 @@ class PostPageController extends Controller
         return Inertia::render('public/post', [
             'post' => $presenter->detail($post, $entitlement),
             'creator' => [
+                'id' => $creator->id,
                 ...$creator->toSummary(),
                 'bio' => $creator->bio,
                 'header_url' => $creator->headerUrl(),
@@ -40,6 +42,7 @@ class PostPageController extends Controller
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
+            'reportReasons' => collect(ReportReason::cases())->map(fn (ReportReason $r) => ['value' => $r->value, 'label' => $r->label()])->all(),
         ]);
     }
 }

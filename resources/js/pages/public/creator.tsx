@@ -2,6 +2,10 @@ import { Head, Link } from '@inertiajs/react';
 import { CreatorHeader } from '@/components/creator-header';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
+import {
+    ReportDialog,
+    type ReportReasonOption,
+} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import type { CreatorProfile, Paginated, PlanData, PostSummary } from '@/types';
 
@@ -16,8 +20,9 @@ export default function CreatorPage({
     viewerSupportCancelling,
     acceptsSupports,
     closed,
+    reportReasons,
 }: {
-    creator: CreatorProfile;
+    creator: CreatorProfile & { id: number };
     plans: PlanData[];
     posts: Paginated<PostSummary>;
     isOwner: boolean;
@@ -27,13 +32,24 @@ export default function CreatorPage({
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
     closed: boolean;
+    reportReasons: ReportReasonOption[];
 }) {
     return (
         <>
             <Head title={creator.display_name} />
 
             <div className="space-y-8">
-                <CreatorHeader creator={creator} />
+                <div className="space-y-1">
+                    <CreatorHeader creator={creator} />
+                    <div className="flex justify-end">
+                        <ReportDialog
+                            targetType="creator"
+                            targetId={creator.id}
+                            reasons={reportReasons}
+                            isOwner={isOwner}
+                        />
+                    </div>
+                </div>
 
                 {closed && (
                     <p className="rounded-md border bg-muted p-4 text-sm">

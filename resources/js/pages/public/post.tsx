@@ -4,6 +4,10 @@ import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
+import {
+    ReportDialog,
+    type ReportReasonOption,
+} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
 import { Badge } from '@/components/ui/badge';
@@ -22,9 +26,10 @@ export default function PostPage({
     viewerSupportCancelling,
     acceptsSupports,
     closed,
+    reportReasons,
 }: {
     post: PostDetail;
-    creator: CreatorProfile;
+    creator: CreatorProfile & { id: number };
     plans: PlanData[];
     isOwner: boolean;
     viewerSupportPrice: number | null;
@@ -33,6 +38,7 @@ export default function PostPage({
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
     closed: boolean;
+    reportReasons: ReportReasonOption[];
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -164,6 +170,15 @@ export default function PostPage({
                         )}
                     </>
                 )}
+
+                <footer className="flex justify-end">
+                    <ReportDialog
+                        targetType="post"
+                        targetId={post.id}
+                        reasons={reportReasons}
+                        isOwner={isOwner}
+                    />
+                </footer>
             </article>
         </>
     );
