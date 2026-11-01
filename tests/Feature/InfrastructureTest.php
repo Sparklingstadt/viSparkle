@@ -1,5 +1,8 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use Illuminate\Foundation\CloudBootstrapper;
+
 it('configures private and public disks on s3', function () {
     expect(config('filesystems.disks.private.driver'))->toBe('s3')
         ->and(config('filesystems.disks.public.driver'))->toBe('s3')
@@ -21,4 +24,28 @@ it('exposes fanbox limits', function () {
 it('uses japanese locale and tokyo timezone', function () {
     expect(app()->getLocale())->toBe('ja')
         ->and(config('app.timezone'))->toBe('Asia/Tokyo');
+});
+
+it('keeps storage failures loud when Laravel Cloud replaces the disks', function () {
+    $disk = fn (string $name) => [
+        'disk' => $name,
+        'access_key_id' => 'key',
+        'access_key_secret' => 'secret',
+        'bucket' => "visparkle-{$name}",
+        'url' => null,
+        'endpoint' => 'https://example.r2.cloudflarestorage.com',
+    ];
+    $_SERVER['LARAVEL_CLOUD_DISK_CONFIG'] = json_encode([$disk('private'), $disk('public')]);
+
+    try {
+        // What Laravel Cloud does after loading config, then our providers boot as usual.
+        CloudBootstrapper::configureDisks(app());
+        (new AppServiceProvider(app()))->boot();
+    } finally {
+        unset($_SERVER['LARAVEL_CLOUD_DISK_CONFIG']);
+    }
+
+    expect(config('filesystems.disks.private.bucket'))->toBe('visparkle-private')
+        ->and(config('filesystems.disks.private.throw'))->toBeTrue()
+        ->and(config('filesystems.disks.public.throw'))->toBeTrue();
 });
