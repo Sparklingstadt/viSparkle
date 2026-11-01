@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Download, Paperclip } from 'lucide-react';
 import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
+import { LikeButton } from '@/components/like-button';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
 import {
@@ -193,7 +194,8 @@ export default function PostPage({
                     </>
                 )}
 
-                <footer className="flex justify-end">
+                <footer className="flex items-center justify-between gap-4">
+                    <LikeButton post={post} />
                     <ReportDialog
                         targetType="post"
                         targetId={post.id}

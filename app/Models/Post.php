@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property CarbonInterface|null $published_at
  * @property Carbon|null $hidden_at
  * @property string|null $hidden_reason
+ * @property int $like_count
  * @property int $view_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -46,6 +48,7 @@ class Post extends Model
             'status' => PostStatus::class,
             'published_at' => 'datetime',
             'hidden_at' => 'datetime',
+            'like_count' => 'integer',
             'view_count' => 'integer',
         ];
     }
@@ -102,6 +105,37 @@ class Post extends Model
         $query->whereNull('hidden_at');
     }
 
+    /**
+     * Idempotent: like_count only moves when the row is actually added.
+     */
+    public function like(User $user): void
+    {
+        DB::transaction(function () use ($user) {
+            $added = PostLike::query()->insertOrIgnore([
+                'post_id' => $this->id,
+                'user_id' => $user->id,
+                'created_at' => now(),
+            ]);
+
+            if ($added > 0) {
+                // Bypass Eloquent so a like doesn't bump updated_at.
+                static::whereKey($this->id)->toBase()->increment('like_count');
+            }
+        });
+    }
+
+    /**
+     * Idempotent: like_count only moves when the row is actually removed.
+     */
+    public function unlike(User $user): void
+    {
+        DB::transaction(function () use ($user) {
+            if ($this->likes()->where('user_id', $user->id)->delete() > 0) {
+                static::whereKey($this->id)->toBase()->decrement('like_count');
+            }
+        });
+    }
+
     public function isHidden(): bool
     {
         return $this->hidden_at !== null;
@@ -134,6 +168,12 @@ class Post extends Model
     public function attachments(): HasMany
     {
         return $this->files()->where('kind', PostFileKind::Attachment)->orderBy('sort')->orderBy('id');
+    }
+
+    /** @return HasMany<PostLike, $this> */
+    public function likes(): HasMany
+    {
+        return $this->hasMany(PostLike::class);
     }
 
     /** @return BelongsTo<PostFile, $this> */

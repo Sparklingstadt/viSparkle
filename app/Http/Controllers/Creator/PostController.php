@@ -37,6 +37,7 @@ class PostController extends Controller
                 'published_at' => $post->published_at,
                 'updated_at' => $post->updated_at,
                 'hidden' => $post->isHidden(),
+                'like_count' => $post->like_count,
             ]);
 
         return Inertia::render('creator/posts/index', ['posts' => $posts]);

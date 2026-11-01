@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { FilePlus2 } from 'lucide-react';
+import { FilePlus2, Heart } from 'lucide-react';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ type Row = {
     published_at: string | null;
     updated_at: string;
     hidden: boolean;
+    like_count: number;
 };
 
 export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
@@ -59,6 +60,13 @@ export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
+                                        <span
+                                            className="flex items-center gap-1 text-xs text-muted-foreground"
+                                            aria-label={`いいね ${post.like_count}件`}
+                                        >
+                                            <Heart className="size-3" />
+                                            {post.like_count}
+                                        </span>
                                         {post.hidden && (
                                             <Badge variant="destructive">
                                                 非公開（運営）

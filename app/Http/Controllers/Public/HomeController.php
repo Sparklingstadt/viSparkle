@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\PostLike;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -24,8 +25,9 @@ class HomeController extends Controller
             ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->with(['creator', 'cover'])
             ->limit(20)
-            ->get()
-            ->map(fn (Post $post) => $presenter->summary($post, $entitlement));
+            ->get();
+        $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
+        $posts = $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
 
         $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
         $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();

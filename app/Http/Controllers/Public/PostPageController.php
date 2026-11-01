@@ -6,6 +6,7 @@ use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\PostLike;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class PostPageController extends Controller
         $support = CreatorPageController::activeSupport($viewer, $creator);
 
         return Inertia::render('public/post', [
-            'post' => $presenter->detail($post, $entitlement),
+            'post' => $presenter->detail($post, $entitlement, PostLike::idsLikedBy($viewer, [$post->id])),
             'creator' => [
                 'id' => $creator->id,
                 ...$creator->toSummary(),

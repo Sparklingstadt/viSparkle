@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
+use App\Models\PostLike;
 use App\Models\Support;
 use App\Models\User;
 use App\Presenters\PostPresenter;
@@ -29,12 +30,13 @@ class CreatorPageController extends Controller
             ->published()
             ->visible()
             ->with('cover')
-            ->paginate(20)
-            ->through(function (Post $post) use ($creator, $presenter, $entitlement) {
-                $post->setRelation('creator', $creator);
+            ->paginate(20);
+        $liked = PostLike::idsLikedBy($viewer, $posts->pluck('id'));
+        $posts->through(function (Post $post) use ($creator, $presenter, $entitlement, $liked) {
+            $post->setRelation('creator', $creator);
 
-                return $presenter->summary($post, $entitlement);
-            });
+            return $presenter->summary($post, $entitlement, $liked);
+        });
 
         return Inertia::render('public/creator', [
             'creator' => [
