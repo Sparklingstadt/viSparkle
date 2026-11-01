@@ -53,6 +53,12 @@ class Payment extends Model
         return $this->belongsTo(Creator::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     /** @return BelongsTo<Support, $this> */
     public function support(): BelongsTo
     {

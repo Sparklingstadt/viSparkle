@@ -88,6 +88,19 @@ it('tells the fan when payment is not complete', function () {
     expect(Support::count())->toBe(0);
 });
 
+it('tells the fan the payment will be refunded when the creator closed during checkout', function () {
+    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $subscription = $this->gateway->completeCheckout($sessionId);
+    $this->creator->forceFill(['closed_at' => now()])->save();
+
+    $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]))
+        ->assertRedirect(route('creators.show', $this->creator))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'このお申し込みは受け付けられませんでした。お支払いは返金されます。']);
+
+    expect(Support::count())->toBe(0)
+        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
+});
+
 it('rejects completing someone elses session', function () {
     $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
     $this->gateway->completeCheckout($sessionId);

@@ -31,7 +31,15 @@ class SubscriptionSync
         'paused' => SupportStatus::Ended,
     ];
 
+    /** What the last apply() did: 'synced', 'orphan' (cancelled and refunded), 'duplicate' (cancelled) or 'foreign' (ignored). */
+    private ?string $lastOutcome = null;
+
     public function __construct(private readonly PaymentGateway $gateway) {}
+
+    public function lastOutcome(): ?string
+    {
+        return $this->lastOutcome;
+    }
 
     /**
      * @throws BillingException
@@ -43,11 +51,14 @@ class SubscriptionSync
 
     public function apply(SubscriptionData $data): ?Support
     {
+        $this->lastOutcome = null;
+
         // Another environment's subscription (test-mode accounts are shared, and `stripe listen` forwards everything): not ours to touch.
         $app = $data->metadata['app'] ?? null;
 
         if ($app !== null && $app !== config('fanbox.billing.idempotency_prefix')) {
             Log::info('billing.foreign_subscription', ['subscription' => $data->id, 'app' => $app]);
+            $this->lastOutcome = 'foreign';
 
             return null;
         }
@@ -72,16 +83,20 @@ class SubscriptionSync
         }
 
         if (isset($result['orphan'])) {
+            $this->lastOutcome = 'orphan';
             $this->cancelOrphan($data, $result['orphan']);
 
             return null;
         }
 
         if (isset($result['duplicate'])) {
+            $this->lastOutcome = 'duplicate';
             $this->cancelDuplicate($data, $result['duplicate']);
 
             return $result['duplicate'];
         }
+
+        $this->lastOutcome = 'synced';
 
         return $result['support'] ?? null;
     }
@@ -255,7 +270,9 @@ class SubscriptionSync
     }
 
     /**
-     * A subscription that must not become a support: cancel it now (refunding the first invoice is manual).
+     * A subscription that must not become a support: cancel it now and refund its latest (first) invoice.
+     * Failures are logged, not thrown. A failed cancellation leaves the subscription active, so a later sync tries both again;
+     * a refund that fails after a successful cancellation is not retried and needs a manual refund from the logs.
      */
     private function cancelOrphan(SubscriptionData $data, string $reason): void
     {
@@ -270,6 +287,20 @@ class SubscriptionSync
             $this->gateway->cancelSubscriptionNow($data->id);
         } catch (BillingException $e) {
             Log::error('billing.orphan_cancel_failed', ['subscription' => $data->id, 'message' => $e->getMessage()]);
+        }
+
+        if ($data->latestInvoiceId === null) {
+            return;
+        }
+
+        try {
+            $this->gateway->refundInvoice($data->latestInvoiceId);
+        } catch (BillingException $e) {
+            Log::error('billing.orphan_refund_failed', [
+                'subscription' => $data->id,
+                'invoice' => $data->latestInvoiceId,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 

@@ -39,7 +39,9 @@ class CheckoutCompleteController extends Controller
             return $this->unreachable($target);
         }
 
-        if ($support === null) {
+        if ($support === null && $checkout->finishedAsOrphan()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'このお申し込みは受け付けられませんでした。お支払いは返金されます。']);
+        } elseif ($support === null) {
             Inertia::flash('toast', ['type' => 'error', 'message' => 'お支払いが完了していません。']);
         } else {
             Inertia::flash('toast', ['type' => 'success', 'message' => "{$creator->display_name} さんの支援を開始しました。"]);

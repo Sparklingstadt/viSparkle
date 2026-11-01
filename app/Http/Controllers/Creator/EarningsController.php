@@ -104,7 +104,8 @@ class EarningsController extends Controller
 
     /**
      * The last twelve Asia/Tokyo calendar months ending with the current one, newest first, zero-filled.
-     * Fees are estimated per payment (floor), like Stripe's per-invoice application fee.
+     * Sales are net of refunds; fees are estimated per payment (floor) on the net amount, like Stripe's per-invoice
+     * application fee (a full refund also refunds the fee).
      *
      * @return list<array{month: string, gross: int, fee: int, net: int}>
      */
@@ -122,14 +123,15 @@ class EarningsController extends Controller
         $payments = $creator->payments()
             ->where('paid_at', '>=', $windowStart)
             ->where('paid_at', '<', $thisMonth->copy()->addMonthNoOverflow())
-            ->get(['amount', 'fee_percent', 'paid_at']);
+            ->get(['amount', 'refunded_amount', 'fee_percent', 'paid_at']);
 
         $gross = [];
         $fee = [];
         foreach ($payments as $payment) {
             $key = $payment->paid_at->copy()->setTimezone($tz)->format('Y-m');
-            $gross[$key] = ($gross[$key] ?? 0) + $payment->amount;
-            $fee[$key] = ($fee[$key] ?? 0) + intdiv($payment->amount * $payment->fee_percent, 100);
+            $amount = $payment->netAmount();
+            $gross[$key] = ($gross[$key] ?? 0) + $amount;
+            $fee[$key] = ($fee[$key] ?? 0) + intdiv($amount * $payment->fee_percent, 100);
         }
 
         return array_map(fn (string $key) => [

@@ -165,6 +165,15 @@ class CheckoutService
         return $support;
     }
 
+    /**
+     * Whether the last finish() found the subscription orphaned (the creator or user went away during checkout),
+     * so it was cancelled and its payment refunded.
+     */
+    public function finishedAsOrphan(): bool
+    {
+        return $this->sync->lastOutcome() === 'orphan';
+    }
+
     private static function cacheKey(int $userId, int $creatorId): string
     {
         return "checkout:{$userId}:{$creatorId}";

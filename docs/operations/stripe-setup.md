@@ -32,21 +32,22 @@ viSparkle の課金は Stripe（プラットフォーム＋Connect Express）で
 1. **開発者 → API キー** のシークレットキー（`sk_live_...`、テストモードなら `sk_test_...`）を控える。
 2. 本番環境の `.env` に設定する（§3）。
 
-制限付きキー（Restricted key）を使う場合は、Checkout・サブスクリプション・請求書・顧客・商品/価格・カスタマーポータル・Connect（アカウント、アカウントリンク）の書き込み権限が要る。迷うなら標準のシークレットキーを使う。キーはリポジトリやチャットに貼らない。
+制限付きキー（Restricted key）を使う場合は、Checkout・サブスクリプション・請求書・顧客・商品/価格・カスタマーポータル・Connect（アカウント、アカウントリンク）・返金の書き込み権限と、チャージ・請求書の支払い（Invoice Payments）の読み取り権限が要る。迷うなら標準のシークレットキーを使う。キーはリポジトリやチャットに貼らない。
 
 ### 2.3 Webhook の宛先（2つ）
 
 **開発者 → Webhook** で宛先を2つ作る。宛先ごとに署名シークレット（`whsec_...`）が別になる。
 
-| 項目                     | プラットフォーム                                                                                                                                                                    | Connect                                                                  |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| URL                      | `https://（本番のドメイン）/stripe/webhook`                                                                                                                                         | `https://（本番のドメイン）/stripe/connect-webhook`                      |
-| イベントの受信元         | 「自分のアカウント」                                                                                                                                                                | 「**接続されたアカウント上のイベント**（Events on Connected accounts）」 |
-| 購読するイベント         | `checkout.session.completed`<br>`customer.subscription.created`<br>`customer.subscription.updated`<br>`customer.subscription.deleted`<br>`invoice.paid`<br>`invoice.payment_failed` | `account.updated`<br>`account.application.deauthorized`                  |
-| 署名シークレットの設定先 | `STRIPE_WEBHOOK_SECRET`                                                                                                                                                             | `STRIPE_CONNECT_WEBHOOK_SECRET`                                          |
+| 項目                     | プラットフォーム                                                                                                                                                                                                                     | Connect                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| URL                      | `https://（本番のドメイン）/stripe/webhook`                                                                                                                                                                                          | `https://（本番のドメイン）/stripe/connect-webhook`                      |
+| イベントの受信元         | 「自分のアカウント」                                                                                                                                                                                                                 | 「**接続されたアカウント上のイベント**（Events on Connected accounts）」 |
+| 購読するイベント         | `checkout.session.completed`<br>`customer.subscription.created`<br>`customer.subscription.updated`<br>`customer.subscription.deleted`<br>`invoice.paid`<br>`invoice.payment_failed`<br>`charge.refunded`<br>`charge.dispute.created` | `account.updated`<br>`account.application.deauthorized`                  |
+| 署名シークレットの設定先 | `STRIPE_WEBHOOK_SECRET`                                                                                                                                                                                                              | `STRIPE_CONNECT_WEBHOOK_SECRET`                                          |
 
 注意:
 
+- `charge.refunded` と `charge.dispute.created` は**プラットフォームの宛先**に購読する（destination charge のチャージはプラットフォーム上にある）。返金は管理画面からでも Stripe ダッシュボードからでも、このイベントで `payments.refunded_amount` に反映される。
 - **Connect の宛先に、サブスクリプション・請求書系のイベントを購読しないこと。** それらは `connect-webhook` で受けても処理に失敗する（アプリはプラットフォームのキーで取得し直すため、接続アカウント側のオブジェクトは取得できない）。失敗したジョブは再試行のあと `failed_jobs` に溜まり続ける。Connect の宛先は上の2イベントだけにする。
 - 逆に、プラットフォームの宛先に `account.*` は不要。
 - 上記以外のイベントを受信しても、`stripe_events` に記録するだけで無視される（害はないが、不要なイベントは購読しない）。
@@ -89,6 +90,23 @@ Stripe は、Checkout Session の作成時に `payment_method_types` を指定�
 ### 2.7 領収書メール
 
 **設定 → 顧客向けメール（Customer emails）** で、**支払い成功時のメール（領収書）** を有効にする。アプリは支払い関連のメールを送らず、Stripe の領収書メールを使う設計になっている（独自通知はサブプロジェクト4）。
+
+### 2.8 返金とチャージバック（異議申し立て）
+
+**返金**は管理画面の「支払い」（`/admin/payments`）から行う。
+
+- 「返金」は、その支払いの請求書（invoice）の支払いを**全額**返金する。`reverse_transfer=true` でクリエイターへの送金も取り消し、`refund_application_fee=true` で運営手数料も返す。部分返金はしない。
+- ダイアログの「支援も解約する」を選ぶと、支援（サブスクリプション）も即時に解約する。選ばなければ支援は続く。
+- 返金済みの支払いは再度返金できない（422）。返金の失敗はトーストで表示し、ログ（`billing.ops_failed`）と `admin_actions`（`payment.refund_failed`）に残る。
+- Stripe ダッシュボードから返金した場合も、`charge.refunded` で返金額が取り込まれる。クリエイターの収益画面は返金後の額（`amount - refunded_amount`）で集計する。
+- ダッシュボードから返金するときは、**「送金を取り消す（Reverse transfer）」と「手数料を返金する（Refund application fee）」を必ず選ぶ**。選ばないと運営が返金額を負担することになる。
+
+**チャージバック**（カード会社への異議申し立て）は次のとおり扱う。
+
+- `charge.dispute.created` を受けると、該当の支払いに `disputed_at` が記録され、管理画面の支払い一覧に「異議申し立て」のバッジが出る。
+- 対応（証拠の提出、受け入れ）は **Stripe ダッシュボードの「支払い → 不審請求の申し立て（Disputes）」** で行う。期限（`evidence_details.due_by`）までに、支援の内容（プラン、閲覧できた投稿）、支払い日時、利用規約への同意日時（`users.terms_accepted_at`）、ログイン履歴などを提出する。
+- 損失の責任は運営（§2.1）なので、敗訴した金額と申し立て手数料は運営の残高から引かれる。必要ならクリエイターと別途調整する。
+- 申し立てが続く支援者・クリエイターは、管理画面で利用停止を検討する。
 
 ## 3. アプリ側の設定（`.env`）
 
@@ -193,6 +211,7 @@ stripe listen \
 
 ## 8. 範囲外（この手順書では扱わない）
 
-- 返金・チャージバック対応の画面（サブプロジェクト3の管理画面。当面は Stripe ダッシュボードで対応する）
+- 部分返金（全額返金のみ。部分的に返す必要があれば Stripe ダッシュボードで行い、`charge.refunded` で取り込む）
+- チャージバックの証拠提出の自動化（Stripe ダッシュボードで行う）
 - 適格請求書（インボイス制度）の対応（運営の登録状況が決まってから）
 - 独自の支払い通知メール（サブプロジェクト4）

@@ -311,6 +311,40 @@ it('cancels a new subscription for a closed or suspended creator', function (str
     Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === $reason)->once();
 })->with(['creator_closed', 'creator_suspended']);
 
+it('refunds the paid invoice of an orphan subscription', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $this->creator->forceFill(['closed_at' => now()])->save();
+    $sync = app(SubscriptionSync::class);
+
+    expect($sync->sync($subscription->id))->toBeNull()
+        ->and($sync->lastOutcome())->toBe('orphan');
+
+    $charge = $this->gateway->retrieveCharge($this->gateway->chargeIdForInvoice((string) $subscription->latestInvoiceId));
+    expect($charge->amountRefunded)->toBe(500);
+});
+
+it('logs a failed orphan refund without throwing', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $this->gateway->refundInvoice((string) $subscription->latestInvoiceId); // the fake refuses a second refund
+    $this->fan->delete();
+    Log::spy();
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
+    Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_refund_failed'
+        && $context['subscription'] === $subscription->id
+        && $context['invoice'] === $subscription->latestInvoiceId)->once();
+});
+
+it('reports the outcome of the last sync', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $sync = app(SubscriptionSync::class);
+
+    expect($sync->lastOutcome())->toBeNull();
+    $sync->sync($subscription->id);
+    expect($sync->lastOutcome())->toBe('synced');
+});
+
 it('keeps syncing an existing support after its creator closed', function () {
     $support = app(SubscriptionSync::class)->sync(fakeCheckout($this->gateway, $this->plan, $this->fan)->id);
     $this->creator->forceFill(['closed_at' => now()])->save();

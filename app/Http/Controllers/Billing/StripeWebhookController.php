@@ -13,7 +13,7 @@ use Stripe\Webhook;
 
 class StripeWebhookController extends Controller
 {
-    /** Events about the platform's own objects (checkout, subscriptions, invoices). */
+    /** Events about the platform's own objects (checkout, subscriptions, invoices, charges). */
     public function platform(Request $request): Response
     {
         return $this->receive($request, 'webhook_secret');
@@ -61,6 +61,11 @@ class StripeWebhookController extends Controller
         $objectId = $object['id'] ?? null;
         $subscriptionId = $event->type === 'checkout.session.completed' ? ($object['subscription'] ?? null) : null;
         $accountId = $payload['account'] ?? null;
+        $chargeId = match ($event->type) {
+            'charge.refunded' => $objectId,
+            'charge.dispute.created' => $object['charge'] ?? null, // the object is the dispute
+            default => null,
+        };
 
         ProcessStripeEvent::dispatch(
             $event->id,
@@ -68,6 +73,7 @@ class StripeWebhookController extends Controller
             is_string($objectId) ? $objectId : null,
             is_string($subscriptionId) ? $subscriptionId : null,
             is_string($accountId) ? $accountId : null,
+            is_string($chargeId) ? $chargeId : null,
         );
 
         return response('', 200);

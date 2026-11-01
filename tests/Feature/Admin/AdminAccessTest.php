@@ -10,6 +10,8 @@ dataset('admin routes', [
     'dashboard' => ['get', fn () => route('admin.dashboard')],
     'reports' => ['get', fn () => route('admin.reports.index')],
     'report update' => ['patch', fn () => route('admin.reports.update', Report::factory()->create())],
+    'payments' => ['get', fn () => route('admin.payments.index')],
+    'payment refund' => ['post', fn () => route('admin.payments.refund', Payment::factory()->create())],
 ]);
 
 it('returns 404 to non-admins on every admin route', function (string $method, Closure $url) {
