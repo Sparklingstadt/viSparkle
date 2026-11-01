@@ -288,6 +288,7 @@ it('leaves an existing support unchanged when stripe reports incomplete', functi
 
 it('cancels a new subscription whose user was deleted', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    expect($subscription->metadata['app'])->toBe(config('fanbox.billing.idempotency_prefix'));
     $this->fan->delete();
     Log::spy();
 
@@ -316,4 +317,34 @@ it('keeps syncing an existing support after its creator closed', function () {
 
     expect(app(SubscriptionSync::class)->sync((string) $support->stripe_subscription_id)->status)->toBe(SupportStatus::Active)
         ->and($this->gateway->cancelledNow())->toBe([]);
+});
+
+it('ignores a subscription stamped by another environment', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
+        'app' => 'production/elsewhere.example',
+        'user_id' => '999999',
+        'creator_id' => (string) $this->creator->id,
+        'plan_id' => (string) $this->plan->id,
+    ]);
+    Log::spy();
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and(Support::query()->count())->toBe(0)
+        ->and($this->gateway->cancelledNow())->toBe([]);
+    Log::shouldHaveReceived('info')->with('billing.foreign_subscription', ['subscription' => $subscription->id, 'app' => 'production/elsewhere.example'])->once();
+    Log::shouldNotHaveReceived('error');
+});
+
+it('never cancels an unstamped subscription whose user is missing', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
+        'user_id' => (string) $this->fan->id,
+        'creator_id' => (string) $this->creator->id,
+        'plan_id' => (string) $this->plan->id,
+    ]);
+    $this->fan->delete();
+    Log::spy();
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and($this->gateway->cancelledNow())->toBe([]);
+    Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });

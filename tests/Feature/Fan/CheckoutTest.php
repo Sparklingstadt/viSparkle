@@ -162,7 +162,7 @@ it('sends the metadata, destination and expiry to the gateway', function () {
     $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan));
 
     expect($captured)->toBeInstanceOf(CheckoutRequest::class)
-        ->and($captured->metadata)->toBe(['user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
+        ->and($captured->metadata)->toBe(['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
         ->and($captured->destinationAccountId)->toBe($this->creator->stripe_account_id)
         ->and($captured->feePercent)->toBe(10)
         ->and($captured->cancelUrl)->toBe(route('creators.show', $this->creator))

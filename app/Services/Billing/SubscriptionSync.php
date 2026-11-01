@@ -43,13 +43,22 @@ class SubscriptionSync
 
     public function apply(SubscriptionData $data): ?Support
     {
+        // Another environment's subscription (test-mode accounts are shared, and `stripe listen` forwards everything): not ours to touch.
+        $app = $data->metadata['app'] ?? null;
+
+        if ($app !== null && $app !== config('fanbox.billing.idempotency_prefix')) {
+            Log::info('billing.foreign_subscription', ['subscription' => $data->id, 'app' => $app]);
+
+            return null;
+        }
+
         // Find the owner before the transaction, so the transaction's first read (which fixes its REPEATABLE READ snapshot) is the user lock.
         $supportUserId = Support::query()->where('stripe_subscription_id', $data->id)->value('user_id');
         $userId = is_numeric($supportUserId) ? (int) $supportUserId : $this->metadataIds($data)['user_id'] ?? null;
 
         try {
             // Locking a missing subscription id takes a gap lock, so two first syncs can deadlock; write() is idempotent, so retry.
-            $result = DB::transaction(fn () => $this->write($data, $userId), 3);
+            $result = DB::transaction(fn () => $this->write($data, $userId, $app !== null), 3);
         } catch (UniqueConstraintViolationException $e) {
             // Another active support for the same user and creator was committed by a writer that skipped our lock.
             $ids = $this->metadataIds($data);
@@ -80,7 +89,7 @@ class SubscriptionSync
     /**
      * @return array{support?: Support|null, duplicate?: Support, orphan?: string}
      */
-    private function write(SubscriptionData $data, ?int $userId): array
+    private function write(SubscriptionData $data, ?int $userId, bool $ours): array
     {
         $ids = $this->metadataIds($data);
 
@@ -90,8 +99,11 @@ class SubscriptionSync
 
         $status = self::STATUSES[$data->status] ?? null;
 
+        // Orphans are only cancelled when stamped as ours; older subscriptions without the stamp keep the mismatch handling.
+        $orphanable = $ours && $support === null && $ids !== null && $status === SupportStatus::Active;
+
         // A new, charging subscription for a deleted user (e.g. a Checkout finished after the account was deleted).
-        if ($support === null && $ids !== null && $user === null && $status === SupportStatus::Active) {
+        if ($orphanable && $user === null) {
             return ['orphan' => 'user_missing'];
         }
 
@@ -102,8 +114,8 @@ class SubscriptionSync
         }
 
         // A new, charging subscription for a creator who can no longer take supports.
-        if ($support === null && $ids !== null && $status === SupportStatus::Active) {
-            $reason = $this->closedCreatorReason($ids['creator_id']);
+        if ($orphanable) {
+            $reason = $this->closedCreatorReason((int) $ids['creator_id']);
 
             if ($reason !== null) {
                 return ['orphan' => $reason];

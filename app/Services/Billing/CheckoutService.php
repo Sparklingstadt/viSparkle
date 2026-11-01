@@ -62,6 +62,8 @@ class CheckoutService
             destinationAccountId: (string) $creator->stripe_account_id,
             feePercent: (int) config('fanbox.billing.platform_fee_percent'),
             metadata: [
+                // Which environment created it: test-mode accounts are shared, so others' subscriptions reach our webhooks too.
+                'app' => (string) config('fanbox.billing.idempotency_prefix'),
                 'user_id' => (string) $user->id,
                 'creator_id' => (string) $creator->id,
                 'plan_id' => (string) $plan->id,
