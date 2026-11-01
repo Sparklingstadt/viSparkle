@@ -6,6 +6,7 @@ use Database\Seeders\DemoCreatorsSeeder;
 use Illuminate\Support\Facades\Storage;
 
 it('seeds demo accounts, plans and posts', function () {
+    Storage::fake('public');
     $gateway = fakeBilling();
     $this->seed();
 
