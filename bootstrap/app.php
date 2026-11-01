@@ -2,6 +2,7 @@
 
 use App\Billing\BillingException;
 use App\Http\Middleware\EnsureTermsAccepted;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsCreator;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -21,7 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        $middleware->alias(['creator' => EnsureUserIsCreator::class]);
+        $middleware->alias([
+            'creator' => EnsureUserIsCreator::class,
+            'admin' => EnsureUserIsAdmin::class,
+        ]);
 
         // Post bodies are Tiptap JSON where whitespace-only text nodes are meaningful; the controller trims title/excerpt itself.
         // Global middleware runs before routing, so match the post update endpoint (PUT creator/posts/{id}) by path.

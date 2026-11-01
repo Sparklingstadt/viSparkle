@@ -1,9 +1,10 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     FileText,
     Heart,
     Newspaper,
     Palette,
+    Shield,
     Ticket,
     Users,
     Wallet,
@@ -20,6 +21,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed } from '@/routes';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
 import { index as creatorPlans } from '@/routes/creator/plans';
@@ -67,7 +69,18 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+const adminNavItem: NavItem = {
+    title: '管理',
+    href: adminDashboard(),
+    icon: Shield,
+};
+
 export function AppSidebar() {
+    const { auth } = usePage().props;
+    const items = auth.user?.is_admin
+        ? [...mainNavItems, adminNavItem]
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -83,7 +96,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={items} />
             </SidebarContent>
 
             <SidebarFooter>
