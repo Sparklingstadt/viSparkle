@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Billing\BillingException;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
+use App\Billing\StripeGateway;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 use LogicException;
+use Stripe\StripeClient;
 
 class BillingServiceProvider extends ServiceProvider
 {
@@ -17,8 +19,7 @@ class BillingServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PaymentGateway::class, function (Application $app): PaymentGateway {
             return match ($driver = config('fanbox.billing.driver')) {
-                // StripeGateway arrives with the Stripe integration.
-                'stripe' => throw new BillingException('stripe driver not available'),
+                'stripe' => new StripeGateway(new StripeClient((string) config('fanbox.billing.stripe.secret'))),
                 'fake' => $app->make(FakeGateway::class),
                 default => throw new InvalidArgumentException("Unknown billing driver [{$driver}]."),
             };
