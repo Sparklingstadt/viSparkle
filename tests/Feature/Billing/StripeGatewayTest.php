@@ -19,6 +19,7 @@ use Tests\Support\RecordingStripeHttpClient;
 beforeEach(function () {
     $this->http = new RecordingStripeHttpClient;
     ApiRequestor::setHttpClient($this->http);
+    config(['fanbox.billing.idempotency_prefix' => 'test.app']);
     $this->gateway = new StripeGateway(new StripeClient('sk_test_x'));
 });
 
@@ -251,7 +252,7 @@ it('creates the plan price once', function () {
     expect($product['path'])->toBe('/v1/products')
         ->and($product['params']['name'])->toBe('Alice Basic')
         ->and($product['params']['metadata'])->toBe(['plan_id' => (string) $plan->id])
-        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("plan-{$plan->id}-product")
+        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("test.app:plan-{$plan->id}-product")
         ->and($price['path'])->toBe('/v1/prices')
         ->and($price['params'])->toMatchArray([
             'product' => 'prod_x',
@@ -260,7 +261,7 @@ it('creates the plan price once', function () {
             'recurring' => ['interval' => 'month'],
             'tax_behavior' => 'inclusive',
         ])
-        ->and($this->http->header(1, 'Idempotency-Key'))->toBe("plan-{$plan->id}-price");
+        ->and($this->http->header(1, 'Idempotency-Key'))->toBe("test.app:plan-{$plan->id}-price");
 });
 
 it('creates a customer with an idempotency key', function () {
@@ -274,7 +275,7 @@ it('creates a customer with an idempotency key', function () {
         ->and($request['params']['email'])->toBe($user->email)
         ->and($request['params']['name'])->toBe($user->name)
         ->and($request['params']['metadata'])->toBe(['user_id' => (string) $user->id])
-        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("user-{$user->id}-customer");
+        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("test.app:user-{$user->id}-customer");
 });
 
 it('creates a connect account for the creator', function () {
@@ -294,7 +295,7 @@ it('creates a connect account for the creator', function () {
             'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
             'metadata' => ['creator_id' => (string) $creator->id],
         ])
-        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("creator-{$creator->id}-account-v2");
+        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("test.app:creator-{$creator->id}-account-v2");
 });
 
 it('logs stripe notices instead of failing the call', function () {

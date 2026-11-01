@@ -34,7 +34,7 @@ class StripeGateway implements PaymentGateway
             'email' => $user->email,
             'name' => $user->name,
             'metadata' => ['user_id' => (string) $user->id],
-        ], ['idempotency_key' => "user-{$user->id}-customer"]));
+        ], ['idempotency_key' => $this->idempotencyKey("user-{$user->id}-customer")]));
 
         return $customer->id;
     }
@@ -48,7 +48,7 @@ class StripeGateway implements PaymentGateway
         $product = $this->call(fn () => $this->client->products->create([
             'name' => "{$plan->creator->display_name} {$plan->name}",
             'metadata' => ['plan_id' => (string) $plan->id],
-        ], ['idempotency_key' => "plan-{$plan->id}-product"]));
+        ], ['idempotency_key' => $this->idempotencyKey("plan-{$plan->id}-product")]));
 
         $price = $this->call(fn () => $this->client->prices->create([
             'product' => $product->id,
@@ -56,7 +56,7 @@ class StripeGateway implements PaymentGateway
             'unit_amount' => $plan->price,
             'recurring' => ['interval' => 'month'],
             'tax_behavior' => 'inclusive',
-        ], ['idempotency_key' => "plan-{$plan->id}-price"]));
+        ], ['idempotency_key' => $this->idempotencyKey("plan-{$plan->id}-price")]));
 
         $plan->forceFill(['stripe_product_id' => $product->id, 'stripe_price_id' => $price->id])->save();
 
@@ -158,7 +158,7 @@ class StripeGateway implements PaymentGateway
             'defaults' => ['responsibilities' => ['fees_collector' => 'application', 'losses_collector' => 'application']],
             'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
             'metadata' => ['creator_id' => (string) $creator->id],
-        ], ['idempotency_key' => "creator-{$creator->id}-account-v2"]));
+        ], ['idempotency_key' => $this->idempotencyKey("creator-{$creator->id}-account-v2")]));
 
         return $account->id;
     }
@@ -270,6 +270,15 @@ class StripeGateway implements PaymentGateway
     private static function stringMap(mixed $value): array
     {
         return is_array($value) ? array_map(strval(...), $value) : [];
+    }
+
+    /**
+     * Idempotency keys live per Stripe account, and several app environments (local, production) may share one test-mode
+     * account with overlapping database ids, so namespace every key by environment.
+     */
+    private function idempotencyKey(string $key): string
+    {
+        return config('fanbox.billing.idempotency_prefix').':'.$key;
     }
 
     /**
