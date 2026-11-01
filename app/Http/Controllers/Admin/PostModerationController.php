@@ -59,10 +59,11 @@ class PostModerationController extends Controller
         $reason = $hidden ? (string) $request->validated('reason') : null;
 
         DB::transaction(function () use ($request, $post, $hidden, $reason) {
-            $post->forceFill([
+            // Moderation isn't an edit by the author, so leave updated_at (shown as 最終更新日) alone.
+            Post::withoutTimestamps(fn () => $post->forceFill([
                 'hidden_at' => $hidden ? ($post->hidden_at ?? now()) : null,
                 'hidden_reason' => $reason,
-            ])->save();
+            ])->save());
 
             AdminAction::record($request->user(), $hidden ? 'post.hidden' : 'post.unhidden', $post, $reason);
         });
