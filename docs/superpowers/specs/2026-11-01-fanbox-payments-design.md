@@ -24,11 +24,11 @@
 
 ## 3. 方式の検討
 
-| 案 | 概要 | 評価 |
-| --- | --- | --- |
-| **A. stripe-php を直接使い、薄いゲートウェイで包む（採用）** | 支援テーブル自体をサブスクリプションの記録にする。Stripe 呼び出しは `PaymentGateway` インターフェース越し | 状態の持ち主が `supports` の1か所で済む。Connect の宛先指定・手数料を自由に渡せる。偽ドライバでテスト・ローカル確認ができる |
-| B. Laravel Cashier | `subscriptions` テーブルを Cashier が管理 | 1ユーザーが複数クリエイターを支援するため `type` を `creator:{id}` にする工夫が要る。Cashier の表と `supports` の二重管理になる |
-| C. Payment Links | Stripe 側で作ったリンクを貼る | プラン変更・権限同期・手数料の制御ができない |
+| 案                                                           | 概要                                                                                                      | 評価                                                                                                                            |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **A. stripe-php を直接使い、薄いゲートウェイで包む（採用）** | 支援テーブル自体をサブスクリプションの記録にする。Stripe 呼び出しは `PaymentGateway` インターフェース越し | 状態の持ち主が `supports` の1か所で済む。Connect の宛先指定・手数料を自由に渡せる。偽ドライバでテスト・ローカル確認ができる     |
+| B. Laravel Cashier                                           | `subscriptions` テーブルを Cashier が管理                                                                 | 1ユーザーが複数クリエイターを支援するため `type` を `creator:{id}` にする工夫が要る。Cashier の表と `supports` の二重管理になる |
+| C. Payment Links                                             | Stripe 側で作ったリンクを貼る                                                                             | プラン変更・権限同期・手数料の制御ができない                                                                                    |
 
 ## 4. Stripe の構成
 
@@ -48,48 +48,48 @@
 
 ### users
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| stripe_customer_id | string, nullable, unique | |
+| カラム             | 型                       | 備考 |
+| ------------------ | ------------------------ | ---- |
+| stripe_customer_id | string, nullable, unique |      |
 
 ### creators
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| stripe_account_id | string, nullable, unique | Connect Express アカウント |
-| payouts_enabled | bool, default false | `account.updated` から同期。`transfers` capability が active かつ `payouts_enabled` |
-| details_submitted | bool, default false | 登録手続きを最後まで終えたか（表示用） |
+| カラム            | 型                       | 備考                                                                                |
+| ----------------- | ------------------------ | ----------------------------------------------------------------------------------- |
+| stripe_account_id | string, nullable, unique | Connect Express アカウント                                                          |
+| payouts_enabled   | bool, default false      | `account.updated` から同期。`transfers` capability が active かつ `payouts_enabled` |
+| details_submitted | bool, default false      | 登録手続きを最後まで終えたか（表示用）                                              |
 
 `payouts_enabled = false` のクリエイターのプランには新規支援できない（ボタンは「準備中」）。
 
 ### plans
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| stripe_product_id | string, nullable | |
-| stripe_price_id | string, nullable, unique | |
+| カラム            | 型                       | 備考 |
+| ----------------- | ------------------------ | ---- |
+| stripe_product_id | string, nullable         |      |
+| stripe_price_id   | string, nullable, unique |      |
 
 ### supports（変更）
 
 支援1件 = Stripe サブスクリプション1件。プラン変更では行を作り直さず、`plan_id` と `price` を更新する。
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| stripe_subscription_id | string, nullable, unique | サブプロジェクト1のダミー支援は null |
-| stripe_status | string(32), nullable | Stripe の生の状態（`active` / `past_due` など）。表示用 |
-| current_period_end | datetime, nullable | 次回請求日（＝停止予約時の終了日） |
-| cancel_at_period_end | bool, default false | 停止予約中か |
-| current_key | 生成列（stored）, unique | `status = 'active'` のとき `"{user_id}:{creator_id}"`、それ以外は NULL。有効な支援を DB で1件に制限する |
+| カラム                 | 型                        | 備考                                                                                                    |
+| ---------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| stripe_subscription_id | string, nullable, unique  | サブプロジェクト1のダミー支援は null                                                                    |
+| stripe_status          | string(32), nullable      | Stripe の生の状態（`active` / `past_due` など）。表示用                                                 |
+| current_period_end     | datetime, nullable        | 次回請求日（＝停止予約時の終了日）                                                                      |
+| cancel_at_period_end   | bool, default false       | 停止予約中か                                                                                            |
+| current_key            | 生成列（virtual）, unique | `status = 'active'` のとき `"{user_id}:{creator_id}"`、それ以外は NULL。有効な支援を DB で1件に制限する |
 
 `status`（`active` / `ended`）の意味は変えない。閲覧権限（`Entitlement`）は引き続き `status = active` だけを見る。
 
 Stripe の状態との対応:
 
-| Stripe | `status` |
-| --- | --- |
-| `active`, `trialing`, `past_due` | `active` |
-| `canceled`, `unpaid`, `incomplete_expired`, `paused` | `ended`（`ended_at` を記録） |
-| `incomplete` | 支援を作らない（既存行があれば変更しない） |
+| Stripe                                               | `status`                                   |
+| ---------------------------------------------------- | ------------------------------------------ |
+| `active`, `trialing`, `past_due`                     | `active`                                   |
+| `canceled`, `unpaid`, `incomplete_expired`, `paused` | `ended`（`ended_at` を記録）               |
+| `incomplete`                                         | 支援を作らない（既存行があれば変更しない） |
 
 `price` は Stripe の Price の金額（＝支払った額）、`plan_id` は `plans.stripe_price_id` から引く。
 
@@ -97,28 +97,28 @@ Stripe の状態との対応:
 
 支払い成功（`invoice.paid`）の記録。クリエイターの売上表示に使う。
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| id | bigint | |
-| support_id | FK supports, nullable, nullOnDelete | |
-| user_id | FK users, nullable, nullOnDelete | |
-| creator_id | FK creators, cascade | |
-| stripe_invoice_id | string, unique | 冪等性の鍵 |
-| amount | unsigned int | 円。請求額（税込） |
-| fee_percent | unsigned tinyint | 支払い時点の運営手数料率 |
-| paid_at | datetime | |
-| timestamps | | |
+| カラム            | 型                                  | 備考                     |
+| ----------------- | ----------------------------------- | ------------------------ |
+| id                | bigint                              |                          |
+| support_id        | FK supports, nullable, nullOnDelete |                          |
+| user_id           | FK users, nullable, nullOnDelete    |                          |
+| creator_id        | FK creators, cascade                |                          |
+| stripe_invoice_id | string, unique                      | 冪等性の鍵               |
+| amount            | unsigned int                        | 円。請求額（税込）       |
+| fee_percent       | unsigned tinyint                    | 支払い時点の運営手数料率 |
+| paid_at           | datetime                            |                          |
+| timestamps        |                                     |                          |
 
 0円の請求（ダウングレード直後など）は記録しない。
 
 ### stripe_events（新規）
 
-| カラム | 型 | 備考 |
-| --- | --- | --- |
-| id | string, primary | Stripe のイベント ID |
-| type | string | |
-| processed_at | datetime, nullable | |
-| timestamps | | |
+| カラム       | 型                 | 備考                 |
+| ------------ | ------------------ | -------------------- |
+| id           | string, primary    | Stripe のイベント ID |
+| type         | string             |                      |
+| processed_at | datetime, nullable |                      |
+| timestamps   |                    |                      |
 
 ## 6. ゲートウェイ
 
@@ -186,45 +186,45 @@ Webhook・完了画面のどちらからも `SubscriptionSync::sync(サブスク
 - 処理はキュージョブ（`ProcessStripeEvent`）。失敗時はキューが再試行し、`processed_at` が null のまま残る
 - 扱うイベント:
 
-| イベント | 処理 |
-| --- | --- |
-| `checkout.session.completed` | セッションのサブスクリプションを同期 |
-| `customer.subscription.created` / `updated` / `deleted` | 同期 |
-| `invoice.paid` | サブスクリプションを同期し、`payments` に記録 |
-| `invoice.payment_failed` | 同期（`stripe_status` が `past_due` になる） |
-| `account.updated`（Connect） | クリエイターの `payouts_enabled` / `details_submitted` を更新 |
-| `account.application.deauthorized`（Connect） | `payouts_enabled = false` |
+| イベント                                                | 処理                                                          |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| `checkout.session.completed`                            | セッションのサブスクリプションを同期                          |
+| `customer.subscription.created` / `updated` / `deleted` | 同期                                                          |
+| `invoice.paid`                                          | サブスクリプションを同期し、`payments` に記録                 |
+| `invoice.payment_failed`                                | 同期（`stripe_status` が `past_due` になる）                  |
+| `account.updated`（Connect）                            | クリエイターの `payouts_enabled` / `details_submitted` を更新 |
+| `account.application.deauthorized`（Connect）           | `payouts_enabled = false`                                     |
 
 その他のイベントは記録だけして無視する。
 
 ## 8. 画面の変更
 
-| 画面 | 変更 |
-| --- | --- |
-| クリエイターページのプラン | 未ログイン「ログインして支援する」/ 口座未登録「準備中」/ 支援中のプラン「支援中」/ 他のプラン「このプランに変更」（差額の説明つき確認）/ 受付停止 |
-| `/supporting` | 次回請求日、停止予約中なら「◯月◯日に終了」と「再開する」、`past_due` なら「お支払いに失敗しています」と「お支払い方法を更新」。上部に「お支払い方法・請求履歴」（カスタマーポータル） |
-| `/creator/earnings`（新規） | 7.5 のとおり。サイドバーに「収益」 |
-| `/creator/plans` | 口座未登録の案内 |
-| `/dev/fake-checkout/{session}`（偽ドライバのみ） | 金額と「支払う」「キャンセル」 |
+| 画面                                             | 変更                                                                                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| クリエイターページのプラン                       | 未ログイン「ログインして支援する」/ 口座未登録「準備中」/ 支援中のプラン「支援中」/ 他のプラン「このプランに変更」（差額の説明つき確認）/ 受付停止                                    |
+| `/supporting`                                    | 次回請求日、停止予約中なら「◯月◯日に終了」と「再開する」、`past_due` なら「お支払いに失敗しています」と「お支払い方法を更新」。上部に「お支払い方法・請求履歴」（カスタマーポータル） |
+| `/creator/earnings`（新規）                      | 7.5 のとおり。サイドバーに「収益」                                                                                                                                                    |
+| `/creator/plans`                                 | 口座未登録の案内                                                                                                                                                                      |
+| `/dev/fake-checkout/{session}`（偽ドライバのみ） | 金額と「支払う」「キャンセル」                                                                                                                                                        |
 
 価格表示は「税込」と明記する。
 
 ## 9. ルーティング（追加・変更）
 
-| メソッド・URL | 内容 |
-| --- | --- |
-| `POST /@{slug}/plans/{plan}/support` | Checkout を開始（変更） |
-| `GET /supports/checkout/complete` | Checkout 完了の戻り先 |
-| `PUT /supports/{support}` | プラン変更 |
-| `DELETE /supports/{support}` | 停止予約（変更） |
-| `POST /supports/{support}/resume` | 再開 |
-| `POST /billing/portal` | カスタマーポータルへ |
-| `GET /creator/earnings` | 収益画面 |
-| `POST /creator/earnings/onboarding` | 口座登録・続行 |
-| `GET /creator/earnings/onboarding/return` | 登録からの戻り先（状態を同期） |
-| `POST /creator/earnings/dashboard` | Stripe ダッシュボードへ |
-| `POST /stripe/webhook`, `POST /stripe/connect-webhook` | Webhook |
-| `GET/POST /dev/fake-checkout/{session}` | 偽ドライバの決済画面（`fake` のときだけ登録） |
+| メソッド・URL                                          | 内容                                          |
+| ------------------------------------------------------ | --------------------------------------------- |
+| `POST /@{slug}/plans/{plan}/support`                   | Checkout を開始（変更）                       |
+| `GET /supports/checkout/complete`                      | Checkout 完了の戻り先                         |
+| `PUT /supports/{support}`                              | プラン変更                                    |
+| `DELETE /supports/{support}`                           | 停止予約（変更）                              |
+| `POST /supports/{support}/resume`                      | 再開                                          |
+| `POST /billing/portal`                                 | カスタマーポータルへ                          |
+| `GET /creator/earnings`                                | 収益画面                                      |
+| `POST /creator/earnings/onboarding`                    | 口座登録・続行                                |
+| `GET /creator/earnings/onboarding/return`              | 登録からの戻り先（状態を同期）                |
+| `POST /creator/earnings/dashboard`                     | Stripe ダッシュボードへ                       |
+| `POST /stripe/webhook`, `POST /stripe/connect-webhook` | Webhook                                       |
+| `GET/POST /dev/fake-checkout/{session}`                | 偽ドライバの決済画面（`fake` のときだけ登録） |
 
 支援操作は従来どおり 10 回/分/ユーザーのレート制限。
 
