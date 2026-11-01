@@ -61,6 +61,7 @@ class UserController extends Controller
         $reason = (string) $request->validated('reason');
 
         // Suspend first, so the account is locked out (and new checkouts refused) before the billing work starts.
+        // Suspending an already-suspended user re-runs the billing work for whatever is still active, keeping suspended_at.
         $user->forceFill(['suspended_at' => $user->suspended_at ?? now(), 'suspended_reason' => $reason])->save();
         AdminAction::record($admin, 'user.suspended', $user, $reason);
 
@@ -72,10 +73,15 @@ class UserController extends Controller
 
         $cancelled = $fan['cancelled'] + $creator['cancelled'];
         $failed = $fan['failed'] + $creator['failed'];
+        $summary = "解約 {$cancelled}件・返金 {$creator['refunded']}件・失敗 {$failed}件";
+
+        if ($cancelled + $creator['refunded'] + $failed > 0) {
+            AdminAction::record($admin, 'user.suspension_billing', $user, $summary);
+        }
 
         Inertia::flash('toast', [
             'type' => $failed === 0 ? 'success' : 'error',
-            'message' => "利用停止にしました。（解約 {$cancelled}件・返金 {$creator['refunded']}件・失敗 {$failed}件）",
+            'message' => "利用停止にしました。（{$summary}）",
         ]);
 
         return back();

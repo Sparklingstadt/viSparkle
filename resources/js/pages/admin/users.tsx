@@ -111,27 +111,59 @@ export default function Users({
                                 </div>
 
                                 {user.suspended ? (
-                                    <Form
-                                        {...update.form(user.id)}
-                                        options={{ preserveScroll: true }}
-                                    >
-                                        {({ processing }) => (
-                                            <>
-                                                <input
-                                                    type="hidden"
-                                                    name="suspended"
-                                                    value="0"
-                                                />
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    disabled={processing}
-                                                >
-                                                    利用停止を解除する
-                                                </Button>
-                                            </>
-                                        )}
-                                    </Form>
+                                    <div className="flex flex-wrap gap-2">
+                                        {/* Re-runs the billing work (cancellations and refunds) that is still left after a failure. */}
+                                        <Form
+                                            {...update.form(user.id)}
+                                            options={{ preserveScroll: true }}
+                                        >
+                                            {({ processing }) => (
+                                                <>
+                                                    <input
+                                                        type="hidden"
+                                                        name="suspended"
+                                                        value="1"
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="reason"
+                                                        value={
+                                                            user.suspended_reason ??
+                                                            ''
+                                                        }
+                                                    />
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={processing}
+                                                    >
+                                                        再実行
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Form>
+                                        <Form
+                                            {...update.form(user.id)}
+                                            options={{ preserveScroll: true }}
+                                        >
+                                            {({ processing }) => (
+                                                <>
+                                                    <input
+                                                        type="hidden"
+                                                        name="suspended"
+                                                        value="0"
+                                                    />
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        disabled={processing}
+                                                    >
+                                                        利用停止を解除する
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Form>
+                                    </div>
                                 ) : (
                                     <Button
                                         size="sm"

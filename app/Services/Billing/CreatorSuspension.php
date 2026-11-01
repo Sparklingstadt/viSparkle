@@ -28,7 +28,8 @@ class CreatorSuspension
     ) {}
 
     /**
-     * Safe to run again: only supports still active are touched. A support with no recorded payment is cancelled only.
+     * Safe to run again: only supports still active are touched. A support with no recorded payment, or whose latest
+     * payment is already refunded, is cancelled only.
      *
      * @return array{cancelled: int, refunded: int, failed: int}
      */
@@ -56,19 +57,19 @@ class CreatorSuspension
                 continue;
             }
 
+            // Only the latest payment is refunded; when it is already refunded, no older month is refunded instead.
             $payment = Payment::query()
                 ->where('support_id', $support->id)
-                ->whereColumn('refunded_amount', '<', 'amount')
                 ->orderByDesc('paid_at')
                 ->orderByDesc('id')
                 ->first();
 
-            if ($payment === null) {
+            if ($payment === null || $payment->refunded_amount >= $payment->amount) {
                 continue;
             }
 
             try {
-                $this->refunds->refund($payment, $admin, false);
+                $this->refunds->refund($payment, $admin, false, '利用停止による返金');
                 $counts['refunded']++;
             } catch (BillingException $e) {
                 $counts['failed']++;

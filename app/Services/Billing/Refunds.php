@@ -24,11 +24,12 @@ class Refunds
     /**
      * Refund the payment in full (the creator's transfer and the platform fee come back too). The support stays unless
      * $cancelSupport; then a billing, active support is cancelled now. A failed cancellation is logged and noted, not thrown.
+     * $note replaces the default「支援は継続」note of a refund that leaves the support alone (e.g. a suspension's refund).
      *
      * @throws ValidationException when the payment is already refunded
      * @throws BillingException when the refund fails (nothing is recorded)
      */
-    public function refund(Payment $payment, User $admin, bool $cancelSupport): void
+    public function refund(Payment $payment, User $admin, bool $cancelSupport, ?string $note = null): void
     {
         if ($payment->refunded_amount >= $payment->amount) {
             throw ValidationException::withMessages(['payment' => 'この支払いはすでに返金済みです。']);
@@ -38,7 +39,7 @@ class Refunds
         $payment->forceFill(['refunded_amount' => $payment->amount, 'refunded_at' => now()])->save();
 
         $support = $payment->support;
-        $note = '支援は継続';
+        $note ??= '支援は継続';
 
         if ($cancelSupport && $support !== null && $support->isBilling() && $support->status === SupportStatus::Active) {
             try {

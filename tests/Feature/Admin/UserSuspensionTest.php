@@ -102,7 +102,9 @@ it('suspends a fan: blocks login and cancels their supports without refunds', fu
         ->and($this->gateway->cancelledNow())->toBe([$payment->support->stripe_subscription_id])
         ->and(Support::sole()->status)->toBe(SupportStatus::Ended)
         ->and($payment->fresh()->refunded_amount)->toBe(0)
-        ->and(AdminAction::sole())->action->toBe('user.suspended')->note->toBe('迷惑行為');
+        ->and(AdminAction::query()->where('action', 'user.suspended')->sole()->note)->toBe('迷惑行為')
+        ->and(AdminAction::query()->where('action', 'user.suspension_billing')->sole())
+        ->target_id->toBe($fan->id)->note->toBe('解約 1件・返金 0件・失敗 0件');
 
     auth()->logout();
     $this->post(route('login.store'), ['email' => $fan->email, 'password' => 'password'])
@@ -149,8 +151,10 @@ it('suspends a creator: cancels and refunds every supporter and hides their page
         ->and(Support::query()->where('status', SupportStatus::Active)->count())->toBe(0)
         ->and($first->fresh()->refunded_amount)->toBe(800)
         ->and($second->fresh()->refunded_amount)->toBe(800)
-        ->and(AdminAction::query()->where('action', 'payment.refunded')->count())->toBe(2)
+        ->and(AdminAction::query()->where('action', 'payment.refunded')->pluck('note')->all())->toBe(['利用停止による返金', '利用停止による返金'])
         ->and(AdminAction::query()->where('action', 'user.suspended')->count())->toBe(1)
+        ->and(AdminAction::query()->where('action', 'user.suspension_billing')->sole())
+        ->target_id->toBe($creator->user->id)->note->toBe('解約 4件・返金 2件・失敗 0件')
         ->and($plan->fresh()->is_accepting)->toBeFalse();
 
     auth()->logout();
@@ -175,6 +179,52 @@ it('counts failures and carries on', function () {
     expect($broken->fresh()->refunded_amount)->toBe(0)
         ->and($ok->fresh()->refunded_amount)->toBe(800)
         ->and($creator->user->fresh()->isSuspended())->toBeTrue();
+});
+
+it('refunds only the latest payment of each support', function () {
+    $creator = Creator::factory()->payable()->create();
+    $plan = Plan::factory()->for($creator)->price(800)->create();
+    $recorder = app(PaymentRecorder::class);
+
+    // Two months paid: only the second month is refunded.
+    $renewed = suspensionPayment($plan, User::factory()->create());
+    $renewal = $recorder->record($this->gateway->advancePeriod((string) $renewed->support->stripe_subscription_id)->id);
+    // Latest month already refunded: the older month is not refunded instead.
+    $refunded = suspensionPayment($plan, User::factory()->create());
+    $refundedRenewal = $recorder->record($this->gateway->advancePeriod((string) $refunded->support->stripe_subscription_id)->id);
+    $refundedRenewal->forceFill(['refunded_amount' => 800, 'refunded_at' => now()])->save();
+
+    $this->actingAs($this->admin)->patch(route('admin.users.update', $creator->user), ['suspended' => true, 'reason' => '詐欺'])
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '利用停止にしました。（解約 2件・返金 1件・失敗 0件）']);
+
+    expect($renewal->fresh()->refunded_amount)->toBe(800)
+        ->and($renewed->fresh()->refunded_amount)->toBe(0)
+        ->and($refunded->fresh()->refunded_amount)->toBe(0)
+        ->and(AdminAction::query()->where('action', 'payment.refunded')->sole()->target_id)->toBe($renewal->id);
+});
+
+it('re-runs the billing work for an already-suspended user without changing suspended_at', function () {
+    $creator = Creator::factory()->payable()->create();
+    $plan = Plan::factory()->for($creator)->price(800)->create();
+    $payment = suspensionPayment($plan, User::factory()->create());
+    // An earlier suspension whose billing work did not finish.
+    $suspendedAt = now()->subDay()->startOfSecond();
+    $creator->user->forceFill(['suspended_at' => $suspendedAt, 'suspended_reason' => '詐欺'])->save();
+
+    $this->actingAs($this->admin)->patch(route('admin.users.update', $creator->user), ['suspended' => true, 'reason' => '詐欺'])
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '利用停止にしました。（解約 1件・返金 1件・失敗 0件）']);
+
+    expect($creator->user->fresh()->suspended_at->equalTo($suspendedAt))->toBeTrue()
+        ->and($this->gateway->cancelledNow())->toBe([$payment->support->stripe_subscription_id])
+        ->and($payment->fresh()->refunded_amount)->toBe(800);
+
+    // Nothing is left to do: a further re-run touches nothing and records no billing result.
+    $this->actingAs($this->admin)->patch(route('admin.users.update', $creator->user), ['suspended' => true, 'reason' => '詐欺'])
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '利用停止にしました。（解約 0件・返金 0件・失敗 0件）']);
+
+    expect($this->gateway->cancelledNow())->toHaveCount(1)
+        ->and(AdminAction::query()->where('action', 'user.suspension_billing')->count())->toBe(1)
+        ->and($creator->user->fresh()->suspended_at->equalTo($suspendedAt))->toBeTrue();
 });
 
 it('unsuspends a user so they can log in again', function () {
