@@ -44,7 +44,8 @@ class StripeWebhookController extends Controller
         $payload = $event->toArray();
         $now = now();
 
-        // A replayed event id inserts nothing: acknowledge it without processing it again.
+        // A replayed event id inserts nothing. If that earlier delivery was never processed (e.g. enqueueing failed), run it again;
+        // the handlers re-read Stripe's state, so processing twice is harmless. A processed event is just acknowledged.
         $inserted = StripeEvent::query()->insertOrIgnore([
             'id' => $event->id,
             'type' => $event->type,
@@ -52,7 +53,7 @@ class StripeWebhookController extends Controller
             'updated_at' => $now,
         ]);
 
-        if ($inserted === 0) {
+        if ($inserted === 0 && StripeEvent::query()->whereKey($event->id)->whereNotNull('processed_at')->exists()) {
             return response('', 200);
         }
 

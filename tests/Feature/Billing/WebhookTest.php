@@ -127,16 +127,30 @@ it('ignores a replayed event id', function () {
         ->and(StripeEvent::count())->toBe(1);
 });
 
-it('dispatches nothing for a replayed event id', function () {
+it('dispatches nothing for a replayed event that was already processed', function () {
     Queue::fake();
 
     postStripeEvent('evt_once', 'customer.subscription.updated', ['id' => 'sub_1'])->assertOk();
+    StripeEvent::findOrFail('evt_once')->forceFill(['processed_at' => now()])->save(); // the faked queue never runs the job
     postStripeEvent('evt_once', 'customer.subscription.updated', ['id' => 'sub_1'])->assertOk();
 
     Queue::assertPushed(ProcessStripeEvent::class, 1);
     Queue::assertPushed(ProcessStripeEvent::class, fn (ProcessStripeEvent $job) => $job->eventId === 'evt_once'
         && $job->type === 'customer.subscription.updated'
         && $job->objectId === 'sub_1');
+});
+
+it('processes a redelivered event whose earlier delivery never ran', function () {
+    $gateway = fakeBilling();
+    $plan = Plan::factory()->for(Creator::factory()->payable())->create();
+    $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
+    // A previous delivery stored the id but could not enqueue the job.
+    StripeEvent::query()->create(['id' => 'evt_retry', 'type' => 'checkout.session.completed']);
+
+    postStripeEvent('evt_retry', 'checkout.session.completed', ['id' => 'cs_1', 'subscription' => $subscription->id])->assertOk();
+
+    expect(Support::sole()->stripe_subscription_id)->toBe($subscription->id)
+        ->and(StripeEvent::findOrFail('evt_retry')->processed_at)->not->toBeNull();
 });
 
 it('enables a creator on account.updated via the connect endpoint', function () {
@@ -156,6 +170,14 @@ it('rejects the platform secret on the connect endpoint', function () {
     fakeBilling();
 
     postStripeEvent('evt_x', 'account.updated', ['id' => 'acct_1'], connect: true, secret: 'whsec_platform')->assertStatus(400);
+
+    expect(StripeEvent::count())->toBe(0);
+});
+
+it('rejects the connect secret on the platform endpoint', function () {
+    fakeBilling();
+
+    postStripeEvent('evt_y', 'invoice.paid', ['id' => 'in_1'], secret: 'whsec_connect')->assertStatus(400);
 
     expect(StripeEvent::count())->toBe(0);
 });
@@ -186,4 +208,10 @@ it('leaves the event unprocessed when handling fails', function () {
     postStripeEvent('evt_boom', 'customer.subscription.updated', ['id' => 'sub_missing'])->assertStatus(500);
 
     expect(StripeEvent::findOrFail('evt_boom')->processed_at)->toBeNull();
+
+    // Stripe's redelivery is not swallowed as a replay: it is attempted again (and fails again here).
+    postStripeEvent('evt_boom', 'customer.subscription.updated', ['id' => 'sub_missing'])->assertStatus(500);
+
+    expect(StripeEvent::count())->toBe(1)
+        ->and(StripeEvent::findOrFail('evt_boom')->processed_at)->toBeNull();
 });
