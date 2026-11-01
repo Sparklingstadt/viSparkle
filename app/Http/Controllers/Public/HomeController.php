@@ -24,7 +24,7 @@ class HomeController extends Controller
             ->get()
             ->map(fn (Post $post) => $presenter->summary($post, $entitlement));
 
-        $creators = Creator::latest('id')->limit(12)->get()->map->toSummary();
+        $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
 
         return Inertia::render('public/home', ['posts' => $posts, 'creators' => $creators]);
     }

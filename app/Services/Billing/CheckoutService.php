@@ -99,6 +99,10 @@ class CheckoutService
             throw ValidationException::withMessages(['plan' => '自分自身を支援することはできません。']);
         }
 
+        if ($creator->isClosed()) {
+            throw ValidationException::withMessages(['plan' => 'このクリエイターは活動を終了しました。']);
+        }
+
         if (! $creator->canAcceptSupports()) {
             throw ValidationException::withMessages(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
         }

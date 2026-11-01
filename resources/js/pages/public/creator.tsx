@@ -15,6 +15,7 @@ export default function CreatorPage({
     viewerSupportId,
     viewerSupportCancelling,
     acceptsSupports,
+    closed,
 }: {
     creator: CreatorProfile;
     plans: PlanData[];
@@ -25,6 +26,7 @@ export default function CreatorPage({
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
+    closed: boolean;
 }) {
     return (
         <>
@@ -32,6 +34,12 @@ export default function CreatorPage({
 
             <div className="space-y-8">
                 <CreatorHeader creator={creator} />
+
+                {closed && (
+                    <p className="rounded-md border bg-muted p-4 text-sm">
+                        このクリエイターは活動を終了しました。
+                    </p>
+                )}
 
                 <section id="plans" className="space-y-4">
                     <h2 className="text-lg font-semibold">支援プラン</h2>
@@ -46,7 +54,10 @@ export default function CreatorPage({
                                     key={plan.id}
                                     plan={plan}
                                     action={
-                                        isOwner ? null : (
+                                        // A closed creator takes no new supports; current supporters can still manage theirs.
+                                        isOwner ||
+                                        (closed &&
+                                            viewerSupportId === null) ? null : (
                                             <SupportButton
                                                 creatorSlug={creator.slug}
                                                 plan={plan}

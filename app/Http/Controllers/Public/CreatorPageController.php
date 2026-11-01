@@ -48,6 +48,7 @@ class CreatorPageController extends Controller
             'viewerSupportId' => $support?->id,
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
+            'closed' => $creator->isClosed(),
         ]);
     }
 
