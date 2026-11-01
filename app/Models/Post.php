@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PostFileKind;
 use App\Enums\PostStatus;
+use Carbon\CarbonInterface;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -23,7 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $cover_file_id
  * @property int $required_price
  * @property PostStatus $status
- * @property Carbon|null $published_at
+ * @property CarbonInterface|null $published_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
