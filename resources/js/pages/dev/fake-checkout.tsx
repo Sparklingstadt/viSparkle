@@ -1,5 +1,4 @@
 import { Form, Head } from '@inertiajs/react';
-import FakeCheckoutController from '@/actions/App/Http/Controllers/Dev/FakeCheckoutController';
 import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
 
@@ -42,7 +41,11 @@ export default function FakeCheckout({
 
                 {status === 'open' ? (
                     <div className="flex flex-col gap-2">
-                        <Form {...FakeCheckoutController.pay.form(session_id)}>
+                        {/* A literal URL: Wayfinder only generates this route's helper when the fake driver is on, so importing it breaks production builds. */}
+                        <Form
+                            action={`/dev/fake-checkout/${session_id}`}
+                            method="post"
+                        >
                             {({ processing }) => (
                                 <Button
                                     type="submit"

@@ -279,24 +279,38 @@ it('creates a customer with an idempotency key', function () {
 
 it('creates a connect account for the creator', function () {
     $creator = Creator::factory()->create();
-    $this->http->queue(['id' => 'acct_x', 'object' => 'account']);
+    $this->http->queue(['id' => 'acct_x', 'object' => 'v2.core.account']);
 
     expect($this->gateway->createConnectAccount($creator))->toBe('acct_x');
 
     $request = $this->http->requests[0];
-    expect($request['path'])->toBe('/v1/accounts')
+    expect($request['path'])->toBe('/v2/core/accounts')
         ->and($request['params'])->toMatchArray([
-            'type' => 'express',
-            'country' => 'JP',
-            'email' => $creator->user->email,
-            'capabilities' => ['transfers' => ['requested' => true]],
+            'contact_email' => $creator->user->email,
+            'display_name' => $creator->display_name,
+            'identity' => ['country' => 'jp'],
+            'dashboard' => 'express',
+            'defaults' => ['responsibilities' => ['fees_collector' => 'application', 'losses_collector' => 'application']],
+            'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
             'metadata' => ['creator_id' => (string) $creator->id],
         ])
-        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("creator-{$creator->id}-account");
+        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("creator-{$creator->id}-account-v2");
+});
+
+it('logs stripe notices instead of failing the call', function () {
+    Log::spy();
+    $creator = Creator::factory()->create();
+    $this->http->queue(['id' => 'acct_x', 'object' => 'account'], headers: ['Stripe-Notice' => 'We recommend building your integration using Accounts v2.']);
+
+    expect($this->gateway->createConnectAccount($creator))->toBe('acct_x');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context) => $message === 'billing.stripe_notice' && str_contains($context['message'], 'Accounts v2'))
+        ->once();
 });
 
 it('returns onboarding, dashboard and portal URLs', function () {
-    $this->http->queue(['object' => 'account_link', 'url' => 'https://connect.stripe.test/onboard'])
+    $this->http->queue(['object' => 'v2.core.account_link', 'url' => 'https://connect.stripe.test/onboard'])
         ->queue(['object' => 'login_link', 'url' => 'https://connect.stripe.test/dashboard'])
         ->queue(['object' => 'billing_portal.session', 'url' => 'https://billing.stripe.test/portal']);
 
@@ -305,12 +319,13 @@ it('returns onboarding, dashboard and portal URLs', function () {
         ->and($this->gateway->createPortalSession('cus_x', 'https://app.test/back'))->toBe('https://billing.stripe.test/portal');
 
     [$link, $login, $portal] = $this->http->requests;
-    expect($link['path'])->toBe('/v1/account_links')
+    expect($link['path'])->toBe('/v2/core/account_links')
         ->and($link['params'])->toMatchArray([
             'account' => 'acct_x',
-            'refresh_url' => 'https://app.test/refresh',
-            'return_url' => 'https://app.test/return',
-            'type' => 'account_onboarding',
+            'use_case' => [
+                'type' => 'account_onboarding',
+                'account_onboarding' => ['refresh_url' => 'https://app.test/refresh', 'return_url' => 'https://app.test/return'],
+            ],
         ])
         ->and($login['path'])->toBe('/v1/accounts/acct_x/login_links')
         ->and($portal['path'])->toBe('/v1/billing_portal/sessions')

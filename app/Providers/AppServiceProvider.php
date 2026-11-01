@@ -30,6 +30,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configurePrivateUrlSigning();
+        $this->configureStorageFailures();
+    }
+
+    /**
+     * Fail loudly on storage errors even after Laravel Cloud replaces the disk config (it sets throw => false).
+     */
+    protected function configureStorageFailures(): void
+    {
+        foreach (['private', 'public'] as $disk) {
+            config()->set("filesystems.disks.{$disk}.throw", true);
+        }
     }
 
     /**
