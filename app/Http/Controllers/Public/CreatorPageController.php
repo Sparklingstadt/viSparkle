@@ -59,7 +59,7 @@ class CreatorPageController extends Controller
     /**
      * Accepting plans, plus the viewer's own plan even if it stopped accepting; the owner sees all.
      *
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: int, name: string, description: string|null, price: int, cover_url: string|null, is_accepting: bool, active_supporters_count: int}>
      */
     public static function visiblePlans(Creator $creator, bool $isOwner, ?Support $support): Collection
     {

@@ -15,11 +15,17 @@ use Illuminate\Filesystem\AwsS3V3Adapter;
  */
 class BrowserSignedS3Adapter extends AwsS3V3Adapter
 {
+    /**
+     * @param  array<string, mixed>  $config
+     */
     public function __construct(AwsS3V3Adapter $base, array $config, protected S3Client $signingClient)
     {
         parent::__construct($base->getDriver(), $base->getAdapter(), $config, $base->getClient());
     }
 
+    /**
+     * @param  array<string, mixed>  $options
+     */
     public function temporaryUrl($path, $expiration, array $options = [])
     {
         $command = $this->signingClient->getCommand('GetObject', array_merge([

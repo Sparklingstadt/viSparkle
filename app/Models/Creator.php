@@ -40,7 +40,7 @@ class Creator extends Model
     {
         $creator = parent::resolveRouteBinding($value, $field);
 
-        return $creator !== null && ($field ?? $this->getRouteKeyName()) === 'slug' && $creator->slug !== $value
+        return $creator instanceof self && ($field ?? $this->getRouteKeyName()) === 'slug' && $creator->slug !== $value
             ? null
             : $creator;
     }

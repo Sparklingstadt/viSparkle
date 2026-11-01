@@ -18,8 +18,8 @@ class SupportFactory extends Factory
         return [
             'user_id' => User::factory(),
             'plan_id' => Plan::factory(),
-            'creator_id' => fn (array $attributes) => Plan::find($attributes['plan_id'])->creator_id,
-            'price' => fn (array $attributes) => Plan::find($attributes['plan_id'])->price,
+            'creator_id' => fn (array $attributes) => Plan::findOrFail((int) $attributes['plan_id'])->creator_id,
+            'price' => fn (array $attributes) => Plan::findOrFail((int) $attributes['plan_id'])->price,
             'status' => SupportStatus::Active,
             'started_at' => now(),
         ];
