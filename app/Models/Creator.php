@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SupportStatus;
 use Database\Factories\CreatorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -49,6 +50,30 @@ class Creator extends Model
     {
         $query->whereNull('closed_at')
             ->whereHas('user', fn ($q) => $q->whereNull('suspended_at'));
+    }
+
+    /**
+     * Open creators ranked by fans who started (and still keep) a support in the last 7 days.
+     * One fan holds at most one active support per creator, so counting supports counts fans.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function weeklyPopular(Builder $query): void
+    {
+        $newThisWeek = fn ($q) => $q->where('status', SupportStatus::Active)
+            ->where('started_at', '>=', now()->subDays(7))
+            ->whereColumn('supports.user_id', '!=', 'creators.user_id');
+
+        $query->open()
+            ->whereHas('supports', $newThisWeek)
+            ->withCount([
+                'supports as weekly_supporters_count' => $newThisWeek,
+                'supports as active_supporters_count' => fn ($q) => $q->where('status', SupportStatus::Active),
+            ])
+            ->orderByDesc('weekly_supporters_count')
+            ->orderByDesc('active_supporters_count')
+            ->orderByDesc('id');
     }
 
     public function isClosed(): bool

@@ -28,7 +28,13 @@ class HomeController extends Controller
             ->map(fn (Post $post) => $presenter->summary($post, $entitlement));
 
         $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
+        $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
 
-        return Inertia::render('public/home', ['posts' => $posts, 'creators' => $creators, 'sort' => $sort]);
+        return Inertia::render('public/home', [
+            'posts' => $posts,
+            'creators' => $creators,
+            'popularCreators' => $popularCreators,
+            'sort' => $sort,
+        ]);
     }
 }
