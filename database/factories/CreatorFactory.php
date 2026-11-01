@@ -22,6 +22,11 @@ class CreatorFactory extends Factory
         ];
     }
 
+    public function closed(): static
+    {
+        return $this->state(fn () => ['closed_at' => now()]);
+    }
+
     public function payable(): static
     {
         return $this->state(fn () => [

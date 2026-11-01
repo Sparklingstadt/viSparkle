@@ -18,6 +18,9 @@ use Illuminate\Support\Carbon;
  * @property int $amount
  * @property int $fee_percent
  * @property Carbon $paid_at
+ * @property int $refunded_amount
+ * @property Carbon|null $refunded_at
+ * @property Carbon|null $disputed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -33,7 +36,15 @@ class Payment extends Model
             'amount' => 'integer',
             'fee_percent' => 'integer',
             'paid_at' => 'datetime',
+            'refunded_amount' => 'integer',
+            'refunded_at' => 'datetime',
+            'disputed_at' => 'datetime',
         ];
+    }
+
+    public function netAmount(): int
+    {
+        return $this->amount - (int) $this->refunded_amount;
     }
 
     /** @return BelongsTo<Creator, $this> */

@@ -46,6 +46,16 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function admin(): static
+    {
+        return $this->state(fn () => ['is_admin' => true]);
+    }
+
+    public function suspended(string $reason = '規約違反'): static
+    {
+        return $this->state(fn () => ['suspended_at' => now(), 'suspended_reason' => $reason]);
+    }
+
     /**
      * Indicate that the model has two-factor authentication configured.
      */

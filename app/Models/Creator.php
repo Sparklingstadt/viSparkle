@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\CreatorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $stripe_account_id
  * @property bool $payouts_enabled
  * @property bool $details_submitted
+ * @property Carbon|null $closed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -36,7 +39,21 @@ class Creator extends Model
         return [
             'payouts_enabled' => 'boolean',
             'details_submitted' => 'boolean',
+            'closed_at' => 'datetime',
         ];
+    }
+
+    /** @param  Builder<self>  $query */
+    #[Scope]
+    protected function open(Builder $query): void
+    {
+        $query->whereNull('closed_at')
+            ->whereHas('user', fn ($q) => $q->whereNull('suspended_at'));
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->closed_at !== null;
     }
 
     public function getRouteKeyName(): string
