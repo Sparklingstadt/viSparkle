@@ -49,8 +49,9 @@ return [
     */
 
     'billing' => [
-        // stripe | fake
-        'driver' => env('BILLING_DRIVER', 'fake'),
+        // stripe | fake. Production defaults to stripe so a build step without BILLING_DRIVER still boots;
+        // choosing fake in production explicitly is refused by BillingServiceProvider.
+        'driver' => env('BILLING_DRIVER', env('APP_ENV') === 'production' ? 'stripe' : 'fake'),
         'platform_fee_percent' => (int) env('BILLING_PLATFORM_FEE_PERCENT', 10),
         'stripe' => [
             'secret' => env('STRIPE_SECRET'),
