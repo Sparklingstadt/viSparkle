@@ -80,7 +80,8 @@ class CheckoutService
             ],
             successUrl: route('supports.checkout.complete').'?session_id={CHECKOUT_SESSION_ID}',
             cancelUrl: route('creators.show', $creator),
-            expiresAt: now()->addMinutes($minutes),
+            // Stripe requires at least 30 minutes by its own clock, so give it a minute of slack.
+            expiresAt: now()->addMinutes($minutes + 1),
         ));
 
         $this->cache->put($key, $session->id, now()->addMinutes($minutes));

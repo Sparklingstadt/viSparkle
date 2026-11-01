@@ -9,6 +9,7 @@ use App\Billing\PaymentGateway;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
+use App\Providers\BillingServiceProvider;
 use Carbon\CarbonImmutable;
 
 /**
@@ -174,3 +175,19 @@ it('refuses the fake driver in production', function () {
 
     expect(fn () => app(PaymentGateway::class))->toThrow(LogicException::class, 'The fake billing driver cannot be used in production.');
 });
+
+it('refuses the fake driver in production at boot', function () {
+    config(['fanbox.billing.driver' => 'fake']);
+    app()->detectEnvironment(fn () => 'production');
+
+    expect(fn () => (new BillingServiceProvider(app()))->boot())->toThrow(LogicException::class, 'The fake billing driver cannot be used in production.');
+});
+
+it('boots with the fake driver outside production and with the stripe driver in production', function () {
+    config(['fanbox.billing.driver' => 'fake']);
+    (new BillingServiceProvider(app()))->boot();
+
+    config(['fanbox.billing.driver' => 'stripe']);
+    app()->detectEnvironment(fn () => 'production');
+    (new BillingServiceProvider(app()))->boot();
+})->throwsNoExceptions();

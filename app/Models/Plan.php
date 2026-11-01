@@ -35,6 +35,7 @@ class Plan extends Model
     protected function casts(): array
     {
         return [
+            'creator_id' => 'integer',
             'price' => 'integer',
             'is_accepting' => 'boolean',
         ];

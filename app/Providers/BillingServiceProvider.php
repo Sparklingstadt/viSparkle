@@ -39,6 +39,14 @@ class BillingServiceProvider extends ServiceProvider
         });
     }
 
+    public function boot(): void
+    {
+        // Fail at boot as well, so a misconfigured production deploy never serves a single request.
+        if (config('fanbox.billing.driver') === 'fake' && $this->app->isProduction()) {
+            throw new LogicException('The fake billing driver cannot be used in production.');
+        }
+    }
+
     private function stripeSecret(): string
     {
         $secret = config('fanbox.billing.stripe.secret');

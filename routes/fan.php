@@ -14,8 +14,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/@{creator}/plans/{plan}/support', [SupportController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('supports.store');
+    // Its own bucket: the success page may be reloaded while waiting, without eating into the support actions' limit.
     Route::get('supports/checkout/complete', CheckoutCompleteController::class)
-        ->middleware('throttle:10,1')
+        ->middleware('throttle:30,1,checkout-complete')
         ->name('supports.checkout.complete');
     Route::put('supports/{support}', [SupportController::class, 'update'])
         ->middleware('throttle:10,1')

@@ -311,7 +311,7 @@ class FakeGateway implements PaymentGateway
     /**
      * What the dev checkout page shows for a session, or null when it does not exist.
      *
-     * @return array{amount: int, plan_id: int, status: string, success_url: string, cancel_url: string}|null
+     * @return array{amount: int, plan_id: int, user_id: string|null, status: string, success_url: string, cancel_url: string}|null
      */
     public function describeSession(string $id): ?array
     {
@@ -324,6 +324,7 @@ class FakeGateway implements PaymentGateway
         return [
             'amount' => (int) $session['amount'],
             'plan_id' => (int) $session['plan_id'],
+            'user_id' => isset($session['metadata']['user_id']) ? (string) $session['metadata']['user_id'] : null,
             'status' => (string) $session['status'],
             'success_url' => (string) $session['success_url'],
             'cancel_url' => (string) $session['cancel_url'],

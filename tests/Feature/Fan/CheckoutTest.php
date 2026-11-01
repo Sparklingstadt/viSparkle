@@ -6,6 +6,7 @@ use App\Billing\Data\PriceRef;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\Support;
@@ -153,6 +154,7 @@ it('sends the metadata, destination and expiry to the gateway', function () {
         return $real->createCheckoutSession($request);
     });
     app()->instance(PaymentGateway::class, $gateway);
+    $this->freezeTime();
 
     $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan));
 
@@ -162,7 +164,15 @@ it('sends the metadata, destination and expiry to the gateway', function () {
         ->and($captured->feePercent)->toBe(10)
         ->and($captured->cancelUrl)->toBe(route('creators.show', $this->creator))
         ->and($captured->successUrl)->toBe(route('supports.checkout.complete').'?session_id={CHECKOUT_SESSION_ID}')
-        ->and(now()->diffInMinutes($captured->expiresAt))->toBeGreaterThan(28)->toBeLessThanOrEqual(30);
+        // One minute past the configured 30 so Stripe's own clock still sees at least 30 minutes.
+        ->and($captured->expiresAt->getTimestamp())->toBe(now()->addMinutes(31)->getTimestamp());
+
+    // The open-session key itself still lasts the configured 30 minutes.
+    $key = "checkout:{$this->fan->id}:{$this->creator->id}";
+    $this->travel(29)->minutes();
+    expect(Cache::has($key))->toBeTrue();
+    $this->travel(2)->minutes();
+    expect(Cache::has($key))->toBeFalse();
 });
 
 it('refuses supporting yourself', function () {
@@ -233,6 +243,28 @@ it('completes the fake checkout page', function () {
     expect($this->gateway->describeSession($sessionId)['status'])->toBe('complete');
 });
 
+it('records the first payment when the fake checkout page is paid', function () {
+    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+
+    $this->actingAs($this->fan)->post(route('dev.fake-checkout.pay', $sessionId));
+
+    $payment = Payment::sole();
+    expect($payment->amount)->toBe(1000)
+        ->and($payment->user_id)->toBe($this->fan->id)
+        ->and($payment->creator_id)->toBe($this->creator->id)
+        ->and($payment->support_id)->toBe(Support::sole()->id);
+});
+
+it('hides another users fake checkout session', function () {
+    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $other = User::factory()->create();
+
+    $this->actingAs($other)->get(route('dev.fake-checkout.show', $sessionId))->assertNotFound();
+    $this->actingAs($other)->post(route('dev.fake-checkout.pay', $sessionId))->assertNotFound();
+
+    expect($this->gateway->describeSession($sessionId)['status'])->toBe('open');
+});
+
 it('requires login for the fake checkout page', function () {
     $this->get(route('dev.fake-checkout.show', 'cs_x'))->assertRedirect(route('login'));
     $this->post(route('dev.fake-checkout.pay', 'cs_x'))->assertRedirect(route('login'));
@@ -240,4 +272,15 @@ it('requires login for the fake checkout page', function () {
 
 it('answers can-accept-supports for a fresh creator model', function () {
     expect((new Creator)->canAcceptSupports())->toBeFalse();
+});
+
+it('limits the checkout return separately, at 30 a minute', function () {
+    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $url = route('supports.checkout.complete', ['session_id' => $sessionId]);
+
+    for ($i = 0; $i < 30; $i++) {
+        $this->actingAs($this->fan)->get($url)->assertRedirect();
+    }
+
+    $this->actingAs($this->fan)->get($url)->assertTooManyRequests();
 });

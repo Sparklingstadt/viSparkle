@@ -1,4 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import Heading from '@/components/heading';
@@ -30,6 +32,16 @@ export default function Supporting({
     supports: Row[];
     hasBillingAccount: boolean;
 }) {
+    const [processingId, setProcessingId] = useState<number | null>(null);
+
+    const request = (supportId: number) => ({
+        preserveScroll: true,
+        onStart: () => setProcessingId(supportId),
+        onFinish: () => setProcessingId(null),
+        onError: (errors: Record<string, string>) =>
+            toast.error(errors.plan ?? '処理に失敗しました。'),
+    });
+
     return (
         <>
             <Head title="支援中のクリエイター" />
@@ -104,13 +116,16 @@ export default function Supporting({
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            disabled={
+                                                processingId === support.id
+                                            }
                                             onClick={() =>
                                                 router.post(
                                                     SupportController.resume.url(
                                                         support.id,
                                                     ),
                                                     {},
-                                                    { preserveScroll: true },
+                                                    request(support.id),
                                                 )
                                             }
                                         >
@@ -120,11 +135,14 @@ export default function Supporting({
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            disabled={
+                                                processingId === support.id
+                                            }
                                             onClick={() => {
                                                 if (
                                                     confirm(
                                                         support.is_billing
-                                                            ? '支援を停止しますか？次回のお支払い日の前日まで閲覧できます。'
+                                                            ? '支援を停止しますか？次回のお支払い日まで閲覧できます。'
                                                             : '支援を停止しますか？',
                                                     )
                                                 ) {
@@ -132,9 +150,7 @@ export default function Supporting({
                                                         SupportController.destroy.url(
                                                             support.id,
                                                         ),
-                                                        {
-                                                            preserveScroll: true,
-                                                        },
+                                                        request(support.id),
                                                     );
                                                 }
                                             }}
