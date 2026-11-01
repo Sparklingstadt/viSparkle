@@ -4,8 +4,10 @@ namespace App\Services\Billing;
 
 use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
+use App\Models\Post;
 use App\Models\Support;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Deletes an account after cancelling its billing supports at once, so no subscription keeps charging a deleted user.
@@ -33,7 +35,11 @@ class AccountDeletion
             $this->cancel((string) $support->stripe_subscription_id);
         }
 
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            // The likes go with the user by cascade, which wouldn't touch the counts.
+            Post::whereIn('id', $user->postLikes()->select('post_id'))->toBase()->decrement('like_count');
+            $user->delete();
+        });
     }
 
     /**
