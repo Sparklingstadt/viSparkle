@@ -172,7 +172,10 @@ export default function Payments({
                         <>
                             <DialogTitle>返金する</DialogTitle>
                             <DialogDescription>
-                                {formatYen(refunding.amount)}
+                                {formatYen(
+                                    refunding.amount -
+                                        refunding.refunded_amount,
+                                )}
                                 を全額返金します。クリエイターへの送金と運営手数料も取り消されます。元に戻せません。
                             </DialogDescription>
 

@@ -16,7 +16,7 @@ export default function Dashboard({
 }) {
     const cards = [
         { label: '未処理の通報', value: `${openReports} 件` },
-        { label: '直近30日の売上', value: formatYen(sales30d) },
+        { label: '直近30日の売上（返金前）', value: formatYen(sales30d) },
         { label: '直近30日の返金', value: formatYen(refunds30d) },
         { label: '有効な支援', value: `${activeSupports} 件` },
     ];
