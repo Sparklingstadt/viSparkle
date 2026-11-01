@@ -5,6 +5,7 @@ namespace App\Services\Billing;
 use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
 use App\Models\Payment;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Records a paid subscription invoice once (keyed by the invoice id), after syncing its subscription.
@@ -32,6 +33,8 @@ class PaymentRecorder
         $support = $this->subscriptions->sync($invoice->subscriptionId);
 
         if ($support === null) {
+            Log::warning('billing.payment_unattributed', ['invoice' => $invoice->id, 'subscription' => $invoice->subscriptionId]);
+
             return null;
         }
 

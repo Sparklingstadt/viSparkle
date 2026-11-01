@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\PaymentRecorder;
+use Illuminate\Support\Facades\Log;
 
 it('records a paid invoice once', function () {
     $gateway = fakeBilling();
@@ -51,6 +52,23 @@ it('skips zero-amount invoices', function () {
 
     expect(app(PaymentRecorder::class)->record((string) $gateway->latestInvoiceId($subscription->id)))->toBeNull()
         ->and(Payment::count())->toBe(0);
+});
+
+it('logs a paid invoice it cannot attribute to a support', function () {
+    Log::spy();
+    $gateway = fakeBilling();
+    $plan = Plan::factory()->for(Creator::factory()->payable())->create();
+    $fan = User::factory()->create();
+    $subscription = fakeCheckout($gateway, $plan, $fan, [
+        'user_id' => (string) User::factory()->create()->id,
+        'creator_id' => (string) $plan->creator_id,
+        'plan_id' => (string) $plan->id,
+    ]);
+    $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
+
+    expect(app(PaymentRecorder::class)->record($invoiceId))->toBeNull()
+        ->and(Payment::count())->toBe(0);
+    Log::shouldHaveReceived('warning')->with('billing.payment_unattributed', ['invoice' => $invoiceId, 'subscription' => $subscription->id])->once();
 });
 
 it('skips invoices that are unpaid or not for a subscription', function (InvoiceData $invoice) {

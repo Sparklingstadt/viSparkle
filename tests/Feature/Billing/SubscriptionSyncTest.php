@@ -142,6 +142,33 @@ it('ignores subscriptions with missing metadata', function () {
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });
 
+it('ignores a new subscription whose metadata plan belongs to another creator', function () {
+    Log::spy();
+    $foreign = Plan::factory()->for(Creator::factory())->create();
+    $foreignPrice = $this->gateway->ensurePrice($foreign)->priceId;
+    // Checked out at the other creator's price, with metadata naming this creator and the other creator's plan.
+    $subscription = fakeCheckout($this->gateway, $foreign, $this->fan, [
+        'user_id' => (string) $this->fan->id,
+        'creator_id' => (string) $this->creator->id,
+        'plan_id' => (string) $foreign->id,
+    ]);
+
+    expect($subscription->priceId)->toBe($foreignPrice)
+        ->and(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and(Support::count())->toBe(0);
+    Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
+});
+
+it('uses the price plan even when the metadata plan is stale', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
+        'user_id' => (string) $this->fan->id,
+        'creator_id' => (string) $this->creator->id,
+        'plan_id' => (string) Plan::factory()->for(Creator::factory())->create()->id,
+    ]);
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id)->plan_id)->toBe($this->plan->id);
+});
+
 it('ignores an existing support whose user no longer owns the customer', function () {
     Log::spy();
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
