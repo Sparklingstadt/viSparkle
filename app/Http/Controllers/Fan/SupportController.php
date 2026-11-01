@@ -6,24 +6,30 @@ use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
+use App\Services\Billing\CheckoutService;
 use App\Services\SupportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class SupportController extends Controller
 {
-    public function __construct(private readonly SupportService $supports) {}
+    public function __construct(
+        private readonly SupportService $supports,
+        private readonly CheckoutService $checkout,
+    ) {}
 
-    public function store(Request $request, Creator $creator, Plan $plan): RedirectResponse
+    /**
+     * Start a Checkout session and send the fan there; the support is created when they come back (or by the webhook).
+     */
+    public function store(Request $request, Creator $creator, Plan $plan): Response
     {
         abort_unless($plan->creator_id === $creator->id, 404);
 
-        $this->supports->start($request->user(), $plan);
+        $plan->setRelation('creator', $creator);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$creator->display_name} さんの支援を開始しました。"]);
-
-        return to_route('creators.show', $creator);
+        return Inertia::location($this->checkout->begin($request->user(), $plan));
     }
 
     public function destroy(Request $request, Support $support): RedirectResponse

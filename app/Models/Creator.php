@@ -76,7 +76,7 @@ class Creator extends Model
 
     public function canAcceptSupports(): bool
     {
-        return $this->stripe_account_id !== null && $this->payouts_enabled;
+        return $this->stripe_account_id !== null && (bool) $this->payouts_enabled;
     }
 
     /** @return BelongsTo<User, $this> */

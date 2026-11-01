@@ -11,11 +11,13 @@ export function SupportButton({
     plan,
     viewerPlanId,
     viewerSupportId,
+    acceptsSupports,
 }: {
     creatorSlug: string;
     plan: PlanData;
     viewerPlanId: number | null;
     viewerSupportId: number | null;
+    acceptsSupports: boolean;
 }) {
     const { auth } = usePage().props;
     const [processing, setProcessing] = useState(false);
@@ -63,6 +65,14 @@ export function SupportButton({
                     </Button>
                 )}
             </div>
+        );
+    }
+
+    if (!acceptsSupports && viewerPlanId === null) {
+        return (
+            <Button className="w-full" variant="outline" disabled>
+                準備中
+            </Button>
         );
     }
 

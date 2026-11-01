@@ -1,5 +1,6 @@
 <?php
 
+use App\Billing\BillingException;
 use App\Http\Middleware\EnsureUserIsCreator;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -8,6 +9,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -36,4 +38,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A payment gateway failure is shown as a toast on the page the user came from, not as a 500.
+        $exceptions->render(function (BillingException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
+
+            return back();
+        });
     })->create();

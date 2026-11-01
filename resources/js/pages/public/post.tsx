@@ -18,6 +18,7 @@ export default function PostPage({
     isOwner,
     viewerSupportPrice,
     viewerPlanId,
+    acceptsSupports,
 }: {
     post: PostDetail;
     creator: CreatorProfile;
@@ -25,6 +26,7 @@ export default function PostPage({
     isOwner: boolean;
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
+    acceptsSupports: boolean;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -101,6 +103,9 @@ export default function PostPage({
                                                     plan={plan}
                                                     viewerPlanId={viewerPlanId}
                                                     viewerSupportId={null}
+                                                    acceptsSupports={
+                                                        acceptsSupports
+                                                    }
                                                 />
                                             }
                                         />

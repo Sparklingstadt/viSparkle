@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 require __DIR__.'/settings.php';
 require __DIR__.'/creator.php';
 require __DIR__.'/fan.php';
+require __DIR__.'/billing.php';
 
 Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
 Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');

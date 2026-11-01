@@ -298,10 +298,12 @@ class FakeGateway implements PaymentGateway
         $this->save($state);
     }
 
+    /**
+     * Set the state of a connected account, registering it when unknown (e.g. the seeded demo creator's).
+     */
     public function setAccount(string $accountId, bool $payoutsEnabled, bool $detailsSubmitted): void
     {
         $state = $this->state();
-        $this->account($state, $accountId);
         $state['accounts'][$accountId] = ['payouts_enabled' => $payoutsEnabled, 'details_submitted' => $detailsSubmitted];
         $this->save($state);
     }
