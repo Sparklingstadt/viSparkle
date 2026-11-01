@@ -24,6 +24,9 @@ class PostPageController extends Controller
 
         $post->setRelation('creator', $creator)->load('cover');
         $isOwner = $entitlement->isAuthorOf($post);
+        if ($post->isPublished()) {
+            $post->recordView($viewer, $request->session());
+        }
         $support = CreatorPageController::activeSupport($viewer, $creator);
 
         return Inertia::render('public/post', [
