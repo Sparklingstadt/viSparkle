@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -21,7 +22,9 @@ class UpdateUserSuspensionRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                if ($this->boolean('suspended') && $this->route('user')?->is($this->user())) {
+                $target = $this->route('user');
+
+                if ($this->boolean('suspended') && $target instanceof User && $target->is($this->user())) {
                     $validator->errors()->add('suspended', '自分自身を利用停止にすることはできません。');
                 }
             },
