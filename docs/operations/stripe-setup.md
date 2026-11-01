@@ -107,20 +107,23 @@ Webhook の受信は署名の検証とイベント ID の記録だけで、実�
 php artisan queue:work          # ローカル（Sail）なら ./vendor/bin/sail artisan queue:work
 ```
 
-- `QUEUE_CONNECTION=database`（`.env.example` の既定）の場合、ワーカーは本番でも常駐させる（Supervisor / systemd など）。コードを更新したらワーカーを再起動する。
+- 本番（Laravel Cloud）では Managed queue がワーカーを動かす。設定は `docs/operations/laravel-cloud.md` §2.3 を参照。
+- ローカルや、Laravel Cloud 以外で `QUEUE_CONNECTION=database` を使う場合は、ワーカーを常駐させる（Supervisor / systemd など）。コードを更新したらワーカーを再起動する。
 - ジョブは最大5回まで再試行する（待ち時間は 10 秒、1 分、5 分、15 分）。処理が成功した時点でだけ `stripe_events.processed_at` が埋まる。
 
 ### Webhook の再送と失敗したジョブ
 
 - Stripe は Webhook に 2xx が返らないと再送する。アプリは同じイベント ID の再送を受けたとき、**すでに処理済み（`processed_at` あり）なら何もせず 200 を返し、処理が完了していなければジョブを再投入する**。たとえばキューへの投入に失敗した場合でも、Stripe の再送で処理がやり直される。各処理は Stripe の現在の状態を取り直す方式なので、複数回走っても害はない。
-- 再試行を使い切って失敗したジョブは `failed_jobs` テーブルに残る。原因（Stripe の障害、設定ミスなど）を直したら、次のコマンドで再実行できる。
+- 再試行を使い切って失敗したジョブは、原因（Stripe の障害、設定ミスなど）を直したあとで再実行する。
+    - **本番（Managed queue）**: Laravel Cloud の **Monitoring → Queues** で失敗したジョブを確認し、そこから再実行する。`queue:failed` / `queue:retry` は使えない。
+    - **ローカル（`database` キュー）**: `failed_jobs` テーブルに残るので、次のコマンドで再実行する。
 
 ```
 php artisan queue:failed                # 失敗したジョブの一覧
 php artisan queue:retry all             # すべて再実行（個別なら ID を指定）
 ```
 
-- `failed_jobs` に溜まっていないか、定期的に確認する。特に `invoice.paid` が失敗したままだと売上（`payments`）が記録されない。
+- 失敗したジョブが溜まっていないか、定期的に確認する。特に `invoice.paid` が失敗したままだと売上（`payments`）が記録されない。
 
 ## 5. ローカルでの動作確認
 
@@ -166,10 +169,10 @@ stripe listen \
 
 - [ ] 本番モードで §2 をすべてやり直した（Connect、Webhook 2件、失敗時のキャンセル、ポータル、領収書メール）
 - [ ] `.env` が `BILLING_DRIVER=stripe` と本番のキー・シークレット3つを持っている
-- [ ] キューワーカーが常駐している
+- [ ] キューワーカーが動いている（Laravel Cloud では Managed queue `default` が Monitoring → Queues に出ている）
 - [ ] §6 の確認がテストモードですべて通った
 - [ ] **特商法表記・利用規約への同意（サブプロジェクト3）が実装された**
-- [ ] `failed_jobs` の確認方法を運用担当が把握している
+- [ ] 失敗したジョブの確認・再実行の方法（本番は Monitoring → Queues）を運用担当が把握している
 - [ ] **テストキーから本番キーに切り替えるとき、DB を作り直したか、テストモードで保存された Stripe の ID を消した。** テストモードの ID は本番モードでは無効なので、そのまま残すと顧客・価格・接続アカウントの取得に失敗する。作り直さない場合は、`users.stripe_customer_id`、`plans.stripe_product_id` / `plans.stripe_price_id`、`creators.stripe_account_id` / `creators.payouts_enabled` / `creators.details_submitted` をクリアする（クリエイターは口座登録をやり直す）
 - [ ] **既存の DB にマイグレーションを流す前に、同じ支援者・クリエイターの組（`supports` の `user_id` と `creator_id`）で `active` の支援が重複していないことを確認した。** 重複があると一意インデックスの作成に失敗する。たとえば次の SQL が0件であること:
 
