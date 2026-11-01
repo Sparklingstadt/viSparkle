@@ -17,8 +17,9 @@ class HomeController extends Controller
     public function __invoke(Request $request, PostPresenter $presenter): Response
     {
         $entitlement = Entitlement::for($request->user());
+        $sort = $request->query('sort') === 'popular' ? 'popular' : 'new';
 
-        $posts = Post::published()
+        $posts = ($sort === 'popular' ? Post::popular() : Post::published())
             ->visible()
             ->where('required_price', 0)
             ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
@@ -29,7 +30,13 @@ class HomeController extends Controller
         $posts = $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
 
         $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
+        $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
 
-        return Inertia::render('public/home', ['posts' => $posts, 'creators' => $creators]);
+        return Inertia::render('public/home', [
+            'posts' => $posts,
+            'creators' => $creators,
+            'popularCreators' => $popularCreators,
+            'sort' => $sort,
+        ]);
     }
 }

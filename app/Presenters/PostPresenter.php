@@ -49,7 +49,10 @@ class PostPresenter
      */
     public function detail(Post $post, Entitlement $entitlement, array $likedIds = []): array
     {
-        $summary = $this->summary($post, $entitlement, $likedIds);
+        $summary = [
+            ...$this->summary($post, $entitlement, $likedIds),
+            'updated_at' => $post->updated_at,
+        ];
 
         if ($summary['locked']) {
             return $summary;
