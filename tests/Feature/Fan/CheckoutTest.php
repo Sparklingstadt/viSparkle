@@ -11,8 +11,11 @@ use App\Models\Plan;
 use App\Models\Post;
 use App\Models\Support;
 use App\Models\User;
+use App\Services\Billing\CheckoutService;
 use App\Services\Entitlement;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
@@ -284,3 +287,33 @@ it('limits the checkout return separately, at 30 a minute', function () {
 
     $this->actingAs($this->fan)->get($url)->assertTooManyRequests();
 });
+
+it('refuses checkout in production with a live stripe key until the legal details are ready', function (string $secret, bool $ready, bool $allowed) {
+    config([
+        'fanbox.billing.stripe.secret' => $secret,
+        'legal.seller_name' => $ready ? '山田 太郎' : '',
+        'legal.responsible_person' => '山田 太郎',
+        'legal.address' => '',
+        'legal.phone' => '',
+        'legal.email' => 'legal@example.com',
+        'legal.disclose_on_request' => true,
+    ]);
+    app()->detectEnvironment(fn () => 'production');
+    Log::spy();
+
+    // Called directly: outside the testing environment the HTTP stack would also enforce CSRF.
+    $begin = fn () => app(CheckoutService::class)->begin($this->fan, $this->plan);
+
+    if ($allowed) {
+        expect($begin())->toContain('/dev/fake-checkout/');
+        Log::shouldNotHaveReceived('error');
+    } else {
+        expect($begin)->toThrow(ValidationException::class, '現在お申し込みを受け付けていません。');
+        Log::shouldHaveReceived('error')->with('legal.not_ready')->once();
+        expect($this->fan->fresh()->stripe_customer_id)->toBeNull();
+    }
+})->with([
+    'live key, not ready' => ['sk_live_x', false, false],
+    'test key, not ready' => ['sk_test_x', false, true],
+    'live key, ready' => ['sk_live_x', true, true],
+]);

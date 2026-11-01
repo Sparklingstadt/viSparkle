@@ -9,8 +9,10 @@ use App\Billing\PaymentGateway;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
+use App\Services\Legal\LegalDocuments;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -33,6 +35,15 @@ class CheckoutService
      */
     public function begin(User $user, Plan $plan): string
     {
+        // Live payments need the 特商法 details published first; test keys are never blocked.
+        if (app()->isProduction()
+            && str_starts_with((string) config('fanbox.billing.stripe.secret'), 'sk_live_')
+            && ! LegalDocuments::ready()) {
+            Log::error('legal.not_ready');
+
+            throw ValidationException::withMessages(['plan' => '現在お申し込みを受け付けていません。']);
+        }
+
         $creator = $plan->creator;
 
         if ($creator->user_id === $user->id) {

@@ -2,11 +2,18 @@
 
 use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\LegalController;
 use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+Route::controller(LegalController::class)->prefix('legal')->name('legal.')->group(function () {
+    Route::get('tokushoho', 'tokushoho')->name('tokushoho');
+    Route::get('terms', 'terms')->name('terms');
+    Route::get('privacy', 'privacy')->name('privacy');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('dashboard', '/feed')->name('dashboard');
