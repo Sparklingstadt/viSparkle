@@ -71,6 +71,19 @@ it('logs a paid invoice it cannot attribute to a support', function () {
     Log::shouldHaveReceived('warning')->with('billing.payment_unattributed', ['invoice' => $invoiceId, 'subscription' => $subscription->id])->once();
 });
 
+it('marks the unattributed payment of an orphan-cancelled subscription', function () {
+    Log::spy();
+    $gateway = fakeBilling();
+    $plan = Plan::factory()->for(Creator::factory()->payable())->create();
+    $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
+    $plan->creator->forceFill(['closed_at' => now()])->save();
+    $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
+
+    expect(app(PaymentRecorder::class)->record($invoiceId))->toBeNull()
+        ->and(Payment::count())->toBe(0);
+    Log::shouldHaveReceived('warning')->with('billing.payment_unattributed', ['invoice' => $invoiceId, 'subscription' => $subscription->id, 'orphan' => true])->once();
+});
+
 it('skips invoices that are unpaid or not for a subscription', function (InvoiceData $invoice) {
     $gateway = Mockery::mock(PaymentGateway::class);
     $gateway->shouldReceive('retrieveInvoice')->with($invoice->id)->andReturn($invoice);

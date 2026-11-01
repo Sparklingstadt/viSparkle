@@ -2,6 +2,10 @@ import { Head, Link } from '@inertiajs/react';
 import { CreatorHeader } from '@/components/creator-header';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
+import {
+    ReportDialog,
+    type ReportReasonOption,
+} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import type { CreatorProfile, Paginated, PlanData, PostSummary } from '@/types';
 
@@ -15,8 +19,10 @@ export default function CreatorPage({
     viewerSupportId,
     viewerSupportCancelling,
     acceptsSupports,
+    closed,
+    reportReasons,
 }: {
-    creator: CreatorProfile;
+    creator: CreatorProfile & { id: number };
     plans: PlanData[];
     posts: Paginated<PostSummary>;
     isOwner: boolean;
@@ -25,13 +31,31 @@ export default function CreatorPage({
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
+    closed: boolean;
+    reportReasons: ReportReasonOption[];
 }) {
     return (
         <>
             <Head title={creator.display_name} />
 
             <div className="space-y-8">
-                <CreatorHeader creator={creator} />
+                <div className="space-y-1">
+                    <CreatorHeader creator={creator} />
+                    <div className="flex justify-end">
+                        <ReportDialog
+                            targetType="creator"
+                            targetId={creator.id}
+                            reasons={reportReasons}
+                            isOwner={isOwner}
+                        />
+                    </div>
+                </div>
+
+                {closed && (
+                    <p className="rounded-md border bg-muted p-4 text-sm">
+                        このクリエイターは活動を終了しました。
+                    </p>
+                )}
 
                 <section id="plans" className="space-y-4">
                     <h2 className="text-lg font-semibold">支援プラン</h2>
@@ -46,7 +70,10 @@ export default function CreatorPage({
                                     key={plan.id}
                                     plan={plan}
                                     action={
-                                        isOwner ? null : (
+                                        // A closed creator takes no new supports; current supporters can still manage theirs.
+                                        isOwner ||
+                                        (closed &&
+                                            viewerSupportId === null) ? null : (
                                             <SupportButton
                                                 creatorSlug={creator.slug}
                                                 plan={plan}
@@ -63,6 +90,7 @@ export default function CreatorPage({
                                                 acceptsSupports={
                                                     acceptsSupports
                                                 }
+                                                closed={closed}
                                             />
                                         )
                                     }

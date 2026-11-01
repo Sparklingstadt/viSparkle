@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
+import { SiteFooter } from '@/components/site-footer';
 import { Button } from '@/components/ui/button';
 import { feed, home, login, register } from '@/routes';
 
@@ -11,7 +12,7 @@ export default function PublicLayout({
     const { auth } = usePage().props;
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="flex min-h-screen flex-col bg-background">
             <header className="border-b">
                 <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
                     <Link href={home()} className="flex items-center gap-2">
@@ -35,7 +36,10 @@ export default function PublicLayout({
                     </nav>
                 </div>
             </header>
-            <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+            <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+                {children}
+            </main>
+            <SiteFooter className="mx-auto w-full max-w-5xl" />
         </div>
     );
 }

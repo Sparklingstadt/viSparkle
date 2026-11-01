@@ -165,7 +165,7 @@ function fakeBilling(): FakeGateway
 
 /**
  * Check out the plan on the fake gateway as the user and return the subscription (not yet synced).
- * Creates and saves the user's Stripe customer when missing; metadata defaults to the user/creator/plan.
+ * Creates and saves the user's Stripe customer when missing; metadata defaults to this app's stamp and the user/creator/plan.
  *
  * @param  array<string, string>|null  $metadata
  */
@@ -180,7 +180,7 @@ function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $meta
         priceId: $gateway->ensurePrice($plan)->priceId,
         destinationAccountId: (string) $plan->creator->stripe_account_id,
         feePercent: 10,
-        metadata: $metadata ?? ['user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
         expiresAt: CarbonImmutable::now()->addMinutes(30),

@@ -3,10 +3,12 @@
 namespace App\Billing;
 
 use App\Billing\Data\AccountData;
+use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
 use App\Billing\Data\PriceRef;
+use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -54,4 +56,12 @@ interface PaymentGateway
     public function retrieveAccount(string $accountId): AccountData;
 
     public function retrieveInvoice(string $id): InvoiceData;
+
+    /**
+     * Refund the invoice's payment in full, taking back the creator's transfer and the platform fee.
+     * Retrying the same invoice is idempotent at the provider for a while; an already refunded payment throws.
+     */
+    public function refundInvoice(string $invoiceId): RefundData;
+
+    public function retrieveCharge(string $chargeId): ChargeData;
 }

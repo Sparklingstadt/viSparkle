@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Fan\BillingPortalController;
 use App\Http\Controllers\Fan\CheckoutCompleteController;
+use App\Http\Controllers\Fan\CheckoutConfirmController;
 use App\Http\Controllers\Fan\FeedController;
 use App\Http\Controllers\Fan\SupportController;
 use App\Http\Controllers\Fan\SupportingController;
@@ -11,6 +12,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('feed', FeedController::class)->name('feed');
     Route::get('supporting', SupportingController::class)->name('supporting.index');
 
+    Route::get('/@{creator}/plans/{plan}/confirm', CheckoutConfirmController::class)->name('supports.confirm');
     Route::post('/@{creator}/plans/{plan}/support', [SupportController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('supports.store');

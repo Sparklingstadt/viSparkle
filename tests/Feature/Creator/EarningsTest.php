@@ -118,6 +118,18 @@ it('buckets payments by Tokyo calendar month and sums per-payment fees', functio
             ->where('months.11', ['month' => '2025-12', 'gross' => 100, 'fee' => 10, 'net' => 90]));
 });
 
+it('counts sales net of refunds and estimates the fee on the net amount', function () {
+    $this->travelTo(Carbon::parse('2026-11-15 12:00:00', 'Asia/Tokyo'));
+    $creator = Creator::factory()->payable()->create();
+    paymentFor($creator, 1000, now())->forceFill(['refunded_amount' => 1000, 'refunded_at' => now()])->save();
+    paymentFor($creator, 999, now(), 10)->forceFill(['refunded_amount' => 333, 'refunded_at' => now()])->save();
+    paymentFor($creator, 500, now());
+
+    $this->actingAs($creator->user)->get(route('creator.earnings.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('months.0', ['month' => '2026-11', 'gross' => 1166, 'fee' => 116, 'net' => 1050]));
+});
+
 it('counts active supporters', function () {
     $creator = Creator::factory()->payable()->create();
     $plan = Plan::factory()->for($creator)->create();

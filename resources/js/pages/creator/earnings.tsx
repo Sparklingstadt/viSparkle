@@ -63,7 +63,7 @@ export default function Earnings({
             <div className="space-y-6 p-4">
                 <Heading
                     title="収益"
-                    description={`運営手数料は売上の ${feePercent}% です。`}
+                    description={`運営手数料は売上の ${feePercent}% です。売上は返金分を除いた額です。`}
                 />
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">

@@ -27,6 +27,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $stripe_customer_id
+ * @property bool $is_admin
+ * @property Carbon|null $suspended_at
+ * @property string|null $suspended_reason
+ * @property string|null $terms_version
+ * @property Carbon|null $terms_accepted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -48,7 +53,20 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_admin' => 'boolean',
+            'suspended_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return (bool) $this->is_admin;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
     }
 
     /** @return HasOne<Creator, $this> */

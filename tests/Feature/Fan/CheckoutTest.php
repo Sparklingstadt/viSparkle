@@ -11,8 +11,11 @@ use App\Models\Plan;
 use App\Models\Post;
 use App\Models\Support;
 use App\Models\User;
+use App\Services\Billing\CheckoutService;
 use App\Services\Entitlement;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
@@ -83,6 +86,19 @@ it('tells the fan when payment is not complete', function () {
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'お支払いが完了していません。']);
 
     expect(Support::count())->toBe(0);
+});
+
+it('tells the fan the payment will be refunded when the creator closed during checkout', function () {
+    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $subscription = $this->gateway->completeCheckout($sessionId);
+    $this->creator->forceFill(['closed_at' => now()])->save();
+
+    $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]))
+        ->assertRedirect(route('creators.show', $this->creator))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'このお申し込みは受け付けられませんでした。お支払いは返金されます。']);
+
+    expect(Support::count())->toBe(0)
+        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
 });
 
 it('rejects completing someone elses session', function () {
@@ -159,7 +175,7 @@ it('sends the metadata, destination and expiry to the gateway', function () {
     $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan));
 
     expect($captured)->toBeInstanceOf(CheckoutRequest::class)
-        ->and($captured->metadata)->toBe(['user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
+        ->and($captured->metadata)->toBe(['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
         ->and($captured->destinationAccountId)->toBe($this->creator->stripe_account_id)
         ->and($captured->feePercent)->toBe(10)
         ->and($captured->cancelUrl)->toBe(route('creators.show', $this->creator))
@@ -284,3 +300,34 @@ it('limits the checkout return separately, at 30 a minute', function () {
 
     $this->actingAs($this->fan)->get($url)->assertTooManyRequests();
 });
+
+it('refuses checkout in production with a live stripe key until the legal details are ready', function (string $secret, bool $ready, bool $allowed) {
+    config([
+        'fanbox.billing.stripe.secret' => $secret,
+        'legal.seller_name' => $ready ? '山田 太郎' : '',
+        'legal.responsible_person' => '山田 太郎',
+        'legal.address' => '',
+        'legal.phone' => '',
+        'legal.email' => 'legal@example.com',
+        'legal.disclose_on_request' => true,
+    ]);
+    app()->detectEnvironment(fn () => 'production');
+    Log::spy();
+
+    // Called directly: outside the testing environment the HTTP stack would also enforce CSRF.
+    $begin = fn () => app(CheckoutService::class)->begin($this->fan, $this->plan);
+
+    if ($allowed) {
+        expect($begin())->toContain('/dev/fake-checkout/');
+        Log::shouldNotHaveReceived('error');
+    } else {
+        expect($begin)->toThrow(ValidationException::class, '現在お申し込みを受け付けていません。');
+        Log::shouldHaveReceived('error')->with('legal.not_ready')->once();
+        expect($this->fan->fresh()->stripe_customer_id)->toBeNull();
+    }
+})->with([
+    'live key, not ready' => ['sk_live_x', false, false],
+    'restricted live key, not ready' => ['rk_live_x', false, false],
+    'test key, not ready' => ['sk_test_x', false, true],
+    'live key, ready' => ['sk_live_x', true, true],
+]);

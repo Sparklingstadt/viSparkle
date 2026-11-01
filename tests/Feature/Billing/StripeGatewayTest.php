@@ -380,3 +380,138 @@ it('retrieves an invoice', function () {
     expect($this->http->requests[0]['path'])->toBe('/v1/invoices/in_x')
         ->and($invoice->subscriptionId)->toBe('sub_x');
 });
+
+function stripeInvoicePaymentsBody(array $payments): array
+{
+    return ['object' => 'list', 'url' => '/v1/invoice_payments', 'has_more' => false, 'data' => $payments];
+}
+
+function stripeInvoicePayment(array $overrides = []): array
+{
+    return array_replace_recursive([
+        'id' => 'inpay_x',
+        'object' => 'invoice_payment',
+        'amount_paid' => 500,
+        'invoice' => 'in_x',
+        'is_default' => true,
+        'payment' => ['type' => 'payment_intent', 'payment_intent' => 'pi_x'],
+        'status' => 'paid',
+    ], $overrides);
+}
+
+it('refunds the invoice payment in full, reversing the transfer and the application fee', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([stripeInvoicePayment()]))
+        ->queue(['id' => 're_x', 'object' => 'refund', 'amount' => 500, 'charge' => 'ch_x', 'payment_intent' => 'pi_x', 'status' => 'succeeded']);
+
+    $refund = $this->gateway->refundInvoice('in_x');
+
+    [$lookup, $create] = $this->http->requests;
+    expect($lookup['method'])->toBe('get')
+        ->and($lookup['path'])->toBe('/v1/invoice_payments')
+        ->and($lookup['params'])->toBe(['invoice' => 'in_x'])
+        ->and($create['method'])->toBe('post')
+        ->and($create['path'])->toBe('/v1/refunds')
+        ->and($create['params'])->toMatchArray([
+            'payment_intent' => 'pi_x',
+            'reverse_transfer' => 'true',
+            'refund_application_fee' => 'true',
+            'metadata' => ['invoice' => 'in_x'],
+        ])
+        ->and($create['params'])->not->toHaveKey('amount')
+        ->and($this->http->header(1, 'Idempotency-Key'))->toBe('test.app:refund-invoice-in_x')
+        ->and($refund->id)->toBe('re_x')
+        ->and($refund->amount)->toBe(500);
+});
+
+it('refunds an invoice paid by a bare charge', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([stripeInvoicePayment(['payment' => ['type' => 'charge', 'charge' => 'ch_x', 'payment_intent' => null]])]))
+        ->queue(['id' => 're_x', 'object' => 'refund', 'amount' => 500]);
+
+    $this->gateway->refundInvoice('in_x');
+
+    expect($this->http->requests[1]['params'])->toMatchArray(['charge' => 'ch_x', 'reverse_transfer' => 'true'])
+        ->and($this->http->requests[1]['params'])->not->toHaveKey('payment_intent');
+});
+
+it('falls back to the legacy invoice payment intent field', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([]))
+        ->queue(['id' => 'in_x', 'object' => 'invoice', 'status' => 'paid', 'payment_intent' => 'pi_legacy'])
+        ->queue(['id' => 're_x', 'object' => 'refund', 'amount' => 500]);
+
+    $this->gateway->refundInvoice('in_x');
+
+    expect($this->http->requests[1]['path'])->toBe('/v1/invoices/in_x')
+        ->and($this->http->requests[2]['params']['payment_intent'])->toBe('pi_legacy');
+});
+
+it('refuses to refund an invoice without a payment', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([]))
+        ->queue(['id' => 'in_x', 'object' => 'invoice', 'status' => 'open']);
+
+    expect(fn () => $this->gateway->refundInvoice('in_x'))->toThrow(BillingException::class);
+    expect($this->http->requests)->toHaveCount(2);
+});
+
+it('wraps an already refunded charge as a billing error', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([stripeInvoicePayment()]))
+        ->queue(['error' => ['type' => 'invalid_request_error', 'code' => 'charge_already_refunded', 'message' => 'Charge ch_x has already been refunded.']], 400);
+
+    expect(fn () => $this->gateway->refundInvoice('in_x'))->toThrow(BillingException::class, 'already been refunded');
+});
+
+it('retrieves a charge and finds its invoice through the payment intent', function () {
+    $this->http->queue([
+        'id' => 'ch_x', 'object' => 'charge', 'amount' => 500, 'amount_refunded' => 200,
+        'disputed' => true, 'payment_intent' => 'pi_x', 'refunded' => false,
+    ])->queue(stripeInvoicePaymentsBody([stripeInvoicePayment(['invoice' => 'in_x'])]));
+
+    $charge = $this->gateway->retrieveCharge('ch_x');
+
+    [$get, $lookup] = $this->http->requests;
+    expect($get['path'])->toBe('/v1/charges/ch_x')
+        ->and($lookup['path'])->toBe('/v1/invoice_payments')
+        ->and($lookup['params'])->toMatchArray(['payment' => ['type' => 'payment_intent', 'payment_intent' => 'pi_x']])
+        ->and($charge->id)->toBe('ch_x')
+        ->and($charge->invoiceId)->toBe('in_x')
+        ->and($charge->amountRefunded)->toBe(200)
+        ->and($charge->disputed)->toBeTrue();
+});
+
+it('reads the legacy charge invoice field without a lookup', function () {
+    $this->http->queue([
+        'id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'disputed' => false,
+        'payment_intent' => 'pi_x', 'invoice' => 'in_legacy',
+    ]);
+
+    $charge = $this->gateway->retrieveCharge('ch_x');
+
+    expect($this->http->requests)->toHaveCount(1)
+        ->and($charge->invoiceId)->toBe('in_legacy')
+        ->and($charge->disputed)->toBeFalse();
+});
+
+it('maps a charge that is not for an invoice', function (?string $paymentIntent) {
+    $this->http->queue(['id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'payment_intent' => $paymentIntent]);
+    if ($paymentIntent !== null) {
+        $this->http->queue(stripeInvoicePaymentsBody([]));
+    }
+
+    expect($this->gateway->retrieveCharge('ch_x')->invoiceId)->toBeNull();
+})->with(['no payment intent' => [null], 'payment intent without invoice' => ['pi_x']]);
+
+it('skips invoice payments that are not paid', function () {
+    $this->http->queue(stripeInvoicePaymentsBody([
+        stripeInvoicePayment(['id' => 'inpay_failed', 'status' => 'canceled', 'payment' => ['payment_intent' => 'pi_failed']]),
+        stripeInvoicePayment(['payment' => ['payment_intent' => 'pi_paid']]),
+    ]))->queue(['id' => 're_x', 'object' => 'refund', 'amount' => 500]);
+
+    $this->gateway->refundInvoice('in_x');
+
+    expect($this->http->requests[1]['params']['payment_intent'])->toBe('pi_paid');
+});
+
+it('maps the latest invoice of a subscription', function (mixed $latest) {
+    $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom(stripeSubscriptionBody(['latest_invoice' => $latest])));
+
+    expect($subscription->latestInvoiceId)->toBe('in_x');
+})->with(['id' => ['in_x'], 'expanded' => [['id' => 'in_x', 'object' => 'invoice']]]);

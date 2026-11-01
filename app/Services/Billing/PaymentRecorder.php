@@ -33,7 +33,12 @@ class PaymentRecorder
         $support = $this->subscriptions->sync($invoice->subscriptionId);
 
         if ($support === null) {
-            Log::warning('billing.payment_unattributed', ['invoice' => $invoice->id, 'subscription' => $invoice->subscriptionId]);
+            // An orphan's payment is refunded by the sync itself; say so, so the log is not mistaken for lost revenue.
+            Log::warning('billing.payment_unattributed', [
+                'invoice' => $invoice->id,
+                'subscription' => $invoice->subscriptionId,
+                ...($this->subscriptions->lastOutcome() === 'orphan' ? ['orphan' => true] : []),
+            ]);
 
             return null;
         }

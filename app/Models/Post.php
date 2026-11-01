@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property int $required_price
  * @property PostStatus $status
  * @property CarbonInterface|null $published_at
+ * @property Carbon|null $hidden_at
+ * @property string|null $hidden_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -41,6 +43,7 @@ class Post extends Model
             'required_price' => 'integer',
             'status' => PostStatus::class,
             'published_at' => 'datetime',
+            'hidden_at' => 'datetime',
         ];
     }
 
@@ -52,6 +55,18 @@ class Post extends Model
             ->whereNotNull('published_at')
             ->orderByDesc('published_at')
             ->orderByDesc('id');
+    }
+
+    /** @param  Builder<self>  $query */
+    #[Scope]
+    protected function visible(Builder $query): void
+    {
+        $query->whereNull('hidden_at');
+    }
+
+    public function isHidden(): bool
+    {
+        return $this->hidden_at !== null;
     }
 
     public function isPublished(): bool

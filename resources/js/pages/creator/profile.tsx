@@ -1,8 +1,18 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import ClosureController from '@/actions/App/Http/Controllers/Creator/ClosureController';
 import ProfileController from '@/actions/App/Http/Controllers/Creator/ProfileController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/creator/profile';
@@ -11,7 +21,7 @@ import type { CreatorProfile } from '@/types';
 export default function CreatorProfileEdit({
     creator,
 }: {
-    creator: CreatorProfile;
+    creator: CreatorProfile & { closed: boolean };
 }) {
     return (
         <>
@@ -102,8 +112,74 @@ export default function CreatorProfileEdit({
                         </>
                     )}
                 </Form>
+
+                <ClosureSection closed={creator.closed} />
             </div>
         </>
+    );
+}
+
+function ClosureSection({ closed }: { closed: boolean }) {
+    return (
+        <div className="space-y-4 border-t pt-6">
+            <Heading
+                variant="small"
+                title="活動の終了"
+                description="新しい支援の受付を止め、支援者の支援を期間の終わりで停止します"
+            />
+
+            {closed ? (
+                <div className="space-y-4">
+                    <p className="text-sm">活動を終了しています。</p>
+                    <Form
+                        {...ClosureController.destroy.form()}
+                        options={{ preserveScroll: true }}
+                    >
+                        {({ processing }) => (
+                            <Button variant="secondary" disabled={processing}>
+                                活動を再開する
+                            </Button>
+                        )}
+                    </Form>
+                </div>
+            ) : (
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="destructive">活動を終了する</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogTitle>活動を終了しますか？</DialogTitle>
+                        <DialogDescription>
+                            活動を終了すると、新しい支援の受付を止め、すべての支援を次回のお支払い日で停止します。
+                        </DialogDescription>
+
+                        <Form
+                            {...ClosureController.store.form()}
+                            options={{ preserveScroll: true }}
+                        >
+                            {({ processing }) => (
+                                <DialogFooter className="gap-2">
+                                    <DialogClose asChild>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                        >
+                                            キャンセル
+                                        </Button>
+                                    </DialogClose>
+                                    <Button
+                                        variant="destructive"
+                                        disabled={processing}
+                                    >
+                                        活動を終了する
+                                    </Button>
+                                </DialogFooter>
+                            )}
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </div>
     );
 }
 

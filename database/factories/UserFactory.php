@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\User;
+use App\Services\Legal\LegalDocuments;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -33,6 +34,8 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            'terms_version' => LegalDocuments::termsVersion(),
+            'terms_accepted_at' => now(),
         ];
     }
 
@@ -44,6 +47,21 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function termsNotAccepted(): static
+    {
+        return $this->state(fn () => ['terms_version' => 'old-version', 'terms_accepted_at' => now()->subYear()]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn () => ['is_admin' => true]);
+    }
+
+    public function suspended(string $reason = '規約違反'): static
+    {
+        return $this->state(fn () => ['suspended_at' => now(), 'suspended_reason' => $reason]);
     }
 
     /**

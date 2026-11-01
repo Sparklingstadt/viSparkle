@@ -35,6 +35,11 @@ class PostFactory extends Factory
         return $this->state(fn () => ['status' => PostStatus::Published, 'published_at' => now()]);
     }
 
+    public function hidden(string $reason = '規約違反'): static
+    {
+        return $this->state(fn () => ['hidden_at' => now(), 'hidden_reason' => $reason]);
+    }
+
     public function draft(): static
     {
         return $this->state(fn () => ['status' => PostStatus::Draft, 'published_at' => null]);

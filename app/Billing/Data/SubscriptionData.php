@@ -19,5 +19,6 @@ final readonly class SubscriptionData
         public ?CarbonImmutable $currentPeriodEnd,
         public bool $cancelAtPeriodEnd,
         public array $metadata,
+        public ?string $latestInvoiceId = null,
     ) {}
 }

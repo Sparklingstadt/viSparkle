@@ -100,45 +100,7 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->fresh());
     }
 
-    public function test_fan_with_a_renewing_billing_support_cannot_delete_their_account()
-    {
-        $user = User::factory()->create();
-        Support::factory()->billing()->create(['user_id' => $user->id]);
-
-        $response = $this
-            ->actingAs($user)
-            ->from(route('profile.edit'))
-            ->delete(route('profile.destroy'), [
-                'password' => 'password',
-            ]);
-
-        $response
-            ->assertSessionHasErrors(['password' => '支援中のクリエイターがいるため、アカウントを削除できません。先に「支援中」から支援を停止してください。'])
-            ->assertRedirect(route('profile.edit'));
-
-        $this->assertAuthenticatedAs($user);
-        $this->assertNotNull($user->fresh());
-    }
-
-    public function test_fan_whose_billing_support_is_scheduled_to_stop_can_delete_their_account()
-    {
-        $user = User::factory()->create();
-        Support::factory()->billing()->create(['user_id' => $user->id, 'cancel_at_period_end' => true]);
-
-        $response = $this
-            ->actingAs($user)
-            ->delete(route('profile.destroy'), [
-                'password' => 'password',
-            ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('home'));
-
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_creator_with_renewing_billing_supporters_cannot_delete_their_account()
+    public function test_creator_with_active_supporters_cannot_delete_their_account()
     {
         $creator = Creator::factory()->payable()->create();
         $plan = Plan::factory()->create(['creator_id' => $creator->id]);
@@ -152,7 +114,7 @@ class ProfileUpdateTest extends TestCase
             ]);
 
         $response
-            ->assertSessionHasErrors(['password' => '有効な支援者がいるため、アカウントを削除できません。運営にお問い合わせください。'])
+            ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。『活動を終了する』で支援を停止し、期間の終了をお待ちください。'])
             ->assertRedirect(route('profile.edit'));
 
         $this->assertNotNull($creator->user->fresh());
@@ -162,7 +124,7 @@ class ProfileUpdateTest extends TestCase
     {
         $creator = Creator::factory()->create();
         $plan = Plan::factory()->create(['creator_id' => $creator->id]);
-        Support::factory()->forPlan($plan)->create();
+        Support::factory()->forPlan($plan)->ended()->create();
         Support::factory()->forPlan($plan)->billing()->ended()->create();
         Support::factory()->create(['user_id' => $creator->user_id]);
         Support::factory()->billing()->ended()->create(['user_id' => $creator->user_id]);

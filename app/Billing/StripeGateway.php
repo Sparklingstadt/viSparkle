@@ -3,10 +3,12 @@
 namespace App\Billing;
 
 use App\Billing\Data\AccountData;
+use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
 use App\Billing\Data\PriceRef;
+use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -196,6 +198,46 @@ class StripeGateway implements PaymentGateway
         return self::invoiceFrom($this->call(fn () => $this->client->invoices->retrieve($id)));
     }
 
+    public function refundInvoice(string $invoiceId): RefundData
+    {
+        $target = $this->refundTarget($invoiceId);
+
+        // No amount: a full refund. The transfer reversal and fee refund are proportional, so both come back in full too.
+        $refund = $this->call(fn () => $this->client->refunds->create([
+            ...$target,
+            'reverse_transfer' => true,
+            'refund_application_fee' => true,
+            'metadata' => ['invoice' => $invoiceId],
+        ], ['idempotency_key' => $this->idempotencyKey("refund-invoice-{$invoiceId}")]))->toArray();
+
+        return new RefundData((string) $refund['id'], (int) ($refund['amount'] ?? 0));
+    }
+
+    /**
+     * Charges no longer carry their invoice in newer API versions; it is found through the invoice payment of the
+     * charge's PaymentIntent. The legacy `invoice` field is read first when present.
+     */
+    public function retrieveCharge(string $chargeId): ChargeData
+    {
+        $charge = $this->call(fn () => $this->client->charges->retrieve($chargeId))->toArray();
+        $invoiceId = self::idOf($charge['invoice'] ?? null);
+        $paymentIntentId = self::idOf($charge['payment_intent'] ?? null);
+
+        if ($invoiceId === null && $paymentIntentId !== null) {
+            $payments = $this->call(fn () => $this->client->invoicePayments->all([
+                'payment' => ['type' => 'payment_intent', 'payment_intent' => $paymentIntentId],
+            ]))->toArray();
+            $invoiceId = self::idOf($payments['data'][0]['invoice'] ?? null);
+        }
+
+        return new ChargeData(
+            id: (string) $charge['id'],
+            invoiceId: $invoiceId,
+            amountRefunded: (int) ($charge['amount_refunded'] ?? 0),
+            disputed: ($charge['disputed'] ?? false) === true,
+        );
+    }
+
     /**
      * The period end moved from the subscription to its items in newer API versions; both are read.
      */
@@ -215,6 +257,7 @@ class StripeGateway implements PaymentGateway
             currentPeriodEnd: $periodEnd === null ? null : CarbonImmutable::createFromTimestamp((int) $periodEnd, config('app.timezone')),
             cancelAtPeriodEnd: ($data['cancel_at_period_end'] ?? false) === true,
             metadata: self::stringMap($data['metadata'] ?? []),
+            latestInvoiceId: self::idOf($data['latest_invoice'] ?? null),
         );
     }
 
@@ -235,6 +278,55 @@ class StripeGateway implements PaymentGateway
             amountPaid: (int) ($data['amount_paid'] ?? 0),
             paidAt: $paidAt === null ? null : CarbonImmutable::createFromTimestamp((int) $paidAt, config('app.timezone')),
         );
+    }
+
+    /**
+     * What a refund of the invoice targets. Invoices no longer carry `payment_intent`/`charge` in newer API versions; their
+     * payments are listed under /v1/invoice_payments. The legacy invoice fields are the fallback.
+     *
+     * @return array{payment_intent: string}|array{charge: string}
+     *
+     * @throws BillingException when the invoice has no paid payment
+     */
+    private function refundTarget(string $invoiceId): array
+    {
+        $payments = $this->call(fn () => $this->client->invoicePayments->all(['invoice' => $invoiceId]))->toArray();
+
+        foreach ($payments['data'] ?? [] as $payment) {
+            if (($payment['status'] ?? null) !== 'paid') {
+                continue;
+            }
+
+            $target = self::paymentTarget($payment['payment'] ?? []);
+
+            if ($target !== null) {
+                return $target;
+            }
+        }
+
+        $invoice = $this->call(fn () => $this->client->invoices->retrieve($invoiceId))->toArray();
+
+        return self::paymentTarget($invoice) ?? throw new BillingException("Invoice {$invoiceId} has no payment to refund.");
+    }
+
+    /**
+     * @return array{payment_intent: string}|array{charge: string}|null
+     */
+    private static function paymentTarget(mixed $payment): ?array
+    {
+        if (! is_array($payment)) {
+            return null;
+        }
+
+        $paymentIntentId = self::idOf($payment['payment_intent'] ?? null);
+
+        if ($paymentIntentId !== null) {
+            return ['payment_intent' => $paymentIntentId];
+        }
+
+        $chargeId = self::idOf($payment['charge'] ?? null);
+
+        return $chargeId === null ? null : ['charge' => $chargeId];
     }
 
     private static function sessionFrom(StripeObject $session): CheckoutSessionData

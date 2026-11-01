@@ -215,3 +215,45 @@ it('leaves the event unprocessed when handling fails', function () {
     expect(StripeEvent::count())->toBe(1)
         ->and(StripeEvent::findOrFail('evt_boom')->processed_at)->toBeNull();
 });
+
+it('records a refund on charge.refunded', function () {
+    $gateway = fakeBilling();
+    $plan = Plan::factory()->for(Creator::factory()->payable())->price(800)->create();
+    $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
+    $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
+    postStripeEvent('evt_paid', 'invoice.paid', ['id' => $invoiceId])->assertOk();
+    $chargeId = $gateway->chargeIdForInvoice($invoiceId);
+    $gateway->refundInvoice($invoiceId);
+
+    postStripeEvent('evt_refund', 'charge.refunded', ['id' => $chargeId, 'object' => 'charge'])->assertOk();
+
+    expect(Payment::sole()->refunded_amount)->toBe(800)
+        ->and(Payment::sole()->refunded_at)->not->toBeNull()
+        ->and(StripeEvent::findOrFail('evt_refund')->processed_at)->not->toBeNull();
+});
+
+it('records a dispute on charge.dispute.created using the disputed charge', function () {
+    $gateway = fakeBilling();
+    $plan = Plan::factory()->for(Creator::factory()->payable())->create();
+    $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
+    $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
+    postStripeEvent('evt_paid', 'invoice.paid', ['id' => $invoiceId])->assertOk();
+    $chargeId = $gateway->chargeIdForInvoice($invoiceId);
+    $gateway->markDisputed($chargeId);
+
+    postStripeEvent('evt_dispute', 'charge.dispute.created', ['id' => 'du_1', 'object' => 'dispute', 'charge' => $chargeId])->assertOk();
+
+    expect(Payment::sole()->disputed_at)->not->toBeNull()
+        ->and(Payment::sole()->refunded_amount)->toBe(0);
+});
+
+it('passes the charge id of charge events to the job', function (string $type, array $object) {
+    Queue::fake();
+
+    postStripeEvent('evt_charge', $type, $object)->assertOk();
+
+    Queue::assertPushed(ProcessStripeEvent::class, fn (ProcessStripeEvent $job) => $job->type === $type && $job->chargeId === 'ch_1');
+})->with([
+    'refund' => ['charge.refunded', ['id' => 'ch_1', 'object' => 'charge']],
+    'dispute' => ['charge.dispute.created', ['id' => 'du_1', 'object' => 'dispute', 'charge' => 'ch_1']],
+]);

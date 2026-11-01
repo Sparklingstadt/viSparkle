@@ -1,6 +1,7 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import CheckoutConfirmController from '@/actions/App/Http/Controllers/Fan/CheckoutConfirmController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import { Button } from '@/components/ui/button';
 import { login } from '@/routes';
@@ -14,6 +15,7 @@ export function SupportButton({
     viewerSupportPrice,
     viewerSupportCancelling,
     acceptsSupports,
+    closed,
 }: {
     creatorSlug: string;
     plan: PlanData;
@@ -22,6 +24,7 @@ export function SupportButton({
     viewerSupportPrice: number | null;
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
+    closed: boolean;
 }) {
     const { auth } = usePage().props;
     const [processing, setProcessing] = useState(false);
@@ -52,23 +55,26 @@ export function SupportButton({
                 </Button>
                 {viewerSupportId !== null &&
                     (viewerSupportCancelling ? (
-                        <Button
-                            className="w-full"
-                            variant="ghost"
-                            size="sm"
-                            disabled={processing}
-                            onClick={() =>
-                                router.post(
-                                    SupportController.resume.url(
-                                        viewerSupportId,
-                                    ),
-                                    {},
-                                    request,
-                                )
-                            }
-                        >
-                            支援を再開する
-                        </Button>
+                        // A closed creator's supports cannot be renewed.
+                        !closed && (
+                            <Button
+                                className="w-full"
+                                variant="ghost"
+                                size="sm"
+                                disabled={processing}
+                                onClick={() =>
+                                    router.post(
+                                        SupportController.resume.url(
+                                            viewerSupportId,
+                                        ),
+                                        {},
+                                        request,
+                                    )
+                                }
+                            >
+                                支援を再開する
+                            </Button>
+                        )
                     ) : (
                         <Button
                             className="w-full"
@@ -92,6 +98,14 @@ export function SupportButton({
                         </Button>
                     ))}
             </div>
+        );
+    }
+
+    if (closed) {
+        return (
+            <Button className="w-full" variant="outline" disabled>
+                受付終了
+            </Button>
         );
     }
 
@@ -119,6 +133,21 @@ export function SupportButton({
         );
     }
 
+    if (viewerPlanId === null) {
+        return (
+            <Button asChild className="w-full">
+                <Link
+                    href={CheckoutConfirmController.url({
+                        creator: creatorSlug,
+                        plan: plan.id,
+                    })}
+                >
+                    このプランで支援する
+                </Link>
+            </Button>
+        );
+    }
+
     const isUpgrade =
         viewerSupportPrice !== null && plan.price > viewerSupportPrice;
 
@@ -127,19 +156,6 @@ export function SupportButton({
             className="w-full"
             disabled={processing}
             onClick={() => {
-                if (viewerPlanId === null) {
-                    router.post(
-                        SupportController.store.url({
-                            creator: creatorSlug,
-                            plan: plan.id,
-                        }),
-                        {},
-                        request,
-                    );
-
-                    return;
-                }
-
                 if (viewerSupportId === null) {
                     return;
                 }
@@ -161,9 +177,7 @@ export function SupportButton({
                 );
             }}
         >
-            {viewerPlanId === null
-                ? 'このプランで支援する'
-                : 'このプランに変更'}
+            このプランに変更
         </Button>
     );
 }

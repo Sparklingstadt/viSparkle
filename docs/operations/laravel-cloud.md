@@ -2,7 +2,7 @@
 
 viSparkle は [Laravel Cloud](https://cloud.laravel.com) で動かす。Cloud の上に、アプリ（Web）、Laravel MySQL、オブジェクトストレージ（Cloudflare R2）のバケット2つ、キューワーカー、スケジューラを置く。Stripe 側の設定は `docs/operations/stripe-setup.md` を参照。
 
-> **一般公開の前に必須**: 特定商取引法に基づく表記と利用規約への同意は、まだ実装されていない（`stripe-setup.md` 冒頭を参照）。それまでは Stripe のテストキーで動かし、本番キーで一般のユーザーから課金しない。
+> **一般公開の前に必須**: 特定商取引法に基づく表記（`LEGAL_*`、§4）の入力と、利用規約・プライバシーポリシーの専門家による確認。実装は済んでいる。チェックリストは `stripe-setup.md` §7。
 
 ## 1. アプリと環境を作る
 
@@ -105,7 +105,15 @@ STRIPE_SECRET=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...
 
-# メール送信は Resend を使う予定（§7。独自ドメインの取得後に設定する）
+# 特定商取引法に基づく表記（/legal/tokushoho に表示される運営者情報）
+LEGAL_SELLER_NAME=（販売事業者の名称。個人なら本名または屋号）
+LEGAL_RESPONSIBLE_PERSON=（運営責任者の氏名）
+LEGAL_ADDRESS=（所在地）
+LEGAL_PHONE=（電話番号）
+LEGAL_EMAIL=（問い合わせ先のメールアドレス）
+LEGAL_DISCLOSE_ON_REQUEST=false
+
+# メール送信は Resend を使う予定（§8。独自ドメインの取得後に設定する）
 # MAIL_MAILER=smtp
 # MAIL_HOST=smtp.resend.com
 # MAIL_PORT=587
@@ -118,8 +126,11 @@ STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...
 
 - `APP_KEY` は Cloud が生成する。生成されていなければ、ローカルで `php artisan key:generate --show` を実行し、出力を設定する。
 - `BILLING_DRIVER=fake` は `APP_ENV=production` では例外になって使えない。Stripe のテストキーで動かすのが正しい形。
-- メールは、`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない（内容はログに出る）。送信サービスは Resend に決めている。設定は §7。
+- メールは、`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない（内容はログに出る）。送信サービスは Resend に決めている。設定は §8。
 - 環境変数を変えたら、再デプロイして反映させる。
+- `LEGAL_*` は `config/legal.php` が読む。`LEGAL_SELLER_NAME`・`LEGAL_RESPONSIBLE_PERSON`・`LEGAL_EMAIL` は必須。未入力の項目は `/legal/tokushoho` に「準備中」と表示される。`LEGAL_EMAIL` は利用規約・プライバシーポリシーの問い合わせ先（`{email}`）にも入る。
+- 個人事業主は、住所と電話番号を公開しない選択ができる。`LEGAL_ADDRESS` と `LEGAL_PHONE` を空にして `LEGAL_DISCLOSE_ON_REQUEST=true` にすると、その2項目は「請求があれば遅滞なく開示します。」と表示される（開示請求に実際に応じられる体制が前提）。
+- 本番キー（`sk_live_` / `rk_live_`）で、必須項目が未入力のままだと、支援の申し込み（チェックアウト）を断る（`legal.not_ready` をログに出す）。テストキーでは止まらない。
 
 ## 5. 初回デプロイと確認
 
@@ -133,7 +144,37 @@ STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...
     - [ ] Stripe のテストカードで支援でき、支援状態が反映される（キューワーカーが動いている）
     - [ ] **Commands** タブで `php artisan schedule:list` を実行し、`fanbox:prune-orphan-files` が出る
 
-## 6. 独自ドメイン（任意）
+## 6. 管理者と運営の手順
+
+### 6.1 管理者
+
+管理者は、会員のうち `is_admin` が真のアカウント。管理画面は `/admin`（ダッシュボード、通報、支払い、利用者）。管理者でない人（未ログインを含む）が開くと **404** になり、管理画面があること自体が分からない。
+
+Cloud の **Commands** タブで、対象の会員（登録済みのメールアドレス）を指定して実行する。
+
+```bash
+php artisan fanbox:admin you@example.com            # 管理者にする
+php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
+```
+
+- そのメールアドレスの会員がいないときは、エラーを出して終わる。先に会員登録しておく。
+- 管理画面を使うには、メール認証済みであることも要る。メール送信が未設定のうち（§8）は、ログから認証 URL を拾って開く。
+
+### 6.2 運営の手順
+
+操作は `admin_actions` に記録される（誰が・何を・いつ）。
+
+- **通報の処理**: `/admin/reports` で未対応の通報を確認し、「対応済み」または「却下」にする（メモは任意）。
+- **投稿の非公開**: 通報された投稿などは、投稿の管理ページ（`/admin/posts/{id}`）で理由を付けて非公開にする。非公開にした投稿は、作者には非公開の旨のバナーが出て、ほかの人には 404 になる。同じページで公開に戻せる。
+- **利用停止**: `/admin/users` で会員を検索し、理由を付けて利用停止にする。解除もここでできる。停止すると、その会員はログインできなくなり、同時に次の処理が走る。
+    - 停止したのが**クリエイター**: プランの募集を止め、支援者の支援を**即時に解約**し、各支援の**最新の支払い1件を返金**する（それが返金済みなら返金しない）。
+    - 停止したのが**ファン（支援者）**: その人の支援を**即時に解約**する。**返金はしない**。
+    - 利用停止を解除しても、解約した支援と返金は元に戻らない。
+- **返金**: `/admin/payments` から行う。その支払いを**全額**返金し、クリエイターへの送金と運営手数料も取り消す（部分返金はない）。支援も同時に解約するかは、ダイアログで選ぶ。詳細は `stripe-setup.md` §2.8。
+- **チャージバック（異議申し立て）**: アプリからは対応できない。支払い一覧の「異議申し立て」バッジを見て、Stripe ダッシュボードで対応する（`stripe-setup.md` §2.8）。
+- **一括処理が一部失敗したとき**: 利用停止の完了メッセージに、解約・返金・失敗の件数が出る（例: 「利用停止にしました。（解約 3件・返金 2件・失敗 1件）」）。失敗の詳細は **Monitoring → Logs** の `billing.ops_failed`（`operation` と対象の ID 付き）に残る。同じ件数は `admin_actions` にも `user.suspension_billing` として残る。原因（Stripe の障害など）を直したら、`/admin/users` で利用停止中の会員の「**再実行**」を押す（同じ理由で利用停止をやり直す。停止日時は変わらない）。対象はまだ有効な支援だけで、各支援の最新の支払いを返金する（最新の支払いが返金済みなら、それより前の月は返金しない）。**解約に成功したあとで返金だけ失敗した支払いは、支援がもう有効でないため再実行の対象にならない。`/admin/payments` から個別に返金する。** 返金の失敗は Stripe の冪等性により24時間は同じ結果が再生されるため、`stripe-setup.md` §2.8 の注意を見る。
+
+## 7. 独自ドメイン（任意）
 
 **Domains** でドメインを追加し、DNS を設定する。証明書は Cloud が発行する。ドメインを変えたら、次の3つを新しいドメインに合わせる。
 
@@ -141,7 +182,7 @@ STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...
 - Stripe の Webhook 宛先2つ
 - 送信元メールのドメイン設定
 
-## 7. メール送信（Resend、今後対応）
+## 8. メール送信（Resend、今後対応）
 
 **状況（2026-11-01 時点）**: 未設定。送信サービスは **Resend** を使うと決めている。独自ドメインをまだ持っていないため、取得してから設定する。
 
@@ -154,7 +195,7 @@ Resend（ほかの配信サービスも同じ）は、迷惑メール対策と�
 ### 手順
 
 1. **独自ドメインを取得する**（例: `visparkle.jp` / `visparkle.com`）。`.jp` はお名前.com などで取得する（Cloudflare Registrar は `.jp` を扱っていない）。
-2. **Laravel Cloud にドメインをつなぐ**（§6）。`APP_URL` と Stripe の Webhook 宛先2つも、新しいドメインに合わせる。
+2. **Laravel Cloud にドメインをつなぐ**（§7）。`APP_URL` と Stripe の Webhook 宛先2つも、新しいドメインに合わせる。
 3. **Resend に登録し、Domains にドメインを追加する。** 表示される DNS レコード（SPF・DKIM、任意で DMARC）を、ドメインの DNS に追加し、Resend 上で Verified になるのを待つ。送信元はサブドメインでもよい（例: `mail.visparkle.jp`）。
 4. **API キーを作る**（権限は Sending access、対象はそのドメイン）。
 5. **Laravel Cloud の環境変数に設定し、再デプロイする。** SMTP で接続するので、パッケージの追加は要らない（`MAIL_MAILER=resend` を使う場合は `resend/resend-php` が要る）。

@@ -18,13 +18,15 @@ class HomeController extends Controller
         $entitlement = Entitlement::for($request->user());
 
         $posts = Post::published()
+            ->visible()
             ->where('required_price', 0)
+            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->with(['creator', 'cover'])
             ->limit(20)
             ->get()
             ->map(fn (Post $post) => $presenter->summary($post, $entitlement));
 
-        $creators = Creator::latest('id')->limit(12)->get()->map->toSummary();
+        $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
 
         return Inertia::render('public/home', ['posts' => $posts, 'creators' => $creators]);
     }

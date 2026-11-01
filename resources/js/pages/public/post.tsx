@@ -4,8 +4,13 @@ import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
+import {
+    ReportDialog,
+    type ReportReasonOption,
+} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate, formatYen } from '@/lib/format';
 import { edit } from '@/routes/creator/posts';
@@ -21,9 +26,12 @@ export default function PostPage({
     viewerSupportId,
     viewerSupportCancelling,
     acceptsSupports,
+    closed,
+    reportReasons,
+    hiddenReason,
 }: {
     post: PostDetail;
-    creator: CreatorProfile;
+    creator: CreatorProfile & { id: number };
     plans: PlanData[];
     isOwner: boolean;
     viewerSupportPrice: number | null;
@@ -31,6 +39,9 @@ export default function PostPage({
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
+    closed: boolean;
+    reportReasons: ReportReasonOption[];
+    hiddenReason: string | null;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -51,6 +62,15 @@ export default function PostPage({
 
             <article className="mx-auto max-w-3xl space-y-6">
                 <CreatorHeader creator={creator} compact />
+
+                {hiddenReason !== null && (
+                    <Alert variant="destructive">
+                        <AlertDescription>
+                            運営により非公開になっています（理由: {hiddenReason}
+                            ）
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {post.cover_thumb_url && (
                     <img
@@ -118,6 +138,7 @@ export default function PostPage({
                                                     acceptsSupports={
                                                         acceptsSupports
                                                     }
+                                                    closed={closed}
                                                 />
                                             }
                                         />
@@ -161,6 +182,15 @@ export default function PostPage({
                         )}
                     </>
                 )}
+
+                <footer className="flex justify-end">
+                    <ReportDialog
+                        targetType="post"
+                        targetId={post.id}
+                        reasons={reportReasons}
+                        isOwner={isOwner}
+                    />
+                </footer>
             </article>
         </>
     );

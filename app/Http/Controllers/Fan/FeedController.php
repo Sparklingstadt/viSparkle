@@ -18,6 +18,8 @@ class FeedController extends Controller
         $entitlement = Entitlement::for($request->user());
 
         $posts = Post::published()
+            ->visible()
+            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->whereIn('creator_id', Support::active()->where('user_id', $request->user()->id)->select('creator_id'))
             ->with(['creator', 'cover'])
             ->paginate(20)

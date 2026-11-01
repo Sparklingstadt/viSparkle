@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -26,6 +27,7 @@ class CreatorPageController extends Controller
 
         $posts = $creator->posts()
             ->published()
+            ->visible()
             ->with('cover')
             ->paginate(20)
             ->through(function (Post $post) use ($creator, $presenter, $entitlement) {
@@ -36,6 +38,7 @@ class CreatorPageController extends Controller
 
         return Inertia::render('public/creator', [
             'creator' => [
+                'id' => $creator->id,
                 ...$creator->toSummary(),
                 'bio' => $creator->bio,
                 'header_url' => $creator->headerUrl(),
@@ -48,6 +51,8 @@ class CreatorPageController extends Controller
             'viewerSupportId' => $support?->id,
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
+            'closed' => $creator->isClosed(),
+            'reportReasons' => ReportReason::options(),
         ]);
     }
 
