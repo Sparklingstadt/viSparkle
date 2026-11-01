@@ -92,7 +92,7 @@ STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...    # Connect の宛先のシークレッ
 BILLING_PLATFORM_FEE_PERCENT=10            # 運営手数料（%）。省略すると 10
 ```
 
-- `BILLING_DRIVER` の既定は `fake`。**本番では `stripe` にすること。**
+- `BILLING_DRIVER` を省略すると、`APP_ENV=production` なら `stripe`、それ以外は `fake` になる。本番でも明示的に `stripe` を設定しておくこと（`fake` を指定すると起動時に例外）。ビルド時に環境変数が渡らないホスティングでも、`APP_ENV=production` さえあればビルドが止まらない。
 - `BILLING_DRIVER=stripe` で動かすには `STRIPE_SECRET` が必須。空だと、決済サービスを使う最初の処理で `Stripe secret is not configured.` という例外になる。
 - `fake` ドライバは**本番環境（`APP_ENV=production`）では動かない**（`The fake billing driver cannot be used in production.` の例外）。ローカル確認・テスト専用。
 - Webhook のシークレットが片方でも空だと、その宛先は常に 500 を返す。Stripe 側で再送が続くので、設定漏れに注意する。
