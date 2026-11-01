@@ -24,6 +24,11 @@ class EnsureTermsAccepted
             return $next($request);
         }
 
+        // Inertia link prefetches (Purpose: prefetch) must not replace the page the user actually asked for.
+        if ($request->headers->get('Purpose') === 'prefetch') {
+            return redirect()->route('legal.accept');
+        }
+
         // guest() remembers the requested URL so that accepting returns the user there.
         return redirect()->guest(route('legal.accept'));
     }
@@ -37,6 +42,7 @@ class EnsureTermsAccepted
             || str_starts_with($name, 'stripe.')
             || str_starts_with($name, 'verification.')
             || str_starts_with($name, 'dev.')
+            || $name === 'supports.checkout.complete'
             || $name === 'logout'
         );
     }
