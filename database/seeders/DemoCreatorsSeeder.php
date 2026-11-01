@@ -2,17 +2,22 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PostStatus;
 use App\Models\Creator;
-use App\Models\Plan;
-use App\Models\Post;
 use App\Models\User;
+use App\Services\Legal\LegalDocuments;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
- * Ten more demo creators for local browsing. Their accounts use the password "password" and have no payout
- * account, so their plans show as not yet accepting supports.
+ * Ten demo creators with plans, posts and images. Locally their accounts use the password "password"; in
+ * production each gets a long random password nobody knows, so the pages show but nobody can log in as them.
+ * They have no payout account, so their plans show as not yet accepting supports.
+ *
+ * Uses no model factories (Faker is a dev dependency), so it also runs on production:
+ *   php artisan db:seed --class=DemoCreatorsSeeder --force
  */
 class DemoCreatorsSeeder extends Seeder
 {
@@ -138,9 +143,18 @@ class DemoCreatorsSeeder extends Seeder
                 continue;
             }
 
-            $creator = Creator::factory()
-                ->for(User::factory()->state(['name' => $name, 'email' => "{$slug}@example.com"]))
-                ->create(['slug' => $slug, 'display_name' => $name, 'bio' => $bio]);
+            $user = User::create([
+                'name' => $name,
+                'email' => "{$slug}@example.com",
+                'password' => app()->isProduction() ? Str::random(64) : 'password',
+            ]);
+            $user->forceFill([
+                'email_verified_at' => now(),
+                'terms_version' => LegalDocuments::termsVersion(),
+                'terms_accepted_at' => now(),
+            ])->save();
+
+            $creator = $user->creator()->create(['slug' => $slug, 'display_name' => $name, 'bio' => $bio]);
 
             $this->createContent($creator, $index, $plans, $posts);
         }
@@ -157,11 +171,13 @@ class DemoCreatorsSeeder extends Seeder
     private function createContent(Creator $creator, int $index, array $plans, array $posts): void
     {
         foreach ($plans as $sort => [$price, $planName, $description]) {
-            Plan::factory()->for($creator)->create(['price' => $price, 'name' => $planName, 'description' => $description, 'sort' => $sort]);
+            $creator->plans()->create(['price' => $price, 'name' => $planName, 'description' => $description, 'sort' => $sort]);
         }
 
         foreach ($posts as $i => [$price, $title, $excerpt]) {
-            Post::factory()->for($creator)->published()->requiring($price)->create([
+            $creator->posts()->create([
+                'status' => PostStatus::Published,
+                'required_price' => $price,
                 'title' => $title,
                 'excerpt' => $excerpt,
                 'published_at' => now()->subDays(30 - $index * 2 - $i)->setTime(12, 0),
