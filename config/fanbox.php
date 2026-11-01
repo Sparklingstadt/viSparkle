@@ -42,4 +42,22 @@ return [
         'storage', 'assets', 'help', 'terms', 'privacy',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Billing
+    |--------------------------------------------------------------------------
+    */
+
+    'billing' => [
+        // stripe | fake
+        'driver' => env('BILLING_DRIVER', 'fake'),
+        'platform_fee_percent' => (int) env('BILLING_PLATFORM_FEE_PERCENT', 10),
+        'stripe' => [
+            'secret' => env('STRIPE_SECRET'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET'),
+        ],
+        'checkout_expires_minutes' => 30,
+    ],
+
 ];

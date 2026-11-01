@@ -32,7 +32,7 @@ export function PlanCard({
                     {formatYen(plan.price)}
                     <span className="text-sm font-normal text-muted-foreground">
                         {' '}
-                        / 月
+                        税込 / 月
                     </span>
                 </p>
                 {plan.description && (

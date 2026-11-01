@@ -10,8 +10,11 @@ export default function CreatorPage({
     plans,
     posts,
     isOwner,
+    viewerSupportPrice,
     viewerPlanId,
     viewerSupportId,
+    viewerSupportCancelling,
+    acceptsSupports,
 }: {
     creator: CreatorProfile;
     plans: PlanData[];
@@ -20,6 +23,8 @@ export default function CreatorPage({
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
     viewerSupportId: number | null;
+    viewerSupportCancelling: boolean;
+    acceptsSupports: boolean;
 }) {
     return (
         <>
@@ -48,6 +53,15 @@ export default function CreatorPage({
                                                 viewerPlanId={viewerPlanId}
                                                 viewerSupportId={
                                                     viewerSupportId
+                                                }
+                                                viewerSupportPrice={
+                                                    viewerSupportPrice
+                                                }
+                                                viewerSupportCancelling={
+                                                    viewerSupportCancelling
+                                                }
+                                                acceptsSupports={
+                                                    acceptsSupports
                                                 }
                                             />
                                         )

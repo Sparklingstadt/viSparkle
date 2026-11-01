@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/plans';
 import type { PlanData } from '@/types';
 
@@ -107,9 +108,11 @@ function EditPlan({ plan, onDone }: { plan: PlanData; onDone: () => void }) {
 
 export default function PlansIndex({
     plans,
+    acceptsSupports,
     limits,
 }: {
     plans: PlanData[];
+    acceptsSupports: boolean;
     limits: Limits;
 }) {
     const [editing, setEditing] = useState<number | null>(null);
@@ -124,6 +127,15 @@ export default function PlansIndex({
                     title="プラン管理"
                     description={`月額 ${limits.min.toLocaleString()}〜${limits.max.toLocaleString()} 円、最大 ${limits.count} 個まで作成できます。`}
                 />
+
+                {!acceptsSupports && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+                        受取口座を登録するまで、プランへの支援を受け付けられません。{' '}
+                        <Link href={earnings()} className="underline">
+                            収益ページへ
+                        </Link>
+                    </div>
+                )}
 
                 <InputError message={errors.plan} />
 

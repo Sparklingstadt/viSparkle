@@ -19,10 +19,12 @@ class PlanController extends Controller
 {
     public function index(Request $request): Response
     {
-        $plans = $request->user()->creator->plans()->withCount('activeSupports')->get();
+        $creator = $request->user()->creator;
+        $plans = $creator->plans()->withCount('activeSupports')->get();
 
         return Inertia::render('creator/plans/index', [
             'plans' => $plans->map->toData()->values(),
+            'acceptsSupports' => $creator->canAcceptSupports(),
             'limits' => [
                 'min' => config('fanbox.plan_min_price'),
                 'max' => config('fanbox.plan_max_price'),

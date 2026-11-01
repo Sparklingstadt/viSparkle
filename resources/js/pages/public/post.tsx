@@ -18,6 +18,9 @@ export default function PostPage({
     isOwner,
     viewerSupportPrice,
     viewerPlanId,
+    viewerSupportId,
+    viewerSupportCancelling,
+    acceptsSupports,
 }: {
     post: PostDetail;
     creator: CreatorProfile;
@@ -25,6 +28,9 @@ export default function PostPage({
     isOwner: boolean;
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
+    viewerSupportId: number | null;
+    viewerSupportCancelling: boolean;
+    acceptsSupports: boolean;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -100,7 +106,18 @@ export default function PostPage({
                                                     creatorSlug={creator.slug}
                                                     plan={plan}
                                                     viewerPlanId={viewerPlanId}
-                                                    viewerSupportId={null}
+                                                    viewerSupportId={
+                                                        viewerSupportId
+                                                    }
+                                                    viewerSupportPrice={
+                                                        viewerSupportPrice
+                                                    }
+                                                    viewerSupportCancelling={
+                                                        viewerSupportCancelling
+                                                    }
+                                                    acceptsSupports={
+                                                        acceptsSupports
+                                                    }
                                                 />
                                             }
                                         />

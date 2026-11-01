@@ -47,6 +47,20 @@ it('keeps a supporters current plan visible even when it stopped accepting', fun
         ->assertInertia(fn (Assert $page) => $page->has('plans', 1)->where('viewerSupportPrice', 1000)->where('viewerPlanId', $plan->id));
 });
 
+it('tells the page whether the creator accepts supports and whether the viewer is cancelling', function () {
+    $closed = Creator::factory()->create();
+    $this->get(route('creators.show', $closed))->assertInertia(fn (Assert $page) => $page->where('acceptsSupports', false)->where('viewerSupportCancelling', false));
+
+    $open = Creator::factory()->payable()->create();
+    $plan = Plan::factory()->for($open)->create();
+    $user = User::factory()->create();
+    $this->actingAs($user)->get(route('creators.show', $open))->assertInertia(fn (Assert $page) => $page->where('acceptsSupports', true));
+
+    $support = Support::factory()->for($user)->forPlan($plan)->active()->create();
+    $support->forceFill(['cancel_at_period_end' => true])->save();
+    $this->actingAs($user)->get(route('creators.show', $open))->assertInertia(fn (Assert $page) => $page->where('viewerSupportCancelling', true));
+});
+
 it('renders with a constant number of queries regardless of post count', function () {
     $creator = Creator::factory()->create();
     $storer = app(PostFileStorer::class);

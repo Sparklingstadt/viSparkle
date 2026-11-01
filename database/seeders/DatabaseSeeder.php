@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Billing\FakeGateway;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
@@ -27,6 +28,13 @@ class DatabaseSeeder extends Seeder
                 'display_name' => 'デモクリエイター',
                 'bio' => "イラストと漫画を描いています。\n支援してくださると制作の励みになります！",
             ]);
+
+        // A payable demo creator, so the fake checkout works out of the box.
+        $creator->forceFill(['stripe_account_id' => 'acct_fake_demo', 'payouts_enabled' => true, 'details_submitted' => true])->save();
+
+        if (config('fanbox.billing.driver') === 'fake') {
+            app(FakeGateway::class)->setAccount('acct_fake_demo', true, true);
+        }
 
         foreach ([[300, 'ちょっと応援', '月1回のラフ公開'], [500, 'しっかり応援', '完成イラストの高解像度版'], [1000, '全力応援', '制作過程の動画と素材ファイル']] as $i => [$price, $name, $description]) {
             Plan::factory()->for($creator)->create(['price' => $price, 'name' => $name, 'description' => $description, 'sort' => $i]);
