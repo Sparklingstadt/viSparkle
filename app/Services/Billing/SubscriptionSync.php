@@ -128,9 +128,9 @@ class SubscriptionSync
             return $this->mismatch($data, $support);
         }
 
-        // A new, charging subscription for a creator who can no longer take supports.
+        // A new, charging subscription for a suspended user, or for a creator who can no longer take supports.
         if ($orphanable) {
-            $reason = $this->closedCreatorReason((int) $ids['creator_id']);
+            $reason = $user->isSuspended() ? 'user_suspended' : $this->closedCreatorReason((int) $ids['creator_id']);
 
             if ($reason !== null) {
                 return ['orphan' => $reason];

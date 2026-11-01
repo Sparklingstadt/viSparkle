@@ -298,18 +298,20 @@ it('cancels a new subscription whose user was deleted', function () {
     Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === 'user_missing')->once();
 });
 
-it('cancels a new subscription for a closed or suspended creator', function (string $reason) {
+it('cancels a new subscription for a suspended user or a closed or suspended creator', function (string $reason) {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $reason === 'creator_closed'
-        ? $this->creator->forceFill(['closed_at' => now()])->save()
-        : $this->creator->user->forceFill(['suspended_at' => now()])->save();
+    match ($reason) {
+        'creator_closed' => $this->creator->forceFill(['closed_at' => now()])->save(),
+        'creator_suspended' => $this->creator->user->forceFill(['suspended_at' => now()])->save(),
+        'user_suspended' => $this->fan->forceFill(['suspended_at' => now()])->save(),
+    };
     Log::spy();
 
     expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
         ->and(Support::query()->count())->toBe(0)
         ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
     Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === $reason)->once();
-})->with(['creator_closed', 'creator_suspended']);
+})->with(['creator_closed', 'creator_suspended', 'user_suspended']);
 
 it('refunds the paid invoice of an orphan subscription', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
