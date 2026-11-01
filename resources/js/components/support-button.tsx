@@ -15,6 +15,7 @@ export function SupportButton({
     viewerSupportPrice,
     viewerSupportCancelling,
     acceptsSupports,
+    closed,
 }: {
     creatorSlug: string;
     plan: PlanData;
@@ -23,6 +24,7 @@ export function SupportButton({
     viewerSupportPrice: number | null;
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
+    closed: boolean;
 }) {
     const { auth } = usePage().props;
     const [processing, setProcessing] = useState(false);
@@ -53,23 +55,26 @@ export function SupportButton({
                 </Button>
                 {viewerSupportId !== null &&
                     (viewerSupportCancelling ? (
-                        <Button
-                            className="w-full"
-                            variant="ghost"
-                            size="sm"
-                            disabled={processing}
-                            onClick={() =>
-                                router.post(
-                                    SupportController.resume.url(
-                                        viewerSupportId,
-                                    ),
-                                    {},
-                                    request,
-                                )
-                            }
-                        >
-                            支援を再開する
-                        </Button>
+                        // A closed creator's supports cannot be renewed.
+                        !closed && (
+                            <Button
+                                className="w-full"
+                                variant="ghost"
+                                size="sm"
+                                disabled={processing}
+                                onClick={() =>
+                                    router.post(
+                                        SupportController.resume.url(
+                                            viewerSupportId,
+                                        ),
+                                        {},
+                                        request,
+                                    )
+                                }
+                            >
+                                支援を再開する
+                            </Button>
+                        )
                     ) : (
                         <Button
                             className="w-full"
@@ -93,6 +98,14 @@ export function SupportButton({
                         </Button>
                     ))}
             </div>
+        );
+    }
+
+    if (closed) {
+        return (
+            <Button className="w-full" variant="outline" disabled>
+                受付終了
+            </Button>
         );
     }
 

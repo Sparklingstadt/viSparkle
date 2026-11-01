@@ -22,7 +22,7 @@ class ClosureController extends Controller
             $message .= "（{$failed}件は失敗しました。もう一度お試しください）";
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        Inertia::flash('toast', ['type' => $failed > 0 ? 'warning' : 'success', 'message' => $message]);
 
         return back();
     }

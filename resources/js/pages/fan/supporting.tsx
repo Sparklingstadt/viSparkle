@@ -21,6 +21,7 @@ type Row = {
     stripe_status: string | null;
     current_period_end: string | null;
     cancel_at_period_end: boolean;
+    creator_closed: boolean;
 };
 
 const openPortal = () => router.post(BillingPortalController.url());
@@ -113,24 +114,27 @@ export default function Supporting({
                                         </Button>
                                     )}
                                     {support.cancel_at_period_end ? (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            disabled={
-                                                processingId === support.id
-                                            }
-                                            onClick={() =>
-                                                router.post(
-                                                    SupportController.resume.url(
-                                                        support.id,
-                                                    ),
-                                                    {},
-                                                    request(support.id),
-                                                )
-                                            }
-                                        >
-                                            再開する
-                                        </Button>
+                                        // A closed creator's supports cannot be renewed.
+                                        !support.creator_closed && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={
+                                                    processingId === support.id
+                                                }
+                                                onClick={() =>
+                                                    router.post(
+                                                        SupportController.resume.url(
+                                                            support.id,
+                                                        ),
+                                                        {},
+                                                        request(support.id),
+                                                    )
+                                                }
+                                            >
+                                                再開する
+                                            </Button>
+                                        )
                                     ) : (
                                         <Button
                                             variant="outline"

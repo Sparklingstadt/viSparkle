@@ -27,6 +27,7 @@ class SupportingController extends Controller
                 'stripe_status' => $support->stripe_status,
                 'current_period_end' => $support->current_period_end,
                 'cancel_at_period_end' => $support->cancel_at_period_end,
+                'creator_closed' => $support->creator->isClosed(),
             ]);
 
         return Inertia::render('fan/supporting', [

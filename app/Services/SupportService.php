@@ -54,6 +54,11 @@ class SupportService
             throw self::refuse('再開できる支援がありません。');
         }
 
+        // A closed creator's supports run out with their period; renewing them would charge with no way to stop.
+        if ($support->creator->isClosed()) {
+            throw self::refuse('このクリエイターは活動を終了しました。');
+        }
+
         return $this->apply($support, $this->gateway->setCancelAtPeriodEnd((string) $support->stripe_subscription_id, false));
     }
 
@@ -67,6 +72,10 @@ class SupportService
     {
         if ($support->status === SupportStatus::Ended) {
             throw self::refuse('この支援はすでに終了しています。');
+        }
+
+        if ($support->creator->isClosed()) {
+            throw self::refuse('このクリエイターは活動を終了しました。');
         }
 
         if ($support->plan_id === $plan->id) {

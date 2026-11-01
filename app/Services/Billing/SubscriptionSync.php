@@ -62,6 +62,12 @@ class SubscriptionSync
             $result = ['duplicate' => $other];
         }
 
+        if (isset($result['orphan'])) {
+            $this->cancelOrphan($data, $result['orphan']);
+
+            return null;
+        }
+
         if (isset($result['duplicate'])) {
             $this->cancelDuplicate($data, $result['duplicate']);
 
@@ -72,7 +78,7 @@ class SubscriptionSync
     }
 
     /**
-     * @return array{support?: Support|null, duplicate?: Support}
+     * @return array{support?: Support|null, duplicate?: Support, orphan?: string}
      */
     private function write(SubscriptionData $data, ?int $userId): array
     {
@@ -82,13 +88,27 @@ class SubscriptionSync
         $user = $userId === null ? null : User::query()->whereKey($userId)->lockForUpdate()->first();
         $support = Support::query()->where('stripe_subscription_id', $data->id)->lockForUpdate()->first();
 
+        $status = self::STATUSES[$data->status] ?? null;
+
+        // A new, charging subscription for a deleted user (e.g. a Checkout finished after the account was deleted).
+        if ($support === null && $ids !== null && $user === null && $status === SupportStatus::Active) {
+            return ['orphan' => 'user_missing'];
+        }
+
         $owner = $support === null ? $ids['user_id'] ?? null : $support->user_id;
 
         if ($user === null || $user->id !== $owner || $user->stripe_customer_id !== $data->customerId) {
             return $this->mismatch($data, $support);
         }
 
-        $status = self::STATUSES[$data->status] ?? null;
+        // A new, charging subscription for a creator who can no longer take supports.
+        if ($support === null && $ids !== null && $status === SupportStatus::Active) {
+            $reason = $this->closedCreatorReason($ids['creator_id']);
+
+            if ($reason !== null) {
+                return ['orphan' => $reason];
+            }
+        }
 
         if ($status === null) {
             return ['support' => $support];
@@ -208,6 +228,37 @@ class SubscriptionSync
             ->where(fn ($query) => $query->whereNull('stripe_subscription_id')->orWhere('stripe_subscription_id', '!=', $exceptSubscriptionId))
             ->lockForUpdate()
             ->first();
+    }
+
+    private function closedCreatorReason(int $creatorId): ?string
+    {
+        $creator = Creator::query()->with('user')->whereKey($creatorId)->first();
+
+        return match (true) {
+            $creator === null => 'creator_missing',
+            $creator->isClosed() => 'creator_closed',
+            $creator->user->suspended_at !== null => 'creator_suspended',
+            default => null,
+        };
+    }
+
+    /**
+     * A subscription that must not become a support: cancel it now (refunding the first invoice is manual).
+     */
+    private function cancelOrphan(SubscriptionData $data, string $reason): void
+    {
+        Log::error('billing.orphan_subscription', [
+            'subscription' => $data->id,
+            'customer' => $data->customerId,
+            'metadata' => $data->metadata,
+            'reason' => $reason,
+        ]);
+
+        try {
+            $this->gateway->cancelSubscriptionNow($data->id);
+        } catch (BillingException $e) {
+            Log::error('billing.orphan_cancel_failed', ['subscription' => $data->id, 'message' => $e->getMessage()]);
+        }
     }
 
     /**

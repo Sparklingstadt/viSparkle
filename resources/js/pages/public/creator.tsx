@@ -74,6 +74,7 @@ export default function CreatorPage({
                                                 acceptsSupports={
                                                     acceptsSupports
                                                 }
+                                                closed={closed}
                                             />
                                         )
                                     }

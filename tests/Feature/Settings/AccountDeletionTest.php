@@ -78,6 +78,39 @@ it('aborts deletion when stripe fails', function () {
         ->and($support->fresh()->status)->toBe(SupportStatus::Active);
 });
 
+it('keeps the user when a later cancellation fails, and deletes on retry', function () {
+    $first = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
+    $second = syncedBillingSupport($this->gateway, Plan::factory()->for(Creator::factory()->payable())->create(), $this->fan);
+
+    $fake = $this->gateway;
+    $failing = Mockery::mock($fake)->makePartial();
+    $failing->shouldReceive('cancelSubscriptionNow')->andReturnUsing(function (string $id) use ($fake, $second): void {
+        if ($id === $second->stripe_subscription_id) {
+            throw new BillingException('Stripe is down.');
+        }
+
+        $fake->cancelSubscriptionNow($id);
+    });
+    app()->instance(PaymentGateway::class, $failing);
+
+    $this->actingAs($this->fan)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHas('inertia.flash_data.toast.type', 'error');
+
+    expect($this->fan->fresh())->not->toBeNull()
+        ->and($first->fresh()->status)->toBe(SupportStatus::Ended)
+        ->and($second->fresh()->status)->toBe(SupportStatus::Active);
+
+    app()->instance(PaymentGateway::class, $fake);
+
+    $this->actingAs($this->fan)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertRedirect(route('home'));
+
+    expect($this->fan->fresh())->toBeNull()
+        ->and($fake->cancelledNow())->toEqualCanonicalizing([$first->stripe_subscription_id, $second->stripe_subscription_id]);
+});
+
 it('deletes the user when a subscription was already cancelled at stripe', function () {
     $support = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
     $this->gateway->setSubscriptionStatus((string) $support->stripe_subscription_id, 'canceled');

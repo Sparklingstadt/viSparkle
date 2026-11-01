@@ -285,3 +285,35 @@ it('leaves an existing support unchanged when stripe reports incomplete', functi
     expect($support->status)->toBe(SupportStatus::Active)
         ->and($support->fresh()->stripe_status)->toBe('active');
 });
+
+it('cancels a new subscription whose user was deleted', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $this->fan->delete();
+    Log::spy();
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and(Support::query()->count())->toBe(0)
+        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
+    Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === 'user_missing')->once();
+});
+
+it('cancels a new subscription for a closed or suspended creator', function (string $reason) {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $reason === 'creator_closed'
+        ? $this->creator->forceFill(['closed_at' => now()])->save()
+        : $this->creator->user->forceFill(['suspended_at' => now()])->save();
+    Log::spy();
+
+    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
+        ->and(Support::query()->count())->toBe(0)
+        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
+    Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === $reason)->once();
+})->with(['creator_closed', 'creator_suspended']);
+
+it('keeps syncing an existing support after its creator closed', function () {
+    $support = app(SubscriptionSync::class)->sync(fakeCheckout($this->gateway, $this->plan, $this->fan)->id);
+    $this->creator->forceFill(['closed_at' => now()])->save();
+
+    expect(app(SubscriptionSync::class)->sync((string) $support->stripe_subscription_id)->status)->toBe(SupportStatus::Active)
+        ->and($this->gateway->cancelledNow())->toBe([]);
+});

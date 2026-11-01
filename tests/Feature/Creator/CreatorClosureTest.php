@@ -66,7 +66,7 @@ it('counts failures, logs them and carries on', function () {
 
     $this->actingAs($this->creator->user)
         ->post(route('creator.closure.store'))
-        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '活動を終了しました。1件の支援を期間の終わりで停止します。（1件は失敗しました。もう一度お試しください）']);
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'warning', 'message' => '活動を終了しました。1件の支援を期間の終わりで停止します。（1件は失敗しました。もう一度お試しください）']);
 
     expect($failed->fresh()->cancel_at_period_end)->toBeFalse()
         ->and($ok->fresh()->cancel_at_period_end)->toBeTrue()
@@ -83,6 +83,33 @@ it('can be run again to retry the failed ones', function () {
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '活動を終了しました。0件の支援を期間の終わりで停止します。']);
 
     expect($support->fresh()->cancel_at_period_end)->toBeTrue();
+});
+
+it('refuses resuming or changing the plan of a support to a closed creator', function () {
+    $support = closureSupport($this->plan);
+    $this->actingAs($this->creator->user)->post(route('creator.closure.store'));
+    $this->plan->forceFill(['is_accepting' => true])->save();
+    $this->other->forceFill(['is_accepting' => true])->save();
+
+    $this->actingAs($support->user)
+        ->post(route('supports.resume', $support))
+        ->assertSessionHasErrors(['plan' => 'このクリエイターは活動を終了しました。']);
+
+    $this->actingAs($support->user)
+        ->put(route('supports.update', $support), ['plan_id' => $this->other->id])
+        ->assertSessionHasErrors(['plan' => 'このクリエイターは活動を終了しました。']);
+
+    expect($support->fresh()->cancel_at_period_end)->toBeTrue()
+        ->and($support->fresh()->plan_id)->toBe($this->plan->id)
+        ->and($this->gateway->retrieveSubscription((string) $support->stripe_subscription_id)->cancelAtPeriodEnd)->toBeTrue();
+});
+
+it('marks closed creators on the supporting page', function () {
+    $support = closureSupport($this->plan);
+    $this->actingAs($this->creator->user)->post(route('creator.closure.store'));
+
+    $this->actingAs($support->user)->get(route('supporting.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('supports.0.creator_closed', true));
 });
 
 it('hides a closed creator from the home page and shows the notice on its page', function () {
