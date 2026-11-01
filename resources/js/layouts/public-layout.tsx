@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
+import { AppearanceMenu } from '@/components/appearance-menu';
 import { SiteFooter } from '@/components/site-footer';
 import { Button } from '@/components/ui/button';
 import { feed, home, login, register } from '@/routes';
@@ -19,6 +20,7 @@ export default function PublicLayout({
                         <AppLogo />
                     </Link>
                     <nav className="flex items-center gap-2">
+                        <AppearanceMenu />
                         {auth.user ? (
                             <Button asChild variant="outline" size="sm">
                                 <Link href={feed()}>マイページ</Link>
