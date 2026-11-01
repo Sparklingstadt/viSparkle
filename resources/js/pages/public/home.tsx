@@ -7,9 +7,11 @@ import type { CreatorSummary, PostSummary } from '@/types';
 export default function Home({
     posts,
     creators,
+    popularCreators,
 }: {
     posts: PostSummary[];
     creators: CreatorSummary[];
+    popularCreators: CreatorSummary[];
 }) {
     return (
         <>
@@ -24,6 +26,52 @@ export default function Home({
                         支援すると、プランに応じた限定投稿を見られます。
                     </p>
                 </section>
+
+                {popularCreators.length > 0 && (
+                    <section className="space-y-4">
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-semibold">
+                                今週の人気クリエイター
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                直近7日間に新しく支援を始めたファンが多い順です。
+                            </p>
+                        </div>
+                        <ol className="flex gap-4 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible">
+                            {popularCreators.map((creator, index) => (
+                                <li key={creator.slug} className="shrink-0">
+                                    <Link
+                                        href={show(creator.slug)}
+                                        className="flex w-24 flex-col items-center gap-2 text-center"
+                                    >
+                                        <div className="relative">
+                                            <Avatar className="size-16">
+                                                {creator.avatar_url && (
+                                                    <AvatarImage
+                                                        src={creator.avatar_url}
+                                                        alt=""
+                                                    />
+                                                )}
+                                                <AvatarFallback>
+                                                    {creator.display_name.slice(
+                                                        0,
+                                                        1,
+                                                    )}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="absolute -top-1 -left-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                                {index + 1}
+                                            </span>
+                                        </div>
+                                        <span className="line-clamp-2 text-sm">
+                                            {creator.display_name}
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ol>
+                    </section>
+                )}
 
                 <section className="space-y-4">
                     <h2 className="text-lg font-semibold">新着クリエイター</h2>
