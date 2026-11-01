@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $cover_path
  * @property bool $is_accepting
  * @property int $sort
+ * @property string|null $stripe_product_id
+ * @property string|null $stripe_price_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */

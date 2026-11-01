@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Support>
@@ -42,5 +43,14 @@ class SupportFactory extends Factory
     public function ended(): static
     {
         return $this->state(fn () => ['status' => SupportStatus::Ended, 'ended_at' => now()]);
+    }
+
+    public function billing(): static
+    {
+        return $this->state(fn () => [
+            'stripe_subscription_id' => 'sub_fake_'.Str::random(10),
+            'stripe_status' => 'active',
+            'current_period_end' => now()->addMonth(),
+        ]);
     }
 }

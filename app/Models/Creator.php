@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $bio
  * @property string|null $avatar_path
  * @property string|null $header_path
+ * @property string|null $stripe_account_id
+ * @property bool $payouts_enabled
+ * @property bool $details_submitted
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -27,6 +30,14 @@ class Creator extends Model
 {
     /** @use HasFactory<CreatorFactory> */
     use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'payouts_enabled' => 'boolean',
+            'details_submitted' => 'boolean',
+        ];
+    }
 
     public function getRouteKeyName(): string
     {
@@ -63,6 +74,11 @@ class Creator extends Model
         return ['slug' => $this->slug, 'display_name' => $this->display_name, 'avatar_url' => $this->avatarUrl()];
     }
 
+    public function canAcceptSupports(): bool
+    {
+        return $this->stripe_account_id !== null && $this->payouts_enabled;
+    }
+
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
@@ -85,5 +101,11 @@ class Creator extends Model
     public function supports(): HasMany
     {
         return $this->hasMany(Support::class);
+    }
+
+    /** @return HasMany<Payment, $this> */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 }

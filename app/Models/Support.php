@@ -21,6 +21,11 @@ use Illuminate\Support\Carbon;
  * @property SupportStatus $status
  * @property Carbon $started_at
  * @property Carbon|null $ended_at
+ * @property string|null $stripe_subscription_id
+ * @property string|null $stripe_status
+ * @property Carbon|null $current_period_end
+ * @property bool $cancel_at_period_end
+ * @property string|null $current_key
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -37,7 +42,14 @@ class Support extends Model
             'status' => SupportStatus::class,
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
+            'current_period_end' => 'datetime',
+            'cancel_at_period_end' => 'boolean',
         ];
+    }
+
+    public function isBilling(): bool
+    {
+        return $this->stripe_subscription_id !== null;
     }
 
     /** @param  Builder<self>  $query */

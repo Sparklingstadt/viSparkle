@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Creator;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Creator>
@@ -19,5 +20,14 @@ class CreatorFactory extends Factory
             'display_name' => fake()->name(),
             'bio' => fake()->realText(120),
         ];
+    }
+
+    public function payable(): static
+    {
+        return $this->state(fn () => [
+            'stripe_account_id' => 'acct_fake_'.Str::random(8),
+            'payouts_enabled' => true,
+            'details_submitted' => true,
+        ]);
     }
 }
