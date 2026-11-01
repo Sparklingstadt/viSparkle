@@ -55,6 +55,8 @@ function something()
 |--------------------------------------------------------------------------
 */
 
+use App\Billing\FakeGateway;
+use App\Billing\PaymentGateway;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -139,4 +141,19 @@ function pngClaiming(int $width, int $height, string $name = 'bomb.png'): Upload
 function corruptJpeg(string $name = 'broken.jpg'): UploadedFile
 {
     return UploadedFile::fake()->createWithContent($name, "\xFF\xD8\xFF\xE0".str_repeat("\x00garbage", 200));
+}
+
+/**
+ * Switch to the fake billing driver with a clean state and return it.
+ */
+function fakeBilling(): FakeGateway
+{
+    config(['fanbox.billing.driver' => 'fake']);
+    app()->forgetInstance(PaymentGateway::class);
+    app()->forgetInstance(FakeGateway::class);
+
+    $gateway = app(PaymentGateway::class);
+    assert($gateway instanceof FakeGateway);
+
+    return $gateway;
 }
