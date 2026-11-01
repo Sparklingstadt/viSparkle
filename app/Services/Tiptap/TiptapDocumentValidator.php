@@ -37,7 +37,7 @@ class TiptapDocumentValidator
             $this->fail('本文の形式が正しくありません。');
         }
 
-        $this->allowedImageIds = array_map('intval', $allowedImageIds);
+        $this->allowedImageIds = array_values(array_map('intval', $allowedImageIds));
         $this->validateNode($doc, 0);
     }
 

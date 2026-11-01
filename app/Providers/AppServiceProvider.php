@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Filesystem\BrowserSignedS3Adapter;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
             $manager = new FilesystemManager($app);
             $base = $manager->createS3Driver($config);
 
-            if (empty($config['signing_endpoint'])) {
+            if (! $base instanceof AwsS3V3Adapter || empty($config['signing_endpoint'])) {
                 return $base;
             }
 

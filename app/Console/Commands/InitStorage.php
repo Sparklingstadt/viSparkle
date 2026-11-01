@@ -47,7 +47,7 @@ class InitStorage extends Command
                             'Action' => ['s3:GetObject'],
                             'Resource' => ["arn:aws:s3:::{$bucket}/*"],
                         ]],
-                    ]),
+                    ], JSON_THROW_ON_ERROR),
                 ]);
                 $this->info("Granted public read on [{$bucket}].");
             }

@@ -105,6 +105,10 @@ class PostFileStorer
 
         $stream = fopen($upload->getRealPath(), 'r');
 
+        if ($stream === false) {
+            throw new RuntimeException("Failed to open the uploaded file for [{$path}].");
+        }
+
         try {
             $this->put($disk, $path, $stream, $written);
         } finally {
