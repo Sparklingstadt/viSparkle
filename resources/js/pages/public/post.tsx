@@ -66,8 +66,8 @@ export default function PostPage({
                 {hiddenReason !== null && (
                     <Alert variant="destructive">
                         <AlertDescription>
-                            運営により非公開になっています（理由:{' '}
-                            {hiddenReason}）
+                            運営により非公開になっています（理由: {hiddenReason}
+                            ）
                         </AlertDescription>
                     </Alert>
                 )}
