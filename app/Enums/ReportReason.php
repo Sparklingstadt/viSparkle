@@ -20,4 +20,10 @@ enum ReportReason: string
             self::Other => 'その他',
         };
     }
+
+    /** @return list<array{value: string, label: string}> */
+    public static function options(): array
+    {
+        return array_map(fn (self $r) => ['value' => $r->value, 'label' => $r->label()], self::cases());
+    }
 }

@@ -51,7 +51,7 @@ class CreatorPageController extends Controller
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
-            'reportReasons' => collect(ReportReason::cases())->map(fn (ReportReason $r) => ['value' => $r->value, 'label' => $r->label()])->all(),
+            'reportReasons' => ReportReason::options(),
         ]);
     }
 
