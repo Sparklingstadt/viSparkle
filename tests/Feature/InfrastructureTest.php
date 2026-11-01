@@ -2,6 +2,8 @@
 
 use App\Providers\AppServiceProvider;
 use Illuminate\Foundation\CloudBootstrapper;
+use Illuminate\Mail\Transport\ResendTransport;
+use Illuminate\Support\Facades\Mail;
 
 it('configures private and public disks on s3', function () {
     expect(config('filesystems.disks.private.driver'))->toBe('s3')
@@ -48,4 +50,10 @@ it('keeps storage failures loud when Laravel Cloud replaces the disks', function
     expect(config('filesystems.disks.private.bucket'))->toBe('visparkle-private')
         ->and(config('filesystems.disks.private.throw'))->toBeTrue()
         ->and(config('filesystems.disks.public.throw'))->toBeTrue();
+});
+
+it('sends mail through the Resend API when MAIL_MAILER is resend', function () {
+    config(['services.resend.key' => 're_test']);
+
+    expect(Mail::mailer('resend')->getSymfonyTransport())->toBeInstanceOf(ResendTransport::class);
 });

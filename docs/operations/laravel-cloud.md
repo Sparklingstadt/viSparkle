@@ -113,20 +113,16 @@ LEGAL_PHONE=（電話番号）
 LEGAL_EMAIL=（問い合わせ先のメールアドレス）
 LEGAL_DISCLOSE_ON_REQUEST=false
 
-# メール送信は Resend を使う予定（§8。独自ドメインの取得後に設定する）
-# MAIL_MAILER=smtp
-# MAIL_HOST=smtp.resend.com
-# MAIL_PORT=587
-# MAIL_USERNAME=resend
-# MAIL_PASSWORD=re_...
-# MAIL_ENCRYPTION=tls
-# MAIL_FROM_ADDRESS=no-reply@（独自ドメイン）
-# MAIL_FROM_NAME="${APP_NAME}"
+# メール送信（Resend。§8）
+MAIL_MAILER=resend
+RESEND_API_KEY=re_...
+MAIL_FROM_ADDRESS=no-reply@visparkle.sparklingstadt.com
+MAIL_FROM_NAME="${APP_NAME}"
 ```
 
 - `APP_KEY` は Cloud が生成する。生成されていなければ、ローカルで `php artisan key:generate --show` を実行し、出力を設定する。
 - `BILLING_DRIVER=fake` は `APP_ENV=production` では例外になって使えない。Stripe のテストキーで動かすのが正しい形。
-- メールは、`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない（内容はログに出る）。送信サービスは Resend に決めている。設定は §8。
+- メールは Resend の API で送る（`MAIL_MAILER=resend`）。`MAIL_MAILER=log` のままだとメール認証やパスワード再設定のメールが届かない（内容はログに出る）。設定は §8。
 - 環境変数を変えたら、再デプロイして反映させる。
 - `LEGAL_*` は `config/legal.php` が読む。`LEGAL_SELLER_NAME`・`LEGAL_RESPONSIBLE_PERSON`・`LEGAL_EMAIL` は必須。未入力の項目は `/legal/tokushoho` に「準備中」と表示される。`LEGAL_EMAIL` は利用規約・プライバシーポリシーの問い合わせ先（`{email}`）にも入る。
 - 個人事業主は、住所と電話番号を公開しない選択ができる。`LEGAL_ADDRESS` と `LEGAL_PHONE` を空にして `LEGAL_DISCLOSE_ON_REQUEST=true` にすると、その2項目は「請求があれば遅滞なく開示します。」と表示される（開示請求に実際に応じられる体制が前提）。
@@ -182,32 +178,30 @@ php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
 - Stripe の Webhook 宛先2つ
 - 送信元メールのドメイン設定
 
-## 8. メール送信（Resend、今後対応）
+## 8. メール送信（Resend）
 
-**状況（2026-11-01 時点）**: 未設定。送信サービスは **Resend** を使うと決めている。独自ドメインをまだ持っていないため、取得してから設定する。
+送信サービスは **Resend** を使い、Laravel の `resend` メーラー（`resend/resend-php`。HTTP API で送る）でつなぐ。アプリから送るのは、会員登録時のメール認証とパスワード再設定のメール（Fortify の標準機能）。
 
-それまでのあいだ、本番は `MAIL_MAILER=log` のまま運用する。会員登録の認証メールやパスワード再設定のメールは届かない。その内容は **Monitoring → Logs** に出るので、テスト中は、ログから `verify-email` を含む URL を拾って開けば認証できる。一般公開の前に、必ずこの節を終わらせる。
+環境変数が未設定のあいだは `MAIL_MAILER=log` になり、メールは届かない。その内容は **Monitoring → Logs** に出るので、テスト中は、ログから `verify-email` を含む URL を拾って開けば認証できる。一般公開の前に、必ずこの節を終わらせる。
 
 ### なぜ独自ドメインが要るか
 
 Resend（ほかの配信サービスも同じ）は、迷惑メール対策として送信元ドメインの所有確認（SPF・DKIM の DNS レコード）を求める。`visparkle.laravel.cloud` は Laravel Cloud のドメインで DNS を設定できないため、送信元に使えない。
 
+ドメインは `sparklingstadt.com`（Cloudflare Registrar で取得、DNS も Cloudflare）。ほかの用途と送信の評判を分けるため、送信用にサブドメイン `visparkle.sparklingstadt.com` を Resend に登録する。メールを送るだけなら、ドメインを Laravel Cloud につなぐ（§7）必要はない。
+
 ### 手順
 
-1. **独自ドメインを取得する**（例: `visparkle.jp` / `visparkle.com`）。`.jp` はお名前.com などで取得する（Cloudflare Registrar は `.jp` を扱っていない）。
-2. **Laravel Cloud にドメインをつなぐ**（§7）。`APP_URL` と Stripe の Webhook 宛先2つも、新しいドメインに合わせる。
-3. **Resend に登録し、Domains にドメインを追加する。** 表示される DNS レコード（SPF・DKIM、任意で DMARC）を、ドメインの DNS に追加し、Resend 上で Verified になるのを待つ。送信元はサブドメインでもよい（例: `mail.visparkle.jp`）。
-4. **API キーを作る**（権限は Sending access、対象はそのドメイン）。
-5. **Laravel Cloud の環境変数に設定し、再デプロイする。** SMTP で接続するので、パッケージの追加は要らない（`MAIL_MAILER=resend` を使う場合は `resend/resend-php` が要る）。
+1. **Resend の Domains で `visparkle.sparklingstadt.com` を追加する**（リージョンは Tokyo）。
+2. **DNS レコードを Cloudflare に追加する。** Resend の画面の「Auto configure」（Cloudflare 連携）を使うか、表示された MX・TXT（SPF）・TXT（DKIM）を Cloudflare の DNS に手で追加する。Cloudflare 上ではプロキシをオフ（DNS only）にする。任意で DMARC（`_dmarc` の TXT）も追加する。Resend 上で Verified になるのを待つ。
+3. **API キーを作る**（権限は Sending access、対象はそのドメイン）。
+4. **（任意）問い合わせ用のアドレスを作る。** Cloudflare の Email Routing で `support@sparklingstadt.com` などを作り、個人のアドレスに転送する。`LEGAL_EMAIL` に使える。
+5. **Laravel Cloud の環境変数に設定し、再デプロイする。** API キーはリポジトリやチャットに貼らない。
 
 ```ini
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.resend.com
-MAIL_PORT=587
-MAIL_USERNAME=resend
-MAIL_PASSWORD=re_...            # Resend の API キー
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=no-reply@（独自ドメイン）
+MAIL_MAILER=resend
+RESEND_API_KEY=re_...           # Resend の API キー
+MAIL_FROM_ADDRESS=no-reply@visparkle.sparklingstadt.com
 MAIL_FROM_NAME="${APP_NAME}"
 ```
 
