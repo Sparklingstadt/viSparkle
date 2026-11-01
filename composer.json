@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "sparklingstadt/visparkle",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "クリエイターを月額で支援し、支援額に応じた限定投稿を閲覧できるサービス。",
     "keywords": [
         "laravel",
         "framework"
