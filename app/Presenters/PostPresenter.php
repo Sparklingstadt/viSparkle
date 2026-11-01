@@ -14,15 +14,19 @@ use App\Services\PostFileUrls;
  * Gated data (body, file URLs other than the cover thumbnail) is only ever
  * generated after Entitlement::canView() passes; for a locked post the keys
  * are absent rather than empty. Expects `creator` and `cover` eager loaded.
+ *
+ * $likedIds is the set of post ids the viewer liked (PostLike::idsLikedBy), fetched once per page.
+ * The like count is null for viewers who may not see it, so it never reaches the page JSON.
  */
 class PostPresenter
 {
     public function __construct(private readonly PostFileUrls $urls) {}
 
     /**
+     * @param  array<int, true>  $likedIds
      * @return array<string, mixed>
      */
-    public function summary(Post $post, Entitlement $entitlement): array
+    public function summary(Post $post, Entitlement $entitlement, array $likedIds = []): array
     {
         return [
             'id' => $post->id,
@@ -32,16 +36,20 @@ class PostPresenter
             'published_at' => $post->published_at,
             'cover_thumb_url' => $post->cover === null ? null : $this->urls->thumbUrl($post->cover),
             'locked' => ! $entitlement->canView($post),
+            'like_count' => $entitlement->canSeeLikeCount($post) ? $post->like_count : null,
+            'liked' => isset($likedIds[$post->id]),
+            'can_like' => $entitlement->canLike($post),
             'creator' => $post->creator->toSummary(),
         ];
     }
 
     /**
+     * @param  array<int, true>  $likedIds
      * @return array<string, mixed>
      */
-    public function detail(Post $post, Entitlement $entitlement): array
+    public function detail(Post $post, Entitlement $entitlement, array $likedIds = []): array
     {
-        $summary = $this->summary($post, $entitlement);
+        $summary = $this->summary($post, $entitlement, $likedIds);
 
         if ($summary['locked']) {
             return $summary;

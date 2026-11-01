@@ -77,6 +77,10 @@ export type PostSummary = {
     published_at: string | null;
     cover_thumb_url: string | null;
     locked: boolean;
+    // null when the viewer is neither the author nor a supporter of the creator.
+    like_count: number | null;
+    liked: boolean;
+    can_like: boolean;
     creator: CreatorSummary;
 };
 

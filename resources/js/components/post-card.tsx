@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
+import { Heart, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
@@ -50,6 +50,13 @@ export function PostCard({
                     {formatDate(post.published_at)}
                     {!post.locked && post.required_price > 0 && (
                         <> · {formatYen(post.required_price)}〜</>
+                    )}
+                    {!!post.like_count && (
+                        <>
+                            {' · '}
+                            <Heart className="inline size-3 align-[-1px]" />{' '}
+                            {post.like_count}
+                        </>
                     )}
                 </p>
             </div>
