@@ -49,8 +49,10 @@ class ImageSanitizer
             $this->fail($field, '画像を読み込めませんでした。');
         }
 
-        if (config('fanbox.image_max_pixels') < $size[0] * $size[1]) {
-            $this->fail($field, '画像の解像度が大きすぎます（'.number_format(config('fanbox.image_max_pixels') / 1_000_000).'メガピクセルまで）。');
+        $maxPixels = $this->maxPixels();
+
+        if ($maxPixels < $size[0] * $size[1]) {
+            $this->fail($field, '画像の解像度が大きすぎます（'.number_format(intdiv($maxPixels, 1_000_000)).'メガピクセルまで）。');
         }
 
         try {
@@ -96,6 +98,39 @@ class ImageSanitizer
             'image/webp' => new WebpEncoder(quality: 85, strip: true),
             'image/gif' => new GifEncoder,
             default => new JpegEncoder(quality: 85, strip: true),
+        };
+    }
+
+    /**
+     * The configured pixel cap, lowered to what fits in the remaining PHP memory: GD needs ~4 bytes per pixel for the
+     * decoded bitmap plus working copies while orienting and resizing, so allow about 10 bytes per pixel.
+     */
+    public function maxPixels(?string $memoryLimit = null): int
+    {
+        $configured = (int) config('fanbox.image_max_pixels');
+        $limit = $this->bytes($memoryLimit ?? (string) ini_get('memory_limit'));
+
+        if ($limit <= 0) {
+            return $configured;
+        }
+
+        return max(0, min($configured, intdiv($limit - memory_get_usage(), 10)));
+    }
+
+    /** Parse a php.ini size such as "256M"; -1 (unlimited) and unparsable values give 0. */
+    private function bytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '' || $value === '-1' || ! preg_match('/^(\d+)\s*([KMG]?)$/i', $value, $m)) {
+            return 0;
+        }
+
+        return (int) $m[1] * match (strtoupper($m[2])) {
+            'G' => 1024 ** 3,
+            'M' => 1024 ** 2,
+            'K' => 1024,
+            default => 1,
         };
     }
 
