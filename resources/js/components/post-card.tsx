@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
+import { placeholderCover } from '@/lib/placeholder';
 import { show } from '@/routes/posts';
 import type { PostSummary } from '@/types';
 
@@ -18,12 +19,19 @@ export function PostCard({
             className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
         >
             <div className="relative aspect-video bg-muted">
-                {post.cover_thumb_url && (
+                {post.cover_thumb_url ? (
                     <img
                         src={post.cover_thumb_url}
                         alt=""
                         loading="lazy"
                         className={`size-full object-cover ${post.locked ? 'blur-md' : ''}`}
+                    />
+                ) : (
+                    <img
+                        src={placeholderCover(post.id)}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover"
                     />
                 )}
                 {post.locked && (
