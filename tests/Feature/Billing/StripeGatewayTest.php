@@ -68,7 +68,7 @@ it('creates a destination-charge checkout session', function () {
         ->and($request['params']['mode'])->toBe('subscription')
         ->and($request['params']['customer'])->toBe('cus_x')
         ->and($request['params']['locale'])->toBe('ja')
-        ->and($request['params']['payment_method_types'])->toBe(['card'])
+        ->and($request['params'])->not->toHaveKey('payment_method_types')
         ->and($request['params']['expires_at'])->toBe(1793836800)
         ->and($request['params']['line_items'][0]['price'])->toBe('price_x')
         ->and($request['params']['line_items'][0]['quantity'])->toBe(1)
