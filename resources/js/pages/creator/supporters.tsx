@@ -36,9 +36,7 @@ export default function Supporters({
                                 （支援者を含みます）
                             </span>
                         </p>
-                        <p className="text-2xl font-bold">
-                            {followerCount} 人
-                        </p>
+                        <p className="text-2xl font-bold">{followerCount} 人</p>
                     </div>
                 </div>
 
