@@ -86,4 +86,10 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return $this->hasMany(PostLike::class);
     }
+
+    /** @return HasMany<Follow, $this> */
+    public function follows(): HasMany
+    {
+        return $this->hasMany(Follow::class);
+    }
 }

@@ -142,6 +142,28 @@ class Creator extends Model
         return $this->stripe_account_id !== null && (bool) $this->payouts_enabled;
     }
 
+    /**
+     * Idempotent: following twice keeps one row.
+     */
+    public function follow(User $user): void
+    {
+        Follow::query()->insertOrIgnore([
+            'user_id' => $user->id,
+            'creator_id' => $this->id,
+            'created_at' => now(),
+        ]);
+    }
+
+    public function unfollow(User $user): void
+    {
+        $this->follows()->where('user_id', $user->id)->delete();
+    }
+
+    public function isFollowedBy(?User $user): bool
+    {
+        return $user !== null && $this->follows()->where('user_id', $user->id)->exists();
+    }
+
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
@@ -170,5 +192,11 @@ class Creator extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /** @return HasMany<Follow, $this> */
+    public function follows(): HasMany
+    {
+        return $this->hasMany(Follow::class);
     }
 }
