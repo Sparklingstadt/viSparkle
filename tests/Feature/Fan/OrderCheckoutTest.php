@@ -304,3 +304,48 @@ it('pays on the fake checkout page', function () {
     $this->actingAs($this->buyer)->get(route('orders.checkout.complete', ['session_id' => $sessionId]));
     expect(Order::sole()->status)->toBe(OrderStatus::Paid);
 });
+
+it('refuses while another checkout of the same buyer and creator is starting', function () {
+    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    $lock = Cache::lock("order-checkout:{$this->buyer->id}:{$this->creator->id}", 60);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
+            ->assertSessionHasErrors(['cart' => '現在購入できません']);
+    } finally {
+        $lock->release();
+    }
+
+    expect(Order::count())->toBe(0)->and($this->mug->fresh()->stock)->toBe(10);
+});
+
+it('keeps a previous order whose checkout was paid but not yet synced', function () {
+    $sticker = Product::factory()->for($this->creator)->create(['price' => 300, 'stock' => 4]);
+    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    $first = beginOrderCheckout($this->buyer, $this->creator);
+    $this->gateway->completePaymentCheckout($first);
+    // The paid order empties its products from the cart once synced; this one is still in it.
+    app(Cart::class)->add($this->buyer, $sticker, 1);
+
+    beginOrderCheckout($this->buyer, $this->creator);
+
+    $orders = Order::orderBy('id')->get();
+    expect($orders)->toHaveCount(2)
+        ->and($orders[0]->status)->toBe(OrderStatus::Paid)
+        ->and($orders[1]->status)->toBe(OrderStatus::Pending)
+        ->and($orders[1]->items->pluck('product_id')->all())->toBe([$sticker->id])
+        ->and($this->gateway->refundedPaymentIntents())->toBe([])
+        ->and($this->mug->fresh()->stock)->toBe(8);
+});
+
+it('refuses when the previous checkout turns out to await a delayed payment', function () {
+    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    $first = beginOrderCheckout($this->buyer, $this->creator);
+    $this->gateway->completePaymentCheckout($first, paid: false);
+
+    $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
+        ->assertSessionHasErrors(['cart' => 'お支払い待ちの注文があります']);
+
+    expect(Order::count())->toBe(1)->and(Order::sole()->status)->toBe(OrderStatus::Pending);
+});

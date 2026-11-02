@@ -13,6 +13,8 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -40,6 +42,17 @@ class OrderCheckout
             throw self::unavailable();
         }
 
+        // One begin at a time per buyer and creator, so two tabs cannot both pass the replacement and reserve twice.
+        try {
+            return Cache::lock("order-checkout:{$buyer->id}:{$creator->id}", 60)
+                ->block(5, fn () => $this->beginLocked($buyer, $creator));
+        } catch (LockTimeoutException) {
+            throw self::unavailable();
+        }
+    }
+
+    private function beginLocked(User $buyer, Creator $creator): string
+    {
         $this->replaceUnfinished($buyer, $creator);
 
         // After the replacement: the stock the buyer's own unfinished order held is back by now.
@@ -135,20 +148,61 @@ class OrderCheckout
             throw ValidationException::withMessages(['cart' => 'お支払い待ちの注文があります']);
         }
 
-        $pending->each(fn (Order $order) => $this->close($order));
+        // Closing re-reads each order from Stripe: one that was paid or is awaiting payment is kept as it is.
+        $closed = $pending->map(fn (Order $order) => $this->close($order));
+
+        if ($closed->contains(fn (Order $order) => $order->status === OrderStatus::Pending && $order->stripe_payment_intent_id !== null)) {
+            throw ValidationException::withMessages(['cart' => 'お支払い待ちの注文があります']);
+        }
     }
 
-    private function close(Order $order): void
+    /**
+     * Cancel the order as abandoned, unless its Checkout turns out to be finished (paid, or a payment awaiting settlement):
+     * Stripe's side is synced first, and again if expiring the session failed. Returns the order as it stands.
+     */
+    private function close(Order $order): Order
     {
-        if ($order->stripe_checkout_session_id !== null) {
+        $sessionId = $order->stripe_checkout_session_id;
+
+        if ($sessionId !== null) {
+            $order = $this->resync($order, $sessionId);
+
+            if (! $this->isOpen($order)) {
+                return $order;
+            }
+
             try {
-                $this->gateway->expireCheckoutSession($order->stripe_checkout_session_id);
+                $this->gateway->expireCheckoutSession($sessionId);
             } catch (BillingException) {
-                // Already gone or unreachable; the order is what matters.
+                // Perhaps it completed meanwhile: look again before giving the order up.
+                $order = $this->resync($order, $sessionId);
+
+                if (! $this->isOpen($order)) {
+                    return $order;
+                }
             }
         }
 
-        $this->orders->cancel($order, OrderCancelReason::Abandoned);
+        return $this->orders->cancel($order, OrderCancelReason::Abandoned);
+    }
+
+    private function resync(Order $order, string $sessionId): Order
+    {
+        try {
+            $this->sync->syncSession($sessionId);
+        } catch (BillingException $e) {
+            report($e);
+        }
+
+        return $order->fresh() ?? $order;
+    }
+
+    /**
+     * Still pending with no payment started: the only kind of order that may be thrown away.
+     */
+    private function isOpen(Order $order): bool
+    {
+        return $order->status === OrderStatus::Pending && $order->stripe_payment_intent_id === null;
     }
 
     /**
