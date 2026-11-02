@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    CreditCard,
     FileText,
     Heart,
     Newspaper,
@@ -9,6 +10,7 @@ import {
     Users,
     Wallet,
 } from 'lucide-react';
+import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -31,7 +33,7 @@ import { index as supporting } from '@/routes/supporting';
 import { edit as creatorProfile } from '@/routes/creator/profile';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const fanNavItems: NavItem[] = [
     {
         title: 'フィード',
         href: feed(),
@@ -42,6 +44,9 @@ const mainNavItems: NavItem[] = [
         href: supporting(),
         icon: Heart,
     },
+];
+
+const creatorNavItems: NavItem[] = [
     {
         title: 'クリエイター管理',
         href: creatorProfile(),
@@ -69,6 +74,13 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+// Opens Stripe's customer portal, so only fans who have paid before get it.
+const billingNavItem: NavItem = {
+    title: 'お支払い方法・請求履歴',
+    href: BillingPortalController(),
+    icon: CreditCard,
+};
+
 const adminNavItem: NavItem = {
     title: '管理',
     href: adminDashboard(),
@@ -77,9 +89,12 @@ const adminNavItem: NavItem = {
 
 export function AppSidebar() {
     const { auth } = usePage().props;
-    const items = auth.user?.is_admin
-        ? [...mainNavItems, adminNavItem]
-        : mainNavItems;
+    const items = [
+        ...fanNavItems,
+        ...(auth.user?.has_billing_account ? [billingNavItem] : []),
+        ...creatorNavItems,
+        ...(auth.user?.is_admin ? [adminNavItem] : []),
+    ];
 
     return (
         <Sidebar collapsible="icon" variant="inset">

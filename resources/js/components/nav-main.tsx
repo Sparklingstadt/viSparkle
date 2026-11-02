@@ -9,6 +9,9 @@ import {
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { NavItem } from '@/types';
 
+const isGet = (item: NavItem) =>
+    typeof item.href === 'string' || (item.href.method ?? 'get') === 'get';
+
 export function NavMain({ items }: { items: NavItem[] }) {
     const { isCurrentUrl } = useCurrentUrl();
 
@@ -24,7 +27,12 @@ export function NavMain({ items }: { items: NavItem[] }) {
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
                         >
-                            <Link href={item.href} prefetch>
+                            {/* Non-GET items (e.g. the billing portal) submit as buttons and are never prefetched. */}
+                            <Link
+                                href={item.href}
+                                as={isGet(item) ? 'a' : 'button'}
+                                prefetch={isGet(item)}
+                            >
                                 {item.icon && <item.icon />}
                                 <span>{item.title}</span>
                             </Link>

@@ -26,13 +26,7 @@ type Row = {
 
 const openPortal = () => router.post(BillingPortalController.url());
 
-export default function Supporting({
-    supports,
-    hasBillingAccount,
-}: {
-    supports: Row[];
-    hasBillingAccount: boolean;
-}) {
+export default function Supporting({ supports }: { supports: Row[] }) {
     const [processingId, setProcessingId] = useState<number | null>(null);
 
     const request = (supportId: number) => ({
@@ -48,18 +42,7 @@ export default function Supporting({
             <Head title="支援中のクリエイター" />
 
             <div className="space-y-6 p-4">
-                <div className="flex items-start justify-between gap-4">
-                    <Heading title="支援中のクリエイター" />
-                    {hasBillingAccount && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={openPortal}
-                        >
-                            お支払い方法・請求履歴
-                        </Button>
-                    )}
-                </div>
+                <Heading title="支援中のクリエイター" />
 
                 {supports.length === 0 ? (
                     <p className="text-sm text-muted-foreground">

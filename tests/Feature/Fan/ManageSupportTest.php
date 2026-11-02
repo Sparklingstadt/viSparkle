@@ -265,7 +265,7 @@ it('lists billing details on the supporting page', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('fan/supporting')
-            ->where('hasBillingAccount', true)
+            ->where('auth.user.has_billing_account', true)
             ->has('supports', 2)
             ->where('supports.0.id', $dummy->id)
             ->where('supports.0.is_billing', false)
@@ -282,7 +282,7 @@ it('reports no billing account for a fan without a customer', function () {
     Support::factory()->for($this->fan)->forPlan($this->low)->active()->create();
 
     $this->actingAs($this->fan)->get(route('supporting.index'))
-        ->assertInertia(fn ($page) => $page->where('hasBillingAccount', false));
+        ->assertInertia(fn ($page) => $page->where('auth.user.has_billing_account', false));
 });
 
 it('rate limits support operations', function () {

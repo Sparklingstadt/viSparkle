@@ -32,7 +32,6 @@ class SupportingController extends Controller
 
         return Inertia::render('fan/supporting', [
             'supports' => $supports,
-            'hasBillingAccount' => $request->user()->stripe_customer_id !== null,
         ]);
     }
 }
