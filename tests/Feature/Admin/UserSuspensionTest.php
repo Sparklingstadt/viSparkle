@@ -6,6 +6,7 @@ use App\Models\Creator;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Post;
+use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
@@ -143,6 +144,7 @@ it('suspends a creator: cancels and refunds every supporter and hides their page
     // A support whose payment is not recorded yet.
     app(SubscriptionSync::class)->apply(fakeCheckout($this->gateway, $plan, User::factory()->create()));
     $post = Post::factory()->for($creator)->published()->create();
+    Product::factory()->for($creator)->create();
 
     $this->actingAs($this->admin)->patch(route('admin.users.update', $creator->user), ['suspended' => true, 'reason' => '詐欺'])
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '利用停止にしました。（解約 4件・返金 2件・失敗 0件）']);
@@ -160,7 +162,7 @@ it('suspends a creator: cancels and refunds every supporter and hides their page
     auth()->logout();
     $this->get(route('creators.show', $creator))->assertNotFound();
     $this->get(route('posts.show', [$creator, $post]))->assertNotFound();
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('posts', 0)->has('creators', 0));
+    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('posts', 0)->has('products', 0));
 
     expect(fn () => app(CheckoutService::class)->assertCanBegin(User::factory()->create(), $plan->fresh()))
         ->toThrow(ValidationException::class);

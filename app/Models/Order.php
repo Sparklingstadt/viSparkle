@@ -6,6 +6,7 @@ use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -72,6 +73,26 @@ class Order extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(Creator::class);
+    }
+
+    public function hasPhysical(): bool
+    {
+        return $this->kindItems()->contains(fn (OrderItem $item) => ! $item->isDigital());
+    }
+
+    public function hasDigital(): bool
+    {
+        return $this->kindItems()->contains(fn (OrderItem $item) => $item->isDigital());
+    }
+
+    /**
+     * The items, from the loaded relation when there is one.
+     *
+     * @return Collection<int, OrderItem>
+     */
+    private function kindItems(): Collection
+    {
+        return $this->relationLoaded('items') ? $this->items : $this->items()->get();
     }
 
     /** @return HasMany<OrderItem, $this> */

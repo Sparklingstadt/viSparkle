@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -48,6 +49,14 @@ class ProductFactory extends Factory
     public function soldOut(): static
     {
         return $this->state(fn () => ['stock' => 0]);
+    }
+
+    /**
+     * A digital work: no stock (its single variant holds 0) and no files until some are added.
+     */
+    public function digital(): static
+    {
+        return $this->state(fn () => ['kind' => ProductKind::Digital, 'stock' => 0]);
     }
 
     public function unpublished(): static

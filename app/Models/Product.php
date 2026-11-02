@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -17,6 +19,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $creator_id
+ * @property ProductKind $kind
  * @property string $name
  * @property string|null $description
  * @property int $price
@@ -40,6 +43,7 @@ class Product extends Model
     protected function casts(): array
     {
         return [
+            'kind' => ProductKind::class,
             'price' => 'integer',
             'is_published' => 'boolean',
             'sort_order' => 'integer',
@@ -54,9 +58,46 @@ class Product extends Model
         $query->where('is_published', true)->whereNull('hidden_at');
     }
 
+    /**
+     * Best sellers first: units in orders that were paid (refunded and canceled ones don't count).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function popular(Builder $query): void
+    {
+        $query->withSum([
+            'orderItems as sold_count' => fn ($q) => $q->whereHas('order', fn ($order) => $order
+                ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped])),
+        ], 'quantity')
+            ->orderByDesc('sold_count')
+            ->orderByDesc('id');
+    }
+
     public function isListed(): bool
     {
         return $this->is_published && $this->hidden_at === null && ! $this->trashed();
+    }
+
+    public function isDigital(): bool
+    {
+        return $this->kind === ProductKind::Digital;
+    }
+
+    /**
+     * Listed and on offer: goods need stock, a digital work needs at least one file (it holds no stock).
+     */
+    public function isPurchasable(): bool
+    {
+        if (! $this->isListed()) {
+            return false;
+        }
+
+        if ($this->isDigital()) {
+            return $this->relationLoaded('files') ? $this->files->isNotEmpty() : $this->files()->exists();
+        }
+
+        return $this->stock > 0;
     }
 
     /**
@@ -79,6 +120,20 @@ class Product extends Model
         return $this->images->first()?->url();
     }
 
+    /**
+     * @return array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}
+     */
+    public function toSummary(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'price' => $this->price,
+            'sold_out' => $this->stock < 1,
+            'cover_url' => $this->coverUrl(),
+        ];
+    }
+
     /** @return BelongsTo<Creator, $this> */
     public function creator(): BelongsTo
     {
@@ -89,6 +144,18 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** @return HasMany<ProductFile, $this> */
+    public function files(): HasMany
+    {
+        return $this->hasMany(ProductFile::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** @return HasMany<OrderItem, $this> */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 
     /** @return HasMany<ProductImage, $this> */
