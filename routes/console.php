@@ -8,5 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('fanbox:prune-orphan-files')->daily();
+Schedule::command('visparkle:prune-orphan-files')->daily();
 Schedule::command('shop:reconcile-orders')->hourly()->withoutOverlapping()->onOneServer();

@@ -13,7 +13,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
-#[Signature('fanbox:prune-orphan-files {--dry-run : Only report what would be deleted}')]
+#[Signature('visparkle:prune-orphan-files {--dry-run : Only report what would be deleted}')]
 #[Description('Delete stored files that no database row references (older than 24 hours)')]
 class PruneOrphanFiles extends Command
 {

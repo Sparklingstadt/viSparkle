@@ -30,7 +30,7 @@ viSparkle は [Laravel Cloud](https://cloud.laravel.com) で動かす。Cloud �
 - バケットを接続すると、Cloud はそのディスク名の設定（キー、エンドポイント、公開 URL）を丸ごと差し替える。そのため、`AWS_*` や `AWS_PUBLIC_URL`、`AWS_SIGNING_ENDPOINT` は**設定しない**。
 - Cloud の設定は `throw => false` になるが、`AppServiceProvider::configureStorageFailures()` で `true` に戻している。これで、保存に失敗したときは黙って続けずに例外になる。
 - R2 はファイル単位の公開設定（ACL）に対応していない。公開範囲はバケット単位で決まる。
-- `fanbox:init-storage` はローカル専用（本番では失敗する）。Cloud では実行しない。
+- `visparkle:init-storage` はローカル専用（本番では失敗する）。Cloud では実行しない。
 
 ### 2.3 キューワーカー
 
@@ -50,7 +50,7 @@ Stripe の Webhook は `ProcessStripeEvent` ジョブとしてキューで処理
 
 ### 2.4 スケジューラ
 
-App cluster の設定で **Scheduler** を有効にする。`fanbox:prune-orphan-files`（毎日）が動くようになる（`routes/console.php`）。
+App cluster の設定で **Scheduler** を有効にする。`visparkle:prune-orphan-files`（毎日）が動くようになる（`routes/console.php`）。
 
 ## 3. ビルドとデプロイのコマンド
 
@@ -138,7 +138,7 @@ MAIL_FROM_NAME="${APP_NAME}"
     - [ ] クリエイターとしてアイコンを変えると表示される（`public` バケット）
     - [ ] 画像付きの投稿を作り、支援者として閲覧できる（`private` バケットと署名付き URL）
     - [ ] Stripe のテストカードで支援でき、支援状態が反映される（キューワーカーが動いている）
-    - [ ] **Commands** タブで `php artisan schedule:list` を実行し、`fanbox:prune-orphan-files` が出る
+    - [ ] **Commands** タブで `php artisan schedule:list` を実行し、`visparkle:prune-orphan-files` が出る
 
 ## 6. 管理者と運営の手順
 
@@ -149,8 +149,8 @@ MAIL_FROM_NAME="${APP_NAME}"
 Cloud の **Commands** タブで、対象の会員（登録済みのメールアドレス）を指定して実行する。
 
 ```bash
-php artisan fanbox:admin you@example.com            # 管理者にする
-php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
+php artisan visparkle:admin you@example.com            # 管理者にする
+php artisan visparkle:admin you@example.com --revoke   # 管理者権限を外す
 ```
 
 - そのメールアドレスの会員がいないときは、エラーを出して終わる。先に会員登録しておく。
@@ -177,7 +177,7 @@ php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
 1. Cloud の **Commands** タブで実行する。
 
     ```bash
-    php artisan fanbox:demo-payout-accounts
+    php artisan visparkle:demo-payout-accounts
     ```
 
     8人分の口座を作り、登録手続きが済んでいない人ごとに Stripe の登録リンクを出す。
@@ -190,7 +190,7 @@ php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
 - **本番キーに切り替える前に**、次のコマンドでデモクリエイターの口座を外す。テスト用口座は本番の Stripe にないので、外さないと「支援可」のまま表示され、支援しようとするとチェックアウトが失敗する。外すと8人とも「準備中」に戻る（Stripe 側のテスト用口座はそのまま残るが、影響はない）。キーを切り替えたあとに実行してもよい。
 
     ```bash
-    php artisan fanbox:demo-payout-accounts --detach
+    php artisan visparkle:demo-payout-accounts --detach
     ```
 
     外す前に、クリエイターごとの口座 ID（`sakura-illust: acct_...`）を一覧で出すので、控えておく。テストキーに戻して支援可に戻したくなったら、控えた ID を各クリエイターの `stripe_account_id` に書き戻し、`--detach` なしでコマンドを実行する（口座の状態を Stripe から読み直すので、手続き済みの人はそのまま支援可になる）。

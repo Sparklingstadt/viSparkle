@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  * production each gets a long random password nobody knows, so the pages show but nobody can log in as them.
  * Locally (fake billing) eight of them get a fake payout account so their plans can be supported; the other two
  * stay "準備中". In production none has a payout account, since a made-up Stripe account would break checkout;
- * `php artisan fanbox:demo-payout-accounts` opens real Stripe test-mode accounts for the eight instead.
+ * `php artisan visparkle:demo-payout-accounts` opens real Stripe test-mode accounts for the eight instead.
  *
  * Uses no model factories (Faker is a dev dependency), so it also runs on production:
  *   php artisan db:seed --class=DemoCreatorsSeeder --force

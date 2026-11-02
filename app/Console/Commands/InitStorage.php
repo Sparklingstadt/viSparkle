@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('fanbox:init-storage')]
+#[Signature('visparkle:init-storage')]
 #[Description('Create the private and public buckets on the local S3-compatible storage (development only)')]
 class InitStorage extends Command
 {
