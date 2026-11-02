@@ -8,6 +8,7 @@ use App\Http\Controllers\Creator\PlanController;
 use App\Http\Controllers\Creator\PostController;
 use App\Http\Controllers\Creator\PostFileController;
 use App\Http\Controllers\Creator\ProductController;
+use App\Http\Controllers\Creator\ProductFileController;
 use App\Http\Controllers\Creator\ProductImageController;
 use App\Http\Controllers\Creator\ProfileController;
 use App\Http\Controllers\Creator\ShopSettingsController;
@@ -63,6 +64,18 @@ Route::middleware(['auth', 'verified'])->prefix('creator')->name('creator.')->gr
             ->name('products.images.store');
         Route::put('products/{product}/images', [ProductImageController::class, 'reorder'])->name('products.images.reorder');
         Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy'])->name('products.images.destroy');
+
+        Route::post('products/{product}/files', [ProductFileController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('products.files.store');
+        Route::put('products/{product}/files', [ProductFileController::class, 'reorder'])->name('products.files.reorder');
+        Route::delete('products/{product}/files/{file}', [ProductFileController::class, 'destroy'])
+            ->whereNumber('file')
+            ->name('products.files.destroy');
+        Route::get('products/{product}/files/{file}', [ProductFileController::class, 'download'])
+            ->whereNumber('file')
+            ->middleware('throttle:30,1')
+            ->name('products.files.download');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');

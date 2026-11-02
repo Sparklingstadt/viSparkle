@@ -11,9 +11,11 @@ import { edit as shopSettings } from '@/routes/creator/shop';
 
 type Row = {
     id: number;
+    kind: 'physical' | 'digital';
     name: string;
     price: number;
     stock: number;
+    files_count: number;
     is_published: boolean;
     hidden: boolean;
     cover_url: string | null;
@@ -86,11 +88,18 @@ export default function ProductsIndex({
                                             {product.name}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            {formatYen(product.price)} ・ 在庫{' '}
-                                            {product.stock}
+                                            {formatYen(product.price)} ・{' '}
+                                            {product.kind === 'digital'
+                                                ? `ファイル ${product.files_count}件`
+                                                : `在庫 ${product.stock}`}
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 gap-1">
+                                        {product.kind === 'digital' && (
+                                            <Badge variant="outline">
+                                                デジタル
+                                            </Badge>
+                                        )}
                                         {product.hidden && (
                                             <Badge variant="destructive">
                                                 運営により非表示

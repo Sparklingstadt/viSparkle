@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Creator;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\StoreProductRequest;
 use App\Http\Requests\Creator\UpdateProductRequest;
 use App\Models\Creator;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,20 +25,25 @@ class ProductController extends Controller
 {
     private const MAX_STOCK = 99_999;
 
+    private const NEEDS_FILES = '公開するにはファイルを1件以上アップロードしてください';
+
     public function index(Request $request): Response
     {
         $creator = $request->user()->creator;
 
         $products = $creator->products()
             ->with(['images', 'variants'])
+            ->withCount('files')
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get()
             ->map(fn (Product $product) => [
                 'id' => $product->id,
+                'kind' => $product->kind->value,
                 'name' => $product->name,
                 'price' => $product->price,
                 'stock' => $product->stock,
+                'files_count' => $product->files_count,
                 'is_published' => $product->is_published,
                 'hidden' => $product->hidden_at !== null,
                 'cover_url' => $product->coverUrl(),
@@ -53,6 +60,8 @@ class ProductController extends Controller
         return Inertia::render('creator/products/edit', [
             'product' => null,
             'can_publish' => $request->user()->creator->canAcceptSupports(),
+            'files_max' => (int) config('fanbox.product_files_max'),
+            'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
         ]);
     }
 
@@ -60,24 +69,36 @@ class ProductController extends Controller
     {
         $creator = $request->user()->creator;
         $published = $request->boolean('is_published');
+        $kind = ProductKind::from($request->validated('kind'));
 
         $this->ensureCanPublish($creator, $published);
 
-        $product = DB::transaction(function () use ($request, $creator, $published) {
-            $product = $creator->products()->create([
+        if ($published && $kind === ProductKind::Digital) {
+            throw ValidationException::withMessages(['is_published' => self::NEEDS_FILES]);
+        }
+
+        $product = DB::transaction(function () use ($request, $creator, $published, $kind) {
+            $product = new Product([
                 ...$request->safe()->only(['name', 'price']),
                 'description' => $request->validated('description') ?: null,
                 'is_published' => $published,
             ]);
+            $product->kind = $kind;
+            $creator->products()->save($product);
 
-            foreach ($request->validated('variants') as $sort => $row) {
+            // A digital work holds no stock: one unnamed kind with none, so carts and orders point at it like at goods.
+            $rows = $kind === ProductKind::Digital ? [['stock' => 0]] : $request->validated('variants');
+
+            foreach ($rows as $sort => $row) {
                 $product->variants()->create(['name' => self::variantName($row), 'stock' => (int) $row['stock'], 'sort_order' => $sort]);
             }
 
             return $product;
         });
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => '商品を作成しました。画像を追加できます。']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $kind === ProductKind::Digital
+            ? '作品を作成しました。ファイルと画像を追加できます。'
+            : '商品を作成しました。画像を追加できます。']);
 
         return to_route('creator.products.edit', $product);
     }
@@ -96,6 +117,7 @@ class ProductController extends Controller
         return Inertia::render('creator/products/edit', [
             'product' => [
                 'id' => $product->id,
+                'kind' => $product->kind->value,
                 'name' => $product->name,
                 'description' => $product->description,
                 'price' => $product->price,
@@ -112,8 +134,16 @@ class ProductController extends Controller
                     'id' => $image->id,
                     'url' => $image->url(),
                 ])->values(),
+                'files' => $product->files->map(fn (ProductFile $file) => [
+                    'id' => $file->id,
+                    'original_name' => $file->original_name,
+                    'size' => $file->size,
+                    'mime' => $file->mime,
+                ])->values(),
             ],
             'can_publish' => $product->creator->canAcceptSupports(),
+            'files_max' => (int) config('fanbox.product_files_max'),
+            'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
         ]);
     }
 
@@ -123,11 +153,26 @@ class ProductController extends Controller
 
         if ($published && ! $product->is_published) {
             $this->ensureCanPublish($product->creator, true);
+
+            if ($product->isDigital() && ! $product->files()->exists()) {
+                throw ValidationException::withMessages(['is_published' => self::NEEDS_FILES]);
+            }
         }
 
         // Apply the creator's change of each kind's stock to its current stock, under a lock, so a sale (or a pending
         // checkout's reservation) made while the form was open is not undone. Kinds left out of the form are removed.
         DB::transaction(function () use ($request, $product, $published) {
+            $product->fill([
+                ...$request->safe()->only(['name', 'price']),
+                'description' => $request->validated('description') ?: null,
+                'is_published' => $published,
+            ])->save();
+
+            // A digital work's single kind holds no stock; there is nothing more to change.
+            if ($product->isDigital()) {
+                return;
+            }
+
             $current = $product->variants()->lockForUpdate()->get()->keyBy('id');
             $rows = $request->validated('variants');
             $kept = array_filter(array_map(fn (array $row) => isset($row['id']) ? (int) $row['id'] : null, $rows));
@@ -135,12 +180,6 @@ class ProductController extends Controller
             if (array_diff($kept, $current->keys()->all()) !== []) {
                 throw ValidationException::withMessages(['variants' => '種類が正しくありません。画面を開き直してください。']);
             }
-
-            $product->fill([
-                ...$request->safe()->only(['name', 'price']),
-                'description' => $request->validated('description') ?: null,
-                'is_published' => $published,
-            ])->save();
 
             $current->except($kept)->each(fn (ProductVariant $variant) => $variant->delete());
 

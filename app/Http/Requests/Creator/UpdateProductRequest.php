@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Creator;
 
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,9 +25,21 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->isDigitalWork()) {
+            return $this->productRules();
+        }
+
         return [
             ...$this->productRules(),
             'variants.*.stock_seen' => ['required_with:variants.*.id', 'nullable', 'integer', 'between:0,99999'],
         ];
+    }
+
+    protected function isDigitalWork(): bool
+    {
+        /** @var Product $product */
+        $product = $this->route('product');
+
+        return $product->isDigital();
     }
 }
