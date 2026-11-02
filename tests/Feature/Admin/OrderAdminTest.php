@@ -59,7 +59,8 @@ it('does not refund a pending order', function () {
     $order = Order::factory()->create();
 
     $this->actingAs($this->admin)->post(route('admin.orders.refund', $order))
-        ->assertRedirect();
+        ->assertRedirect()
+        ->assertSessionHasErrors(['order' => 'この注文は返金できません。']);
 
     expect($order->refresh()->status)->toBe(OrderStatus::Pending)
         ->and(AdminAction::count())->toBe(0)

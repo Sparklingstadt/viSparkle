@@ -1,5 +1,6 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -69,7 +70,15 @@ export default function Payments({
             return;
         }
 
-        router.post(refundOrder(order.id).url, {}, { preserveScroll: true });
+        router.post(
+            refundOrder(order.id).url,
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    toast.error(errors.order ?? '処理に失敗しました。'),
+            },
+        );
     };
 
     return (
