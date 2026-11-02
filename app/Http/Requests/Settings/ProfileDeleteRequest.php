@@ -4,6 +4,7 @@ namespace App\Http\Requests\Settings;
 
 use App\Concerns\PasswordValidationRules;
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Models\Order;
 use App\Models\Support;
 use App\Models\User;
@@ -55,7 +56,19 @@ class ProfileDeleteRequest extends FormRequest
                 }
 
                 // The creator's products go with the account: never leave a buyer's paid order with nobody to ship it.
-                if (Order::query()->where('creator_id', $creatorId)->whereIn('status', [OrderStatus::Pending, OrderStatus::Paid])->exists()) {
+                // A paid order of digital works only has nothing to ship (paid is its last state), so it does not hold
+                // the account; its buyers lose the downloads with the works, as when a creator closes.
+                $unsettled = Order::query()
+                    ->where('creator_id', $creatorId)
+                    ->where(fn ($order) => $order
+                        ->where('status', OrderStatus::Pending)
+                        ->orWhere(fn ($paid) => $paid
+                            ->where('status', OrderStatus::Paid)
+                            ->where(fn ($toShip) => $toShip
+                                ->whereHas('items', fn ($items) => $items->where('product_kind', ProductKind::Physical))
+                                ->orWhereDoesntHave('items', fn ($items) => $items->where('product_kind', ProductKind::Digital)))));
+
+                if ($unsettled->exists()) {
                     $validator->errors()->add('password', '未発送または支払い待ちの注文があるため、アカウントを削除できません。');
                 }
             },

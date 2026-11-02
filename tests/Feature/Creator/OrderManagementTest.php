@@ -175,6 +175,7 @@ it('hides ship and refund for a digital-only order', function () {
             ->where('order.can_ship', false)
             ->where('order.can_refund', false)
             ->where('order.status_label', '購入済み')
+            ->where('order.has_physical', false)
             ->where('order.items.0.product_kind', 'digital'));
 
     $this->post(route('creator.orders.refund', $order))->assertSessionHasErrors(['order' => 'デジタル作品を含む注文は取り消せません。']);

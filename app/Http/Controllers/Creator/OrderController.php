@@ -73,6 +73,7 @@ class OrderController extends Controller
                     'unit_price' => $item->unit_price,
                     'quantity' => $item->quantity,
                 ])->values(),
+                'has_physical' => $order->hasPhysical() || ! $order->hasDigital(),
                 'subtotal' => $order->subtotal,
                 'shipping_fee' => $order->shipping_fee,
                 'total' => $order->total,

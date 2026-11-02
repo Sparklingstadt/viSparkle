@@ -17,6 +17,7 @@ type Order = {
     status: OrderStatusValue;
     status_label: string;
     items: OrderItemData[];
+    has_physical: boolean;
     subtotal: number;
     shipping_fee: number;
     total: number;
@@ -66,16 +67,18 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                     </p>
                 )}
 
-                <section className="space-y-1 text-sm">
-                    <h2 className="font-medium">お届け先</h2>
-                    <p>{order.shipping_name}</p>
-                    <p>
-                        {order.shipping_postal_code &&
-                            `〒${order.shipping_postal_code} `}
-                        {order.shipping_address}
-                    </p>
-                    {order.shipping_phone && <p>{order.shipping_phone}</p>}
-                </section>
+                {order.has_physical && (
+                    <section className="space-y-1 text-sm">
+                        <h2 className="font-medium">お届け先</h2>
+                        <p>{order.shipping_name}</p>
+                        <p>
+                            {order.shipping_postal_code &&
+                                `〒${order.shipping_postal_code} `}
+                            {order.shipping_address}
+                        </p>
+                        {order.shipping_phone && <p>{order.shipping_phone}</p>}
+                    </section>
+                )}
 
                 {order.tracking_number && (
                     <section className="space-y-1 text-sm">
