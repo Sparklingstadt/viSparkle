@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\StoreProductRequest;
 use App\Http\Requests\Creator\UpdateProductRequest;
 use App\Models\Creator;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductImage;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProductController extends Controller
 {
+    private const MAX_STOCK = 99_999;
+
     public function index(Request $request): Response
     {
         $creator = $request->user()->creator;
@@ -78,6 +84,10 @@ class ProductController extends Controller
                 'description' => $product->description,
                 'price' => $product->price,
                 'stock' => $product->stock,
+                'reserved' => (int) OrderItem::query()
+                    ->where('product_id', $product->id)
+                    ->whereHas('order', fn (Builder $order) => $order->where('status', OrderStatus::Pending))
+                    ->sum('quantity'),
                 'is_published' => $product->is_published,
                 'hidden' => $product->hidden_at !== null,
                 'hidden_reason' => $product->hidden_reason,
@@ -98,11 +108,19 @@ class ProductController extends Controller
             $this->ensureCanPublish($product->creator, true);
         }
 
-        $product->fill([
-            ...$request->safe()->only(['name', 'price', 'stock']),
-            'description' => $request->validated('description') ?: null,
-            'is_published' => $published,
-        ])->save();
+        // Apply the creator's change of stock to the current stock, under a lock, so a sale (or a pending checkout's
+        // reservation) made while the form was open is not undone.
+        DB::transaction(function () use ($request, $product, $published) {
+            $current = Product::query()->lockForUpdate()->findOrFail($product->id);
+            $change = $request->integer('stock') - $request->integer('stock_seen');
+
+            $current->fill([
+                ...$request->safe()->only(['name', 'price']),
+                'stock' => max(0, min(self::MAX_STOCK, $current->stock + $change)),
+                'description' => $request->validated('description') ?: null,
+                'is_published' => $published,
+            ])->save();
+        });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => '商品を更新しました。']);
 

@@ -22,6 +22,7 @@ type EditableProduct = {
     description: string | null;
     price: number;
     stock: number;
+    reserved: number;
     is_published: boolean;
     hidden: boolean;
     hidden_reason: string | null;
@@ -161,8 +162,9 @@ export default function ProductEdit({
                     </Alert>
                 )}
 
+                {/* Keyed on the stock too: after a save (or a sale) the stock field and stock_seen start again from the current stock. */}
                 <Form
-                    key={product?.id ?? 'new'}
+                    key={product ? `${product.id}:${product.stock}` : 'new'}
                     {...form}
                     options={{ preserveScroll: true }}
                     className="space-y-4"
@@ -219,7 +221,20 @@ export default function ProductEdit({
                                         defaultValue={product?.stock ?? 1}
                                         required
                                     />
+                                    {product && (
+                                        <input
+                                            type="hidden"
+                                            name="stock_seen"
+                                            value={product.stock}
+                                        />
+                                    )}
+                                    {product && product.reserved > 0 && (
+                                        <p className="text-xs text-muted-foreground">
+                                            確保中 {product.reserved} 個
+                                        </p>
+                                    )}
                                     <InputError message={errors.stock} />
+                                    <InputError message={errors.stock_seen} />
                                 </div>
                             </div>
                             <div className="grid gap-2">
