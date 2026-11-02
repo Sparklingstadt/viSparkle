@@ -3,8 +3,10 @@
 use App\Billing\BillingException;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
+use App\Enums\OrderStatus;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
+use App\Models\Order;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
@@ -153,3 +155,30 @@ it('refuses deleting a creator with an active support, even one scheduled to sto
     'cancel-scheduled billing' => [['stripe_subscription_id' => 'sub_x', 'stripe_status' => 'active', 'cancel_at_period_end' => true]],
     'dummy' => [[]],
 ]);
+
+it('refuses deleting a creator with an order not yet shipped or still awaiting payment', function (string $state) {
+    $order = Order::factory()->for($this->creator);
+    ($state === 'paid' ? $order->paid() : $order)->create();
+
+    $this->actingAs($this->creator->user)
+        ->from(route('profile.edit'))
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasErrors(['password' => '未発送または支払い待ちの注文があるため、アカウントを削除できません。'])
+        ->assertRedirect(route('profile.edit'));
+
+    expect($this->creator->user->fresh())->not->toBeNull();
+})->with(['paid', 'pending']);
+
+it('deletes a creator whose orders are all shipped, canceled or refunded', function () {
+    Order::factory()->for($this->creator)->shipped()->create();
+    Order::factory()->for($this->creator)->create(['status' => OrderStatus::Canceled]);
+    Order::factory()->for($this->creator)->paid()->create(['status' => OrderStatus::Refunded]);
+    $user = $this->creator->user;
+
+    $this->actingAs($user)
+        ->delete(route('profile.destroy'), ['password' => 'password'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/');
+
+    expect($user->fresh())->toBeNull();
+});

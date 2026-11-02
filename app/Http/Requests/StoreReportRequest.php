@@ -6,6 +6,7 @@ use App\Enums\ReportReason;
 use App\Enums\ReportTarget;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -47,6 +48,7 @@ class StoreReportRequest extends FormRequest
             $ownerId = match (ReportTarget::from($this->string('target_type')->toString())) {
                 ReportTarget::Creator => Creator::find($this->integer('target_id'))?->user_id,
                 ReportTarget::Post => $this->reportablePost()?->creator->user_id,
+                ReportTarget::Product => Product::query()->listed()->with('creator')->find($this->integer('target_id'))?->creator->user_id,
             };
 
             if ($ownerId === null) {

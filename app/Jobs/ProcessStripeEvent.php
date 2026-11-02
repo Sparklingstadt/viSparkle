@@ -9,6 +9,7 @@ use App\Services\Billing\AccountSync;
 use App\Services\Billing\PaymentRecorder;
 use App\Services\Billing\Refunds;
 use App\Services\Billing\SubscriptionSync;
+use App\Services\Shop\OrderSync;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -37,10 +38,15 @@ class ProcessStripeEvent implements ShouldQueue
     /**
      * @throws BillingException
      */
-    public function handle(SubscriptionSync $subscriptions, PaymentRecorder $payments, AccountSync $accounts, Refunds $refunds, PaymentGateway $gateway): void
+    public function handle(SubscriptionSync $subscriptions, PaymentRecorder $payments, AccountSync $accounts, Refunds $refunds, PaymentGateway $gateway, OrderSync $orders): void
     {
         match ($this->type) {
-            'checkout.session.completed' => $this->subscriptionId === null ? null : $subscriptions->sync($this->subscriptionId),
+            'checkout.session.completed' => $this->subscriptionId !== null
+                ? $subscriptions->sync($this->subscriptionId)
+                : ($this->objectId === null ? null : $orders->syncSession($this->objectId)),
+            'checkout.session.expired',
+            'checkout.session.async_payment_succeeded' => $this->objectId === null ? null : $orders->syncSession($this->objectId),
+            'checkout.session.async_payment_failed' => $this->objectId === null ? null : $orders->syncAsyncFailure($this->objectId),
             'customer.subscription.created',
             'customer.subscription.updated',
             'customer.subscription.deleted' => $this->objectId === null ? null : $subscriptions->sync($this->objectId),

@@ -183,7 +183,7 @@ class CheckoutService
     /**
      * The user's Stripe customer id, created on first use. The row lock is held only for this short transaction.
      */
-    private function customerId(User $user): string
+    public function customerId(User $user): string
     {
         if ($user->stripe_customer_id !== null) {
             return $user->stripe_customer_id;

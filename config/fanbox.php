@@ -39,7 +39,7 @@ return [
     'reserved_slugs' => [
         'admin', 'api', 'creator', 'creators', 'login', 'logout', 'register',
         'feed', 'supporting', 'settings', 'dashboard', 'posts', 'plans',
-        'storage', 'assets', 'help', 'terms', 'privacy',
+        'storage', 'assets', 'help', 'terms', 'privacy', 'cart', 'orders', 'shop',
     ],
 
     /*

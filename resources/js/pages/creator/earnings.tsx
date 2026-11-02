@@ -8,6 +8,14 @@ import { index } from '@/routes/creator/earnings';
 
 type AccountStatus = 'none' | 'incomplete' | 'ready';
 
+type ShopMonth = {
+    month: string;
+    orders: number;
+    sales: number;
+    refunded: number;
+    net: number;
+};
+
 type Month = { month: string; gross: number; fee: number; net: number };
 
 const accountCopy: Record<
@@ -37,11 +45,13 @@ export default function Earnings({
     feePercent,
     activeSupporters,
     months,
+    shop_months,
 }: {
     account: { status: AccountStatus };
     feePercent: number;
     activeSupporters: number;
     months: Month[];
+    shop_months: ShopMonth[];
 }) {
     const [processing, setProcessing] = useState(false);
     const copy = accountCopy[account.status];
@@ -110,6 +120,44 @@ export default function Earnings({
                         </tbody>
                     </table>
                 </div>
+
+                <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">ショップの売上</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-left text-muted-foreground">
+                                <tr>
+                                    <th className="py-2">月</th>
+                                    <th className="text-right">注文数</th>
+                                    <th className="text-right">売上（税込）</th>
+                                    <th className="text-right">返金</th>
+                                    <th className="text-right">
+                                        受取額（目安）
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {shop_months.map((row) => (
+                                    <tr key={row.month}>
+                                        <td className="py-2">{row.month}</td>
+                                        <td className="text-right">
+                                            {row.orders} 件
+                                        </td>
+                                        <td className="text-right">
+                                            {formatYen(row.sales)}
+                                        </td>
+                                        <td className="text-right">
+                                            {formatYen(row.refunded)}
+                                        </td>
+                                        <td className="text-right">
+                                            {formatYen(row.net)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
                 <p className="text-xs text-muted-foreground">
                     手数料は概算です。正確な入金額は Stripe

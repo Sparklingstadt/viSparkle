@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateReportRequest;
 use App\Models\AdminAction;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\Product;
 use App\Models\Report;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,10 +41,14 @@ class ReportController extends Controller
             ->whereIn('id', $reports->getCollection()->where('target_type', ReportTarget::Creator)->pluck('target_id'))
             ->get()->keyBy('id');
 
+        $products = Product::query()
+            ->whereIn('id', $reports->getCollection()->where('target_type', ReportTarget::Product)->pluck('target_id'))
+            ->get()->keyBy('id');
+
         $reports->through(fn (Report $report) => [
             'id' => $report->id,
             'reporter_name' => $report->reporter?->name,
-            'target' => $this->describeTarget($report, $posts, $creators),
+            'target' => $this->describeTarget($report, $posts, $creators, $products),
             'reason_label' => $report->reason->label(),
             'body' => $report->body,
             'status' => $report->status->value,
@@ -83,15 +88,24 @@ class ReportController extends Controller
     /**
      * @param  Collection<int, Post>  $posts
      * @param  Collection<int, Creator>  $creators
+     * @param  Collection<int, Product>  $products
      * @return array{label: string, url: string|null}
      */
-    private function describeTarget(Report $report, $posts, $creators): array
+    private function describeTarget(Report $report, $posts, $creators, $products): array
     {
         if ($report->target_type === ReportTarget::Post) {
             $post = $posts->get($report->target_id);
 
             return $post
                 ? ['label' => $post->title, 'url' => route('admin.posts.show', $post)]
+                : ['label' => '削除済み', 'url' => null];
+        }
+
+        if ($report->target_type === ReportTarget::Product) {
+            $product = $products->get($report->target_id);
+
+            return $product
+                ? ['label' => $product->name, 'url' => route('admin.products.show', $product)]
                 : ['label' => '削除済み', 'url' => null];
         }
 

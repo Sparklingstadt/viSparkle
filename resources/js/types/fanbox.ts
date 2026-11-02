@@ -97,3 +97,45 @@ export type PostDetail = PostSummary & {
     image_urls?: Record<string, string>;
     attachments?: PostAttachment[];
 };
+
+export type ShopProductSummary = {
+    id: number;
+    name: string;
+    price: number;
+    sold_out: boolean;
+    cover_url: string | null;
+};
+
+export type CartLine = {
+    id: number;
+    product_id: number;
+    name: string;
+    price: number;
+    quantity: number;
+    stock: number;
+    listed: boolean;
+    cover_url: string | null;
+};
+
+export type CartGroup = {
+    creator: CreatorSummary;
+    items: CartLine[];
+    subtotal: number;
+    shipping_fee: number;
+    total: number;
+    purchasable: boolean;
+};
+
+export type OrderStatusValue =
+    | 'pending'
+    | 'paid'
+    | 'shipped'
+    | 'canceled'
+    | 'refunded';
+
+export type OrderItemData = {
+    id: number;
+    product_name: string;
+    unit_price: number;
+    quantity: number;
+};

@@ -2,6 +2,9 @@
 
 use App\Billing\BillingException;
 use App\Billing\Data\CheckoutRequest;
+use App\Billing\Data\LineItem;
+use App\Billing\Data\PaymentCheckoutRequest;
+use App\Billing\Data\ShippingDetails;
 use App\Billing\PaymentFailedException;
 use App\Billing\PaymentGateway;
 use App\Billing\StripeGateway;
@@ -515,3 +518,122 @@ it('maps the latest invoice of a subscription', function (mixed $latest) {
 
     expect($subscription->latestInvoiceId)->toBe('in_x');
 })->with(['id' => ['in_x'], 'expanded' => [['id' => 'in_x', 'object' => 'invoice']]]);
+
+it('creates a payment checkout with destination, fee and shipping collection', function () {
+    $this->http->queue([
+        'id' => 'cs_p', 'object' => 'checkout.session', 'url' => 'https://checkout.stripe.test/cs_p',
+        'status' => 'open', 'customer' => 'cus_x', 'metadata' => ['order_id' => '7'], 'payment_status' => 'unpaid',
+    ]);
+
+    $session = $this->gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
+        customerId: 'cus_x',
+        lineItems: [new LineItem('マグカップ', 1500, 2)],
+        destinationAccountId: 'acct_x',
+        applicationFeeAmount: 300,
+        metadata: ['order_id' => '7'],
+        successUrl: 'https://app.test/success',
+        cancelUrl: 'https://app.test/cancel',
+        expiresAt: CarbonImmutable::createFromTimestamp(1793836800),
+        idempotencyKey: 'order-7-checkout',
+    ));
+
+    $request = $this->http->requests[0];
+    expect($request['method'])->toBe('post')
+        ->and($request['path'])->toBe('/v1/checkout/sessions')
+        ->and($request['params']['mode'])->toBe('payment')
+        ->and($request['params']['customer'])->toBe('cus_x')
+        ->and($request['params']['locale'])->toBe('ja')
+        ->and($request['params']['line_items'][0]['price_data']['currency'])->toBe('jpy')
+        ->and($request['params']['line_items'][0]['price_data']['unit_amount'])->toBe(1500)
+        ->and($request['params']['line_items'][0]['price_data']['product_data']['name'])->toBe('マグカップ')
+        ->and($request['params']['line_items'][0]['quantity'])->toBe(2)
+        ->and($request['params']['shipping_address_collection']['allowed_countries'])->toBe(['JP'])
+        ->and($request['params']['phone_number_collection']['enabled'])->toBe('true')
+        ->and($request['params']['expires_at'])->toBe(1793836800)
+        ->and($request['params']['success_url'])->toBe('https://app.test/success')
+        ->and($request['params']['cancel_url'])->toBe('https://app.test/cancel')
+        ->and($request['params']['metadata'])->toBe(['order_id' => '7'])
+        ->and($request['params']['payment_intent_data']['application_fee_amount'])->toBe(300)
+        ->and($request['params']['payment_intent_data']['transfer_data']['destination'])->toBe('acct_x')
+        ->and($request['params']['payment_intent_data']['metadata'])->toBe(['order_id' => '7'])
+        ->and($this->http->header(0, 'Idempotency-Key'))->toContain('order-7-checkout')
+        ->and($session->id)->toBe('cs_p')
+        ->and($session->paymentStatus)->toBe('unpaid');
+});
+
+it('reads shipping details and payment status from a session', function () {
+    $this->http->queue([
+        'id' => 'cs_p', 'object' => 'checkout.session', 'url' => null, 'status' => 'complete',
+        'customer' => 'cus_x', 'metadata' => ['order_id' => '7'], 'payment_status' => 'paid',
+        'payment_intent' => 'pi_x',
+        'customer_details' => ['phone' => '+819012345678'],
+        'collected_information' => ['shipping_details' => [
+            'name' => '山田 花子',
+            'address' => ['country' => 'JP', 'postal_code' => '150-0001', 'state' => '東京都', 'city' => '渋谷区', 'line1' => '神宮前1-2-3', 'line2' => 'ハイツ101'],
+        ]],
+    ]);
+
+    $session = $this->gateway->retrieveCheckoutSession('cs_p');
+
+    expect($session->paymentStatus)->toBe('paid')
+        ->and($session->paymentIntentId)->toBe('pi_x')
+        ->and($session->shipping)->toEqual(new ShippingDetails('山田 花子', '150-0001', '東京都 渋谷区 神宮前1-2-3 ハイツ101', '+819012345678'));
+});
+
+it('reads an expanded payment intent and leaves shipping empty when none was collected', function () {
+    $this->http->queue([
+        'id' => 'cs_p', 'object' => 'checkout.session', 'status' => 'open', 'metadata' => [],
+        'payment_intent' => ['id' => 'pi_y', 'object' => 'payment_intent'],
+    ]);
+
+    $session = $this->gateway->retrieveCheckoutSession('cs_p');
+
+    expect($session->paymentIntentId)->toBe('pi_y')
+        ->and($session->shipping)->toBeNull();
+});
+
+it('refunds a payment intent with transfer reversal and fee refund', function () {
+    $this->http->queue(['id' => 're_p', 'object' => 'refund', 'amount' => 3000, 'status' => 'succeeded']);
+
+    $refund = $this->gateway->refundPaymentIntent('pi_x', 'order-7-refund');
+
+    $request = $this->http->requests[0];
+    expect($request['method'])->toBe('post')
+        ->and($request['path'])->toBe('/v1/refunds')
+        ->and($request['params'])->toMatchArray([
+            'payment_intent' => 'pi_x',
+            'reverse_transfer' => 'true',
+            'refund_application_fee' => 'true',
+        ])
+        ->and($request['params'])->not->toHaveKey('amount')
+        ->and($this->http->header(0, 'Idempotency-Key'))->toBe('test.app:order-7-refund')
+        ->and($refund->id)->toBe('re_p')
+        ->and($refund->amount)->toBe(3000);
+});
+
+it('reads the payment intent of a charge', function () {
+    $this->http->queue(['id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'disputed' => false, 'payment_intent' => 'pi_x', 'invoice' => 'in_x']);
+
+    expect($this->gateway->retrieveCharge('ch_x')->paymentIntentId)->toBe('pi_x');
+});
+
+it('reads the status of a payment intent', function () {
+    $this->http->queue(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'requires_payment_method', 'latest_charge' => null]);
+
+    expect($this->gateway->retrievePaymentIntentStatus('pi_x'))->toBe('requires_payment_method');
+
+    $request = $this->http->requests[0];
+    expect($request['method'])->toBe('get')
+        ->and($request['path'])->toBe('/v1/payment_intents/pi_x');
+});
+
+it('reads the latest charge of a payment intent', function (mixed $latest, ?string $expected) {
+    $this->http->queue(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'succeeded', 'latest_charge' => $latest]);
+
+    expect($this->gateway->retrieveLatestChargeId('pi_x'))->toBe($expected)
+        ->and($this->http->requests[0]['path'])->toBe('/v1/payment_intents/pi_x');
+})->with([
+    'id' => ['ch_x', 'ch_x'],
+    'expanded' => [['id' => 'ch_y', 'object' => 'charge'], 'ch_y'],
+    'none' => [null, null],
+]);

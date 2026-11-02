@@ -26,10 +26,13 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $payouts_enabled
  * @property bool $details_submitted
  * @property Carbon|null $closed_at
+ * @property int $shipping_fee
+ * @property string|null $shop_notice
+ * @property string|null $shop_contact_email
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path'])]
+#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path', 'shipping_fee', 'shop_notice', 'shop_contact_email'])]
 class Creator extends Model
 {
     /** @use HasFactory<CreatorFactory> */
@@ -41,6 +44,7 @@ class Creator extends Model
             'payouts_enabled' => 'boolean',
             'details_submitted' => 'boolean',
             'closed_at' => 'datetime',
+            'shipping_fee' => 'integer',
         ];
     }
 
@@ -142,6 +146,16 @@ class Creator extends Model
         return $this->stripe_account_id !== null && (bool) $this->payouts_enabled;
     }
 
+    public function isShopVisible(): bool
+    {
+        return ! $this->isClosed() && ! $this->user->isSuspended();
+    }
+
+    public function canSell(): bool
+    {
+        return $this->isShopVisible() && $this->canAcceptSupports();
+    }
+
     /**
      * Idempotent: following twice keeps one row.
      */
@@ -192,6 +206,18 @@ class Creator extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /** @return HasMany<Product, $this> */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /** @return HasMany<Order, $this> */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     /** @return HasMany<Follow, $this> */

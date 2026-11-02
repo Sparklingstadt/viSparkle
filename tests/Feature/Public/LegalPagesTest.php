@@ -104,3 +104,16 @@ it('is ready only when the required details are filled', function (array $overri
     'no email, disclosed on request' => [['email' => '', 'disclose_on_request' => true], false],
     'whitespace seller name' => [['seller_name' => '  '], false],
 ]);
+
+it('keeps the goods sales terms in the tokushoho page copy', function () {
+    legalConfig();
+
+    $this->get(route('legal.tokushoho'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('legal/tokushoho'));
+
+    // The rows are static copy rendered by the page component, so this guards the source text.
+    expect(file_get_contents(resource_path('js/pages/legal/tokushoho.tsx')))
+        ->toContain('グッズの購入には送料がかかります（各クリエイターが定める一律の金額で、商品ページと購入前の確認画面に表示します）')
+        ->toContain('引き渡し時期（グッズ）')
+        ->toContain('返品・交換（グッズ）')
+        ->toContain('お客様都合による返品・交換は受け付けません');
+});

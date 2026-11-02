@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Billing\BillingException;
+use App\Enums\OrderStatus;
 use App\Enums\SupportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RefundPaymentRequest;
 use App\Models\AdminAction;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Services\Billing\Refunds;
 use Illuminate\Http\RedirectResponse;
@@ -43,8 +45,28 @@ class PaymentController extends Controller
             'support_active' => $payment->support?->isBilling() === true && $payment->support->status === SupportStatus::Active,
         ]);
 
+        $orders = Order::query()
+            ->with(['creator', 'user'])
+            ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])
+            ->orderByDesc('paid_at')
+            ->orderByDesc('id')
+            ->paginate(50, pageName: 'orders_page')
+            ->withQueryString();
+
+        $orders->through(fn (Order $order) => [
+            'id' => $order->id,
+            'paid_at' => $order->paid_at,
+            'creator' => $order->creator === null ? null : ['name' => $order->creator->display_name, 'slug' => $order->creator->slug],
+            'buyer' => $order->user === null ? null : ['name' => $order->user->name, 'email' => $order->user->email],
+            'total' => $order->total,
+            'status' => $order->status->value,
+            'status_label' => $order->status->label(),
+            'refundable' => in_array($order->status, [OrderStatus::Paid, OrderStatus::Shipped], true),
+        ]);
+
         return Inertia::render('admin/payments', [
             'payments' => $payments,
+            'orders' => $orders,
             'filters' => ['creator' => $creator, 'user' => $user],
         ]);
     }

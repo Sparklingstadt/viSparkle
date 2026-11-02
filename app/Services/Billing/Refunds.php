@@ -3,11 +3,14 @@
 namespace App\Services\Billing;
 
 use App\Billing\BillingException;
+use App\Billing\Data\ChargeData;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
 use App\Models\AdminAction;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\Shop\Orders;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -19,6 +22,7 @@ class Refunds
     public function __construct(
         private readonly PaymentGateway $gateway,
         private readonly SubscriptionSync $sync,
+        private readonly Orders $orders,
     ) {}
 
     /**
@@ -61,7 +65,8 @@ class Refunds
     }
 
     /**
-     * Mirror the charge's refunds and dispute onto its payment. Returns null when the charge is not for a recorded payment.
+     * Mirror the charge's refunds and dispute onto its payment. Returns null when the charge is not for a recorded payment;
+     * a charge without an invoice may be a shop order's payment, which is synced onto the order instead.
      *
      * @throws BillingException
      */
@@ -70,6 +75,8 @@ class Refunds
         $charge = $this->gateway->retrieveCharge($chargeId);
 
         if ($charge->invoiceId === null) {
+            $this->syncOrderCharge($chargeId, $charge);
+
             return null;
         }
 
@@ -90,5 +97,21 @@ class Refunds
         ])->save();
 
         return $payment;
+    }
+
+    /**
+     * A charge with no invoice: mirror it onto the order of its payment intent, if there is one.
+     */
+    private function syncOrderCharge(string $chargeId, ChargeData $charge): void
+    {
+        $order = $charge->paymentIntentId === null ? null : Order::query()->where('stripe_payment_intent_id', $charge->paymentIntentId)->first();
+
+        if ($order === null) {
+            Log::warning('billing.charge_unattributed', ['charge' => $chargeId, 'invoice' => null, 'payment_intent' => $charge->paymentIntentId]);
+
+            return;
+        }
+
+        $this->orders->syncRefund($order, $charge);
     }
 }

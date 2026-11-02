@@ -7,6 +7,7 @@ use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
+use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
@@ -26,6 +27,9 @@ interface PaymentGateway
     public function ensurePrice(Plan $plan): PriceRef;
 
     public function createCheckoutSession(CheckoutRequest $request): CheckoutSessionData;
+
+    /** Checkout for a one-time payment (shop goods); the creator's share is transferred to the destination account. */
+    public function createPaymentCheckoutSession(PaymentCheckoutRequest $request): CheckoutSessionData;
 
     public function retrieveCheckoutSession(string $id): CheckoutSessionData;
 
@@ -63,5 +67,17 @@ interface PaymentGateway
      */
     public function refundInvoice(string $invoiceId): RefundData;
 
+    /**
+     * Refund the payment intent in full, taking back the creator's transfer and the platform fee.
+     * An already refunded payment throws.
+     */
+    public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData;
+
     public function retrieveCharge(string $chargeId): ChargeData;
+
+    /** The payment intent's status as the provider reports it (e.g. processing, succeeded, canceled, requires_payment_method). */
+    public function retrievePaymentIntentStatus(string $paymentIntentId): string;
+
+    /** The payment intent's latest charge, or null when it has none yet. */
+    public function retrieveLatestChargeId(string $paymentIntentId): ?string;
 }

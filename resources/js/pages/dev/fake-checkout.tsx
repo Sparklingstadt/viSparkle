@@ -5,13 +5,17 @@ import { formatYen } from '@/lib/format';
 export default function FakeCheckout({
     session_id,
     amount,
+    mode,
     plan_name,
+    items,
     status,
     cancel_url,
 }: {
     session_id: string;
     amount: number;
+    mode: 'subscription' | 'payment';
     plan_name: string | null;
+    items: { name: string; unit_price: number; quantity: number }[];
     status: string;
     cancel_url: string;
 }) {
@@ -27,14 +31,31 @@ export default function FakeCheckout({
                 </p>
 
                 <dl className="space-y-2 text-sm">
-                    <div className="flex justify-between gap-4">
-                        <dt className="text-muted-foreground">プラン</dt>
-                        <dd className="font-medium">{plan_name ?? '-'}</dd>
-                    </div>
+                    {mode === 'payment' ? (
+                        items.map((item) => (
+                            <div
+                                key={item.name}
+                                className="flex justify-between gap-4"
+                            >
+                                <dt className="text-muted-foreground">
+                                    {item.name} × {item.quantity}
+                                </dt>
+                                <dd>
+                                    {formatYen(item.unit_price * item.quantity)}
+                                </dd>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="flex justify-between gap-4">
+                            <dt className="text-muted-foreground">プラン</dt>
+                            <dd className="font-medium">{plan_name ?? '-'}</dd>
+                        </div>
+                    )}
                     <div className="flex justify-between gap-4">
                         <dt className="text-muted-foreground">金額（税込）</dt>
                         <dd className="text-lg font-bold">
-                            {formatYen(amount)} / 月
+                            {formatYen(amount)}
+                            {mode === 'subscription' && ' / 月'}
                         </dd>
                     </div>
                 </dl>
@@ -47,13 +68,41 @@ export default function FakeCheckout({
                             method="post"
                         >
                             {({ processing }) => (
-                                <Button
-                                    type="submit"
-                                    className="w-full"
-                                    disabled={processing}
-                                >
-                                    支払う
-                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    <Button
+                                        type="submit"
+                                        name="action"
+                                        value="pay"
+                                        className="w-full"
+                                        disabled={processing}
+                                    >
+                                        支払う
+                                    </Button>
+                                    {mode === 'payment' && (
+                                        <>
+                                            <Button
+                                                type="submit"
+                                                name="action"
+                                                value="later"
+                                                variant="outline"
+                                                className="w-full"
+                                                disabled={processing}
+                                            >
+                                                あとで支払う
+                                            </Button>
+                                            <Button
+                                                type="submit"
+                                                name="action"
+                                                value="expire"
+                                                variant="outline"
+                                                className="w-full"
+                                                disabled={processing}
+                                            >
+                                                期限切れにする
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
                             )}
                         </Form>
                         <Button asChild variant="outline" className="w-full">

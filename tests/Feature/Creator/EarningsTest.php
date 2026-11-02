@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Creator;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Support;
@@ -174,4 +175,25 @@ it('tells the plans page whether supports are accepted', function () {
         ->assertInertia(fn ($page) => $page->where('acceptsSupports', false));
     $this->actingAs($open->user)->get(route('creator.plans.index'))
         ->assertInertia(fn ($page) => $page->where('acceptsSupports', true));
+});
+
+it('shows monthly shop sales net of refunds and fees', function () {
+    $this->travelTo(Carbon::parse('2026-11-15 12:00:00', 'Asia/Tokyo'));
+    $creator = Creator::factory()->payable()->create();
+
+    // 3000 paid, fee 300.
+    Order::factory()->for($creator)->shipped()->create(['subtotal' => 3000, 'total' => 3000, 'fee_percent' => 10, 'paid_at' => now()]);
+    // Fully refunded: no fee, nothing left.
+    Order::factory()->for($creator)->paid()->create(['subtotal' => 2000, 'total' => 2000, 'fee_percent' => 10, 'paid_at' => now(), 'refunded_amount' => 2000]);
+    // Never paid: ignored.
+    Order::factory()->for($creator)->create(['subtotal' => 900, 'total' => 900]);
+    // Last month, floor(1005 * 10 / 100) = 100.
+    Order::factory()->for($creator)->paid()->create(['subtotal' => 1005, 'total' => 1005, 'fee_percent' => 10, 'paid_at' => now()->subMonthNoOverflow()]);
+
+    $this->actingAs($creator->user)->get(route('creator.earnings.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('shop_months', 12)
+            ->where('shop_months.0', ['month' => '2026-11', 'orders' => 2, 'sales' => 5000, 'refunded' => 2000, 'net' => 2700])
+            ->where('shop_months.1', ['month' => '2026-10', 'orders' => 1, 'sales' => 1005, 'refunded' => 0, 'net' => 905]));
 });
