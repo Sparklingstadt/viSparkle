@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Fan;
 
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
-use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\Shop\Cart;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,18 +17,18 @@ class CartItemController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'product_id' => ['required', 'integer'],
+            'product_variant_id' => ['required', 'integer'],
             'quantity' => ['required', 'integer', 'min:1', 'max:99999'],
         ]);
 
-        // A product that is gone is "not available", not a 404 the buyer cannot make sense of.
-        $product = Product::query()->whereKey($request->integer('product_id'))->first();
+        // A kind that is gone is "not available", not a 404 the buyer cannot make sense of.
+        $variant = ProductVariant::query()->withTrashed()->whereKey($request->integer('product_variant_id'))->first();
 
-        if ($product === null) {
+        if ($variant === null) {
             throw ValidationException::withMessages(['cart' => '現在購入できません']);
         }
 
-        $this->cart->add($request->user(), $product, $request->integer('quantity'));
+        $this->cart->add($request->user(), $variant, $request->integer('quantity'));
 
         return back();
     }

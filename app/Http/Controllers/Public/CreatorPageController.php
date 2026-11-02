@@ -77,7 +77,7 @@ class CreatorPageController extends Controller
     {
         $products = $creator->products()
             ->listed()
-            ->with('images')
+            ->with(['images', 'variants'])
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get()

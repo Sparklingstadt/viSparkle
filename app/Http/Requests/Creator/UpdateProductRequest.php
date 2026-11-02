@@ -17,8 +17,8 @@ class UpdateProductRequest extends FormRequest
     }
 
     /**
-     * The edit form also sends the stock it was opened with, so only the creator's change is applied (sales made
-     * meanwhile stay taken).
+     * The edit form also sends, for each existing kind, the stock it was opened with, so only the creator's change is
+     * applied (sales made meanwhile stay taken).
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -26,7 +26,7 @@ class UpdateProductRequest extends FormRequest
     {
         return [
             ...$this->productRules(),
-            'stock_seen' => ['required', 'integer', 'between:0,99999'],
+            'variants.*.stock_seen' => ['required_with:variants.*.id', 'nullable', 'integer', 'between:0,99999'],
         ];
     }
 }

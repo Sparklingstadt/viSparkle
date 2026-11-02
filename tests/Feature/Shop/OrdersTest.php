@@ -31,7 +31,7 @@ function shopCart(User $buyer, array $lines): Collection
 {
     return collect($lines)->map(fn (array $line) => CartItem::query()->create([
         'user_id' => $buyer->id,
-        'product_id' => $line[0]->id,
+        'product_variant_id' => $line[0]->variants()->value('id'),
         'quantity' => $line[1],
     ]));
 }

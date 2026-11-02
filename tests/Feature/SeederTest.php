@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Creator;
+use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\DemoCreatorsSeeder;
+use Database\Seeders\DemoProductsSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
@@ -105,17 +107,49 @@ it('can be re-run without duplicating creators or replacing images', function ()
         ->and(Creator::where('slug', 'sakura-illust')->sole()->avatar_path)->toBe($avatar);
 });
 
-it('seeds demo products', function () {
+it('seeds the same shop goods for every demo creator on each run', function () {
     Storage::fake('public');
     fakeBilling();
     $this->seed();
 
-    $creator = Creator::where('slug', 'demo-creator')->sole();
-    $products = $creator->products()->get();
+    $creators = Creator::with('products.variants')->get();
+    $optional = ['アクリルチャーム', 'パスケース', 'タペストリー', 'Tシャツ'];
 
-    expect($creator->shipping_fee)->toBe(500)
-        ->and($products)->toHaveCount(3)
-        ->and($products->every->is_published)->toBeTrue()
-        ->and($products->where('stock', 0))->toHaveCount(1)
-        ->and($products->where('stock', '>', 0))->toHaveCount(2);
+    expect($creators)->toHaveCount(11)
+        ->and(Creator::where('slug', 'demo-creator')->sole()->shipping_fee)->toBe(500);
+
+    foreach ($creators as $creator) {
+        $names = $creator->products->pluck('name');
+        $byName = $creator->products->keyBy('name');
+        $cheki = $creator->products->first(fn ($product) => str_starts_with($product->name, 'ランダムチェキ'));
+
+        expect($names->take(2)->all())->toBe(['アクリルスタンドA', 'アクリルスタンドB'])
+            ->and($cheki->name)->toMatch('/^ランダムチェキ（全[3-6]種）$/')
+            ->and($cheki->variants)->toHaveCount(1)
+            ->and($byName['缶バッジ']->variants->count())->toBeBetween(2, 5)
+            ->and($byName['缶バッジ']->variants->first()->name)->toBe('デザイン1')
+            ->and($names->diff(['アクリルスタンドA', 'アクリルスタンドB', $cheki->name, '缶バッジ', ...$optional]))->toBeEmpty()
+            ->and($creator->products->every->is_published)->toBeTrue()
+            ->and($creator->shipping_fee)->toBeGreaterThan(0);
+
+        if ($byName->has('Tシャツ')) {
+            expect($byName['Tシャツ']->variants->pluck('name')->all())->toBe(['S', 'M', 'L', 'フリー']);
+        }
+    }
+
+    // Some optional goods turn up and some do not.
+    $optionalCount = $creators->sum(fn ($creator) => $creator->products->whereIn('name', $optional)->count());
+    expect($optionalCount)->toBeGreaterThan(0)->toBeLessThan(11 * count($optional));
+
+    $before = $creators->mapWithKeys(fn ($creator) => [$creator->slug => $creator->products->map(fn ($product) => [$product->name, $product->variants->pluck('stock')->all()])->all()]);
+
+    $this->seed(DemoProductsSeeder::class);
+    expect(Product::count())->toBe($creators->sum(fn ($creator) => $creator->products->count()));
+
+    // Seeded again from scratch, every creator gets the very same goods.
+    Product::withTrashed()->get()->each->forceDelete();
+    $this->seed(DemoProductsSeeder::class);
+    $after = Creator::with('products.variants')->get()->mapWithKeys(fn ($creator) => [$creator->slug => $creator->products->map(fn ($product) => [$product->name, $product->variants->pluck('stock')->all()])->all()]);
+
+    expect($after->all())->toBe($before->all());
 });

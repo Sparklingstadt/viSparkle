@@ -22,7 +22,7 @@ function paidShopOrder(Product $product, int $quantity = 1): Order
     $orders = app(Orders::class);
     $cart = collect([CartItem::query()->create([
         'user_id' => test()->buyer->id,
-        'product_id' => $product->id,
+        'product_variant_id' => $product->variants()->value('id'),
         'quantity' => $quantity,
     ])]);
     $order = $orders->reserve(test()->buyer, test()->creator, $cart);

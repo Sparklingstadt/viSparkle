@@ -30,6 +30,7 @@ export default function ProductPage({
         description: string | null;
         price: number;
         stock: number;
+        variants: { id: number; name: string | null; stock: number }[];
         images: string[];
     };
     shipping_fee: number;
@@ -42,14 +43,23 @@ export default function ProductPage({
     const [image, setImage] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [processing, setProcessing] = useState(false);
+    const kinds = product.variants.length > 1;
+    // Start on the first kind still in stock (or the first one, when all are gone).
+    const [variantId, setVariantId] = useState(
+        () =>
+            (product.variants.find((v) => v.stock > 0) ?? product.variants[0])
+                .id,
+    );
+    const variant =
+        product.variants.find((v) => v.id === variantId) ?? product.variants[0];
 
-    const soldOut = product.stock < 1;
+    const soldOut = variant.stock < 1;
     const unavailable = !canBuy;
 
     const addToCart = () =>
         router.post(
             storeCartItem().url,
-            { product_id: product.id, quantity },
+            { product_variant_id: variant.id, quantity },
             {
                 preserveScroll: true,
                 onStart: () => setProcessing(true),
@@ -135,10 +145,49 @@ export default function ProductPage({
                                 <dd>
                                     {soldOut
                                         ? '売り切れ'
-                                        : `${product.stock} 点`}
+                                        : `${variant.stock} 点`}
                                 </dd>
                             </div>
                         </dl>
+
+                        {kinds && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">
+                                    種類
+                                </p>
+                                <div
+                                    role="radiogroup"
+                                    aria-label="種類"
+                                    className="flex flex-wrap gap-2"
+                                >
+                                    {product.variants.map((v) => (
+                                        <Button
+                                            key={v.id}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={v.id === variant.id}
+                                            size="sm"
+                                            variant={
+                                                v.id === variant.id
+                                                    ? 'default'
+                                                    : 'outline'
+                                            }
+                                            className={
+                                                v.stock < 1
+                                                    ? 'text-muted-foreground line-through'
+                                                    : ''
+                                            }
+                                            onClick={() => {
+                                                setVariantId(v.id);
+                                                setQuantity(1);
+                                            }}
+                                        >
+                                            {v.name}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {product.description && (
                             <p className="text-sm whitespace-pre-wrap">
@@ -175,7 +224,7 @@ export default function ProductPage({
                                         id="quantity"
                                         type="number"
                                         min={1}
-                                        max={Math.max(product.stock, 1)}
+                                        max={Math.max(variant.stock, 1)}
                                         value={quantity}
                                         onChange={(event) =>
                                             setQuantity(

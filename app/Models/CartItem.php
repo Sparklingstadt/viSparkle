@@ -10,12 +10,12 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $user_id
- * @property int $product_id
+ * @property int $product_variant_id
  * @property int $quantity
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'product_id', 'quantity'])]
+#[Fillable(['user_id', 'product_variant_id', 'quantity'])]
 class CartItem extends Model
 {
     protected function casts(): array
@@ -31,9 +31,17 @@ class CartItem extends Model
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<Product, $this> */
-    public function product(): BelongsTo
+    /** @return BelongsTo<ProductVariant, $this> */
+    public function variant(): BelongsTo
     {
-        return $this->belongsTo(Product::class)->withTrashed();
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id')->withTrashed();
+    }
+
+    /**
+     * Listed and still on offer: the product is listed and this kind has not been removed.
+     */
+    public function isAvailable(): bool
+    {
+        return ! $this->variant->trashed() && $this->variant->product->isListed();
     }
 }

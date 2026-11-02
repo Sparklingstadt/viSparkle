@@ -5,12 +5,19 @@ namespace Database\Factories;
 use App\Models\Creator;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use WeakMap;
 
 /**
+ * Products get a single variant with no name. A `stock` attribute (5 by default) becomes that variant's stock;
+ * withVariants() gives the product named kinds instead.
+ *
  * @extends Factory<Product>
  */
 class ProductFactory extends Factory
 {
+    /** @var WeakMap<Product, int>|null */
+    private static ?WeakMap $stocks = null;
+
     public function definition(): array
     {
         return [
@@ -24,6 +31,20 @@ class ProductFactory extends Factory
         ];
     }
 
+    public function configure(): static
+    {
+        return $this
+            ->afterMaking(function (Product $product) {
+                self::$stocks ??= new WeakMap;
+                self::$stocks[$product] = (int) $product->getAttributes()['stock'];
+                $product->offsetUnset('stock');
+            })
+            ->afterCreating(function (Product $product) {
+                $product->variants()->create(['stock' => self::$stocks[$product] ?? 5]);
+                $product->unsetRelation('variants');
+            });
+    }
+
     public function soldOut(): static
     {
         return $this->state(fn () => ['stock' => 0]);
@@ -32,5 +53,23 @@ class ProductFactory extends Factory
     public function unpublished(): static
     {
         return $this->state(fn () => ['is_published' => false]);
+    }
+
+    /**
+     * Named kinds with their stock in place of the single variant, e.g. ['S' => 2, 'M' => 0].
+     *
+     * @param  array<string, int>  $stocks
+     */
+    public function withVariants(array $stocks): static
+    {
+        return $this->afterCreating(function (Product $product) use ($stocks) {
+            $product->variants()->forceDelete();
+
+            foreach (array_keys($stocks) as $sort => $name) {
+                $product->variants()->create(['name' => $name, 'stock' => $stocks[$name], 'sort_order' => $sort]);
+            }
+
+            $product->unsetRelation('variants');
+        });
     }
 }

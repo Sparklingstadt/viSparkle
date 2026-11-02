@@ -16,9 +16,20 @@ beforeEach(function () {
     $this->actingAs($this->creator->user);
 });
 
-function productPayload(array $overrides = []): array
+/**
+ * The product form with a single kind. `stock` and `stock_seen` go to that kind; pass the product to edit its kind.
+ */
+function productPayload(array $overrides = [], ?Product $product = null): array
 {
-    return ['name' => 'アクリルスタンド', 'description' => '説明', 'price' => 1500, 'stock' => 10, ...$overrides];
+    $variant = ['id' => $product?->variants()->value('id'), 'name' => null, 'stock' => $overrides['stock'] ?? 10];
+
+    if (array_key_exists('stock_seen', $overrides)) {
+        $variant['stock_seen'] = $overrides['stock_seen'];
+    }
+
+    unset($overrides['stock'], $overrides['stock_seen']);
+
+    return ['name' => 'アクリルスタンド', 'description' => '説明', 'price' => 1500, 'variants' => [$variant], ...$overrides];
 }
 
 it('lists own products only, without deleted ones', function () {
@@ -41,7 +52,7 @@ it('creates, updates and soft-deletes a product', function () {
     $product = $this->creator->products()->sole();
     expect($product)->name->toBe('アクリルスタンド')->price->toBe(1500)->stock->toBe(10)->is_published->toBeFalse();
 
-    $this->put(route('creator.products.update', $product), productPayload(['name' => '新しい名前', 'price' => 2000, 'stock' => 3, 'stock_seen' => 10]))
+    $this->put(route('creator.products.update', $product), productPayload(['name' => '新しい名前', 'price' => 2000, 'stock' => 3, 'stock_seen' => 10], $product))
         ->assertSessionHasNoErrors();
     expect($product->fresh())->name->toBe('新しい名前')->price->toBe(2000)->stock->toBe(3);
 
@@ -71,9 +82,9 @@ it('shows the create and edit pages', function () {
 
 it('keeps a sale made while the edit form was open', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 1]);
-    $product->decrement('stock');
+    $product->variants()->decrement('stock');
 
-    $this->put(route('creator.products.update', $product), productPayload(['name' => '新しい名前', 'stock' => 1, 'stock_seen' => 1]))
+    $this->put(route('creator.products.update', $product), productPayload(['name' => '新しい名前', 'stock' => 1, 'stock_seen' => 1], $product))
         ->assertSessionHasNoErrors();
 
     expect($product->fresh())->name->toBe('新しい名前')->stock->toBe(0);
@@ -82,7 +93,7 @@ it('keeps a sale made while the edit form was open', function () {
 it('applies the change of stock on top of sales made meanwhile', function (int $seen, int $submitted, int $current, int $expected) {
     $product = Product::factory()->for($this->creator)->create(['stock' => $current]);
 
-    $this->put(route('creator.products.update', $product), productPayload(['stock' => $submitted, 'stock_seen' => $seen]))
+    $this->put(route('creator.products.update', $product), productPayload(['stock' => $submitted, 'stock_seen' => $seen], $product))
         ->assertSessionHasNoErrors();
 
     expect($product->fresh()->stock)->toBe($expected);
@@ -95,8 +106,8 @@ it('applies the change of stock on top of sales made meanwhile', function (int $
 it('requires the stock the form was opened with when updating', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
 
-    $this->put(route('creator.products.update', $product), productPayload(['stock' => 8]))
-        ->assertSessionHasErrors('stock_seen');
+    $this->put(route('creator.products.update', $product), productPayload(['stock' => 8], $product))
+        ->assertSessionHasErrors('variants.0.stock_seen');
 
     expect($product->fresh()->stock)->toBe(5);
 });
@@ -110,7 +121,7 @@ it('shows how many are held by pending orders on the edit page', function () {
     Order::factory()->for($this->creator)->withItem($product, 3)->create(['status' => OrderStatus::Canceled]);
 
     $this->get(route('creator.products.edit', $product))
-        ->assertInertia(fn (Assert $page) => $page->where('product.reserved', 3));
+        ->assertInertia(fn (Assert $page) => $page->where('product.variants.0.reserved', 3));
 });
 
 it('validates price, stock and name limits', function (array $overrides, string $field) {
@@ -119,8 +130,8 @@ it('validates price, stock and name limits', function (array $overrides, string 
 })->with([
     'price low' => [['price' => 49], 'price'],
     'price high' => [['price' => 1_000_001], 'price'],
-    'stock negative' => [['stock' => -1], 'stock'],
-    'stock high' => [['stock' => 100_000], 'stock'],
+    'stock negative' => [['stock' => -1], 'variants.0.stock'],
+    'stock high' => [['stock' => 100_000], 'variants.0.stock'],
     'name long' => [['name' => str_repeat('あ', 101)], 'name'],
     'name empty' => [['name' => ''], 'name'],
     'description long' => [['description' => str_repeat('あ', 5001)], 'description'],
@@ -144,7 +155,7 @@ it('refuses to publish before payouts are enabled', function () {
     expect($creator->products()->count())->toBe(0);
 
     $product = Product::factory()->for($creator)->unpublished()->create();
-    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true]))
+    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true], $product))
         ->assertSessionHasErrors('is_published');
     expect($product->fresh()->is_published)->toBeFalse();
 
@@ -154,14 +165,14 @@ it('refuses to publish before payouts are enabled', function () {
 it('publishes when payouts are enabled and always allows unpublishing', function () {
     $product = Product::factory()->for($this->creator)->unpublished()->create();
 
-    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true]))->assertSessionHasNoErrors();
+    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true], $product))->assertSessionHasNoErrors();
     expect($product->fresh()->is_published)->toBeTrue();
 
     $this->actingAs(tap($this->creator)->update(['payouts_enabled' => false])->user);
-    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true]))->assertSessionHasNoErrors();
+    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => true], $product))->assertSessionHasNoErrors();
     expect($product->fresh()->is_published)->toBeTrue();
 
-    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => false]))->assertSessionHasNoErrors();
+    $this->put(route('creator.products.update', $product), productPayload(['stock_seen' => 10, 'is_published' => false], $product))->assertSessionHasNoErrors();
     expect($product->fresh()->is_published)->toBeFalse();
 });
 

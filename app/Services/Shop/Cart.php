@@ -4,15 +4,15 @@ namespace App\Services\Shop;
 
 use App\Models\CartItem;
 use App\Models\Creator;
-use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * The buyer's cart. Rows hold only a product and a quantity; names and prices are read from the product until
- * an order copies them (Orders::reserve).
+ * The buyer's cart. Rows hold only a variant (a kind of a product) and a quantity; names and prices are read from the
+ * product until an order copies them (Orders::reserve).
  *
  * @phpstan-type Group array{creator: Creator, items: Collection<int, CartItem>, subtotal: int, shipping_fee: int, total: int, purchasable: bool}
  */
@@ -23,30 +23,31 @@ class Cart
      *
      * @throws ValidationException (key `cart`) when the product cannot be bought, is the user's own, or the total exceeds the stock
      */
-    public function add(User $user, Product $product, int $quantity): void
+    public function add(User $user, ProductVariant $variant, int $quantity): void
     {
-        $product->loadMissing('creator.user');
+        $variant->loadMissing('product.creator.user');
+        $product = $variant->product;
         $creator = $product->creator;
 
         if ($creator->user_id === $user->id) {
             throw ValidationException::withMessages(['cart' => '自分の商品は購入できません。']);
         }
 
-        if (! $product->isListed() || ! $creator->isShopVisible()) {
+        if ($variant->trashed() || ! $product->isListed() || ! $creator->isShopVisible()) {
             throw ValidationException::withMessages(['cart' => '現在購入できません']);
         }
 
-        DB::transaction(function () use ($user, $product, $quantity) {
-            $row = CartItem::query()->where('user_id', $user->id)->where('product_id', $product->id)->lockForUpdate()->first();
+        DB::transaction(function () use ($user, $variant, $quantity) {
+            $row = CartItem::query()->where('user_id', $user->id)->where('product_variant_id', $variant->id)->lockForUpdate()->first();
             $total = ($row->quantity ?? 0) + $quantity;
 
-            if ($quantity < 1 || $total > $product->stock) {
+            if ($quantity < 1 || $total > $variant->stock) {
                 throw ValidationException::withMessages(['cart' => '在庫が足りません']);
             }
 
             if ($row === null) {
                 CartItem::query()->firstOrCreate(
-                    ['user_id' => $user->id, 'product_id' => $product->id],
+                    ['user_id' => $user->id, 'product_variant_id' => $variant->id],
                     ['quantity' => $total],
                 );
 
@@ -64,9 +65,7 @@ class Cart
      */
     public function setQuantity(CartItem $item, int $quantity): void
     {
-        $product = $item->product;
-
-        if ($quantity < 1 || $quantity > $product->stock) {
+        if ($quantity < 1 || $quantity > $item->variant->stock) {
             throw ValidationException::withMessages(['cart' => '在庫が足りません']);
         }
 
@@ -82,11 +81,11 @@ class Cart
     {
         $items = CartItem::query()
             ->where('user_id', $user->id)
-            ->with(['product.images', 'product.creator.user'])
+            ->with(['variant.product.images', 'variant.product.creator.user'])
             ->orderBy('id')
             ->get();
 
-        $groups = $items->groupBy(fn (CartItem $item) => $item->product->creator_id)
+        $groups = $items->groupBy(fn (CartItem $item) => $item->variant->product->creator_id)
             ->map(fn ($rows) => $this->build($user, $rows->values()));
 
         return array_values($groups->all());
@@ -101,8 +100,8 @@ class Cart
     {
         $items = CartItem::query()
             ->where('user_id', $user->id)
-            ->whereHas('product', fn ($query) => $query->withTrashed()->where('creator_id', $creator->id))
-            ->with(['product.images', 'product.creator.user'])
+            ->whereHas('variant.product', fn ($query) => $query->withTrashed()->where('creator_id', $creator->id))
+            ->with(['variant.product.images', 'variant.product.creator.user'])
             ->orderBy('id')
             ->get();
 
@@ -121,8 +120,8 @@ class Cart
 
         $onlyShort = $creator->canSell()
             && $creator->user_id !== $user->id
-            && $items->every(fn (CartItem $item) => $item->product->isListed())
-            && $items->contains(fn (CartItem $item) => $item->product->stock < $item->quantity);
+            && $items->every(fn (CartItem $item) => $item->isAvailable())
+            && $items->contains(fn (CartItem $item) => $item->variant->stock < $item->quantity);
 
         return $onlyShort ? '在庫が足りません' : '現在購入できません';
     }
@@ -133,8 +132,8 @@ class Cart
      */
     private function build(User $user, Collection $items): array
     {
-        $creator = $items->first()->product->creator;
-        $subtotal = $items->sum(fn (CartItem $item) => $item->product->price * $item->quantity);
+        $creator = $items->first()->variant->product->creator;
+        $subtotal = $items->sum(fn (CartItem $item) => $item->variant->product->price * $item->quantity);
 
         return [
             'creator' => $creator,
@@ -144,7 +143,7 @@ class Cart
             'total' => $subtotal + $creator->shipping_fee,
             'purchasable' => $creator->canSell()
                 && $creator->user_id !== $user->id
-                && $items->every(fn (CartItem $item) => $item->product->isListed() && $item->product->stock >= $item->quantity),
+                && $items->every(fn (CartItem $item) => $item->isAvailable() && $item->variant->stock >= $item->quantity),
         ];
     }
 }

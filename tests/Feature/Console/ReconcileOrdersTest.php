@@ -28,7 +28,7 @@ beforeEach(function () {
 function reconcilableOrder(int $minutesAgo, bool $withSession = true): array
 {
     $buyer = User::factory()->create();
-    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_id' => test()->product->id, 'quantity' => 2])]);
+    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_variant_id' => test()->product->variants()->value('id'), 'quantity' => 2])]);
     $order = app(Orders::class)->reserve($buyer, test()->creator, $cart);
     $sessionId = $withSession ? fakeOrderCheckout(test()->gateway, $order) : null;
     $order->forceFill(['created_at' => now()->subMinutes($minutesAgo)])->save();

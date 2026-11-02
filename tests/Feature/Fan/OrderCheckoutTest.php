@@ -36,7 +36,7 @@ function beginOrderCheckout(User $buyer, Creator $creator): string
 }
 
 it('shows the confirm page', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
 
     $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
         ->assertOk()
@@ -52,8 +52,8 @@ it('shows the confirm page', function () {
 it('sends an empty or unpurchasable confirm back to the cart', function () {
     $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))->assertRedirect(route('cart.index'));
 
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
-    $this->mug->forceFill(['stock' => 1])->save();
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+    $this->mug->variants()->update(['stock' => 1]);
 
     $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
         ->assertRedirect(route('cart.index'))
@@ -67,7 +67,7 @@ it('sends an empty or unpurchasable confirm back to the cart', function () {
 });
 
 it('starts a checkout and reserves stock', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
 
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
@@ -102,7 +102,7 @@ it('starts a checkout and reserves stock', function () {
 
 it('adds no shipping line when the fee is zero', function () {
     $this->creator->forceFill(['shipping_fee' => 0])->save();
-    app(Cart::class)->add($this->buyer, $this->mug, 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
 
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
@@ -112,7 +112,7 @@ it('adds no shipping line when the fee is zero', function () {
 it('refuses when the creator cannot sell', function () {
     $creator = Creator::factory()->create();
     $product = Product::factory()->for($creator)->create();
-    app(Cart::class)->add($this->buyer, $product, 1);
+    app(Cart::class)->add($this->buyer, $product->variants()->firstOrFail(), 1);
 
     $this->actingAs($this->buyer)->post(route('cart.checkout', $creator))
         ->assertSessionHasErrors(['cart' => '現在購入できません']);
@@ -124,8 +124,8 @@ it('refuses an empty cart and a sold-out item', function () {
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
         ->assertSessionHasErrors(['cart' => '現在購入できません']);
 
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
-    $this->mug->forceFill(['stock' => 1])->save();
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+    $this->mug->variants()->update(['stock' => 1]);
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
         ->assertSessionHasErrors(['cart' => '在庫が足りません']);
 
@@ -133,8 +133,9 @@ it('refuses an empty cart and a sold-out item', function () {
 });
 
 it('says the item cannot be bought when it is unlisted, even if it is also short', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
-    $this->mug->forceFill(['stock' => 1, 'is_published' => false])->save();
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+    $this->mug->variants()->update(['stock' => 1]);
+    $this->mug->forceFill(['is_published' => false])->save();
 
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
         ->assertSessionHasErrors(['cart' => '現在購入できません']);
@@ -143,7 +144,7 @@ it('says the item cannot be bought when it is unlisted, even if it is also short
 });
 
 it('replaces an unfinished checkout of the same creator', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 3);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 3);
 
     $first = beginOrderCheckout($this->buyer, $this->creator);
     $second = beginOrderCheckout($this->buyer, $this->creator);
@@ -163,8 +164,8 @@ it('replaces an unfinished checkout of the same creator', function () {
 it('does not touch the pending order of another creator', function () {
     $other = Creator::factory()->payable()->create();
     $pin = Product::factory()->for($other)->create(['stock' => 4]);
-    app(Cart::class)->add($this->buyer, $this->mug, 1);
-    app(Cart::class)->add($this->buyer, $pin, 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+    app(Cart::class)->add($this->buyer, $pin->variants()->firstOrFail(), 1);
 
     beginOrderCheckout($this->buyer, $this->creator);
     beginOrderCheckout($this->buyer, $other);
@@ -173,7 +174,7 @@ it('does not touch the pending order of another creator', function () {
 });
 
 it('refuses while a delayed payment is pending', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($sessionId, paid: false);
     $this->actingAs($this->buyer)->get(route('orders.checkout.complete', ['session_id' => $sessionId]));
@@ -198,7 +199,7 @@ it('cancels the order when Stripe fails', function () {
         }
     };
     app()->instance(PaymentGateway::class, $failing);
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
 
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
         ->assertSessionHasErrors(['cart' => '決済の準備に失敗しました']);
@@ -211,7 +212,7 @@ it('cancels the order when Stripe fails', function () {
 });
 
 it('abandons the order when coming back from checkout', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $order = Order::sole();
 
@@ -225,7 +226,7 @@ it('abandons the order when coming back from checkout', function () {
 });
 
 it('does not abandon someone elses order or one with a payment', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $order = Order::sole();
 
@@ -240,7 +241,7 @@ it('does not abandon someone elses order or one with a payment', function () {
 });
 
 it('completes a paid session on return', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($sessionId);
 
@@ -255,7 +256,7 @@ it('completes a paid session on return', function () {
 });
 
 it('tells the buyer a delayed payment is awaited', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($sessionId, paid: false);
 
@@ -266,7 +267,7 @@ it('tells the buyer a delayed payment is awaited', function () {
 });
 
 it('rejects completing someone elses session', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($sessionId);
 
@@ -286,7 +287,7 @@ it('answers a failing payment service on return with a toast', function () {
 });
 
 it('lets the fake checkout page pay, pay later and expire a payment session', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
     $this->actingAs($this->buyer)->get("/dev/fake-checkout/{$sessionId}")
@@ -314,7 +315,7 @@ it('lets the fake checkout page pay, pay later and expire a payment session', fu
 });
 
 it('pays on the fake checkout page', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
     $this->actingAs($this->buyer)->post("/dev/fake-checkout/{$sessionId}", ['action' => 'pay'])
@@ -325,7 +326,7 @@ it('pays on the fake checkout page', function () {
 });
 
 it('refuses while another checkout of the same buyer and creator is starting', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $lock = Cache::lock("order-checkout:{$this->buyer->id}:{$this->creator->id}", 60);
     expect($lock->get())->toBeTrue();
 
@@ -341,11 +342,11 @@ it('refuses while another checkout of the same buyer and creator is starting', f
 
 it('keeps a previous order whose checkout was paid but not yet synced', function () {
     $sticker = Product::factory()->for($this->creator)->create(['price' => 300, 'stock' => 4]);
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $first = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($first);
     // The paid order empties its products from the cart once synced; this one is still in it.
-    app(Cart::class)->add($this->buyer, $sticker, 1);
+    app(Cart::class)->add($this->buyer, $sticker->variants()->firstOrFail(), 1);
 
     beginOrderCheckout($this->buyer, $this->creator);
 
@@ -359,7 +360,7 @@ it('keeps a previous order whose checkout was paid but not yet synced', function
 });
 
 it('refuses when the previous checkout turns out to await a delayed payment', function () {
-    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
     $first = beginOrderCheckout($this->buyer, $this->creator);
     $this->gateway->completePaymentCheckout($first, paid: false);
 

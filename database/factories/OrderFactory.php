@@ -48,9 +48,11 @@ class OrderFactory extends Factory
     public function withItem(Product $product, int $quantity = 1): static
     {
         return $this->afterCreating(function (Order $order) use ($product, $quantity) {
+            $variant = $product->variants()->firstOrFail();
             $order->items()->create([
                 'product_id' => $product->id,
-                'product_name' => $product->name,
+                'product_variant_id' => $variant->id,
+                'product_name' => $variant->label(),
                 'unit_price' => $product->price,
                 'quantity' => $quantity,
             ]);
