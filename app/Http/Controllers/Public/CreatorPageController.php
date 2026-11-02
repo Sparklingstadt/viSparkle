@@ -29,6 +29,7 @@ class CreatorPageController extends Controller
 
         $shopVisible = $creator->isShopVisible() && $creator->products()->listed()->exists();
         $tab = $shopVisible && $request->query('tab') === 'shop' ? 'shop' : 'posts';
+        $sort = $request->query('sort') === 'popular' ? 'popular' : 'new';
 
         $posts = $creator->posts()
             ->published()
@@ -65,7 +66,8 @@ class CreatorPageController extends Controller
             'shop' => [
                 'visible' => $shopVisible,
                 'notice' => $shopVisible ? $creator->shop_notice : null,
-                'products' => $tab === 'shop' ? self::shopProducts($creator) : [],
+                'sort' => $sort,
+                'products' => $tab === 'shop' ? self::shopProducts($creator, $sort) : [],
             ],
         ]);
     }
@@ -73,13 +75,12 @@ class CreatorPageController extends Controller
     /**
      * @return list<array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}>
      */
-    private static function shopProducts(Creator $creator): array
+    private static function shopProducts(Creator $creator, string $sort): array
     {
         $products = $creator->products()
             ->listed()
             ->with(['images', 'variants'])
-            ->orderBy('sort_order')
-            ->orderByDesc('id')
+            ->when($sort === 'popular', fn ($query) => $query->popular(), fn ($query) => $query->latest('id'))
             ->get()
             ->map(fn (Product $product) => $product->toSummary());
 

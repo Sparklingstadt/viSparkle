@@ -18,7 +18,16 @@ import type {
     ShopProductSummary,
 } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+type ShopSort = 'new' | 'popular';
+
+const shopSortTabs: { label: string; sort: ShopSort }[] = [
+    { label: '公開順', sort: 'new' },
+    { label: '人気順', sort: 'popular' },
+];
 
 export default function CreatorPage({
     creator,
@@ -54,6 +63,7 @@ export default function CreatorPage({
     shop: {
         visible: boolean;
         notice: string | null;
+        sort: ShopSort;
         products: ShopProductSummary[];
     };
 }) {
@@ -166,7 +176,43 @@ export default function CreatorPage({
 
                 {tab === 'shop' ? (
                     <section className="space-y-4">
-                        <h2 className="text-lg font-semibold">ショップ</h2>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-lg font-semibold">ショップ</h2>
+                            <div className="flex gap-1" role="tablist">
+                                {shopSortTabs.map((sortTab) => (
+                                    <Button
+                                        key={sortTab.sort}
+                                        size="sm"
+                                        variant="ghost"
+                                        asChild
+                                        className={cn({
+                                            'bg-muted':
+                                                sortTab.sort === shop.sort,
+                                        })}
+                                    >
+                                        <Link
+                                            href={show(creator.slug, {
+                                                query:
+                                                    sortTab.sort === 'popular'
+                                                        ? {
+                                                              tab: 'shop',
+                                                              sort: 'popular',
+                                                          }
+                                                        : { tab: 'shop' },
+                                            })}
+                                            role="tab"
+                                            aria-selected={
+                                                sortTab.sort === shop.sort
+                                            }
+                                            preserveScroll
+                                            only={['shop']}
+                                        >
+                                            {sortTab.label}
+                                        </Link>
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
                         {shop.notice && (
                             <p className="rounded-md border bg-muted p-4 text-sm whitespace-pre-wrap">
                                 {shop.notice}
