@@ -75,6 +75,10 @@ class OrderSync
     {
         $order = $this->orders->markPaid($order, $session);
 
+        if ($order->status === OrderStatus::Paid) {
+            return $this->mirrorEarlyRefund($order);
+        }
+
         if ($order->status !== OrderStatus::Canceled) {
             return $order;
         }
@@ -97,6 +101,29 @@ class OrderSync
             // A concurrent sync refunded it first.
             return $order->refresh();
         }
+    }
+
+    /**
+     * A refund made before the order knew its payment intent (e.g. from the dashboard, while the webhook was lost) found no
+     * order to land on: read the charge now and mirror it.
+     *
+     * @throws BillingException
+     */
+    private function mirrorEarlyRefund(Order $order): Order
+    {
+        if ($order->stripe_payment_intent_id === null) {
+            return $order;
+        }
+
+        $chargeId = $this->gateway->retrieveLatestChargeId($order->stripe_payment_intent_id);
+
+        if ($chargeId === null) {
+            return $order;
+        }
+
+        $charge = $this->gateway->retrieveCharge($chargeId);
+
+        return $charge->amountRefunded > 0 || $charge->disputed ? $this->orders->syncRefund($order, $charge) : $order;
     }
 
     /**

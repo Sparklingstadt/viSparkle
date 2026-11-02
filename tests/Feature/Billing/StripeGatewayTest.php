@@ -616,3 +616,24 @@ it('reads the payment intent of a charge', function () {
 
     expect($this->gateway->retrieveCharge('ch_x')->paymentIntentId)->toBe('pi_x');
 });
+
+it('reads the status of a payment intent', function () {
+    $this->http->queue(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'requires_payment_method', 'latest_charge' => null]);
+
+    expect($this->gateway->retrievePaymentIntentStatus('pi_x'))->toBe('requires_payment_method');
+
+    $request = $this->http->requests[0];
+    expect($request['method'])->toBe('get')
+        ->and($request['path'])->toBe('/v1/payment_intents/pi_x');
+});
+
+it('reads the latest charge of a payment intent', function (mixed $latest, ?string $expected) {
+    $this->http->queue(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'succeeded', 'latest_charge' => $latest]);
+
+    expect($this->gateway->retrieveLatestChargeId('pi_x'))->toBe($expected)
+        ->and($this->http->requests[0]['path'])->toBe('/v1/payment_intents/pi_x');
+})->with([
+    'id' => ['ch_x', 'ch_x'],
+    'expanded' => [['id' => 'ch_y', 'object' => 'charge'], 'ch_y'],
+    'none' => [null, null],
+]);

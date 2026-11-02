@@ -9,4 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('fanbox:prune-orphan-files')->daily();
-Schedule::command('shop:reconcile-orders')->hourly();
+Schedule::command('shop:reconcile-orders')->hourly()->withoutOverlapping()->onOneServer();

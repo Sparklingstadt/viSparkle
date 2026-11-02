@@ -162,6 +162,32 @@ it('refunds a payment that arrives after cancellation', function () {
     Event::assertNotDispatched(OrderPaid::class);
 });
 
+it('mirrors a refund made before the order was synced as paid', function () {
+    [$order, $sessionId] = syncReservedOrder();
+    $this->gateway->completePaymentCheckout($sessionId);
+    $paymentIntentId = (string) $this->gateway->retrieveCheckoutSession($sessionId)->paymentIntentId;
+    $this->gateway->refundPaymentIntent($paymentIntentId, 'dashboard-refund');
+    expect($this->product->refresh()->stock)->toBe(3);
+
+    app(OrderSync::class)->syncSession($sessionId);
+    app(OrderSync::class)->syncSession($sessionId);
+
+    $order->refresh();
+    expect($order->status)->toBe(OrderStatus::Refunded)
+        ->and($order->refunded_amount)->toBe($order->total)
+        ->and($this->product->refresh()->stock)->toBe(5);
+});
+
+it('leaves a paid order paid when its charge has no refunds', function () {
+    [$order, $sessionId] = syncReservedOrder();
+    $this->gateway->completePaymentCheckout($sessionId);
+
+    app(OrderSync::class)->syncSession($sessionId);
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($order->refunded_amount)->toBe(0);
+});
+
 it('ignores sessions from another app or without an order', function (Closure $metadata) {
     [$order, $sessionId] = syncReservedOrder();
     $foreignOrder = Order::factory()->create(['user_id' => $this->buyer->id]);

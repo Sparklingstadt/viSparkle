@@ -295,6 +295,20 @@ class StripeGateway implements PaymentGateway
     /**
      * The period end moved from the subscription to its items in newer API versions; both are read.
      */
+    public function retrievePaymentIntentStatus(string $paymentIntentId): string
+    {
+        $paymentIntent = $this->call(fn () => $this->client->paymentIntents->retrieve($paymentIntentId))->toArray();
+
+        return (string) ($paymentIntent['status'] ?? '');
+    }
+
+    public function retrieveLatestChargeId(string $paymentIntentId): ?string
+    {
+        $paymentIntent = $this->call(fn () => $this->client->paymentIntents->retrieve($paymentIntentId))->toArray();
+
+        return self::idOf($paymentIntent['latest_charge'] ?? null);
+    }
+
     public static function subscriptionFrom(Subscription $subscription): SubscriptionData
     {
         $data = $subscription->toArray();

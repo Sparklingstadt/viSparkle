@@ -36,10 +36,12 @@ function reconcilableOrder(int $minutesAgo, bool $withSession = true): array
     return [$order, $sessionId];
 }
 
-it('is scheduled hourly', function () {
-    $event = collect(app(Schedule::class)->events())->first(fn ($event) => str_contains($event->command, 'shop:reconcile-orders'));
+it('is scheduled hourly, without overlapping, on one server', function () {
+    $event = collect(app(Schedule::class)->events())->first(fn ($event) => str_contains((string) $event->command, 'shop:reconcile-orders'));
 
-    expect($event?->expression)->toBe('0 * * * *');
+    expect($event?->expression)->toBe('0 * * * *')
+        ->and($event?->withoutOverlapping)->toBeTrue()
+        ->and($event?->onOneServer)->toBeTrue();
 });
 
 it('catches up a paid order whose webhook was missed', function () {
@@ -127,4 +129,74 @@ it('keeps going after one order fails', function () {
     expect($first->refresh()->status)->toBe(OrderStatus::Pending)
         ->and($second->refresh()->status)->toBe(OrderStatus::Paid)
         ->and($reported)->toBe(['Stripe is down.']);
+});
+
+it('keeps going after an unexpected error on one order', function () {
+    [$first, $firstSession] = reconcilableOrder(120);
+    [$second, $secondSession] = reconcilableOrder(90);
+    $this->gateway->completePaymentCheckout((string) $secondSession);
+    $failing = new class($firstSession, app(Orders::class)) extends OrderSync
+    {
+        public function __construct(private readonly ?string $failOn, Orders $orders)
+        {
+            parent::__construct(app(FakeGateway::class), $orders);
+        }
+
+        public function syncSession(string $sessionId): ?Order
+        {
+            if ($sessionId === $this->failOn) {
+                throw new RuntimeException('Something broke.');
+            }
+
+            return parent::syncSession($sessionId);
+        }
+    };
+    app()->instance(OrderSync::class, $failing);
+    $reported = [];
+    $this->app->make(ExceptionHandler::class)->reportable(function (RuntimeException $e) use (&$reported) {
+        $reported[] = $e->getMessage();
+
+        return false;
+    });
+
+    $this->artisan('shop:reconcile-orders')->assertSuccessful();
+
+    expect($first->refresh()->status)->toBe(OrderStatus::Pending)
+        ->and($second->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($reported)->toBe(['Something broke.']);
+});
+
+it('cancels a delayed payment that failed without a webhook and puts the stock back', function () {
+    [$order, $sessionId] = reconcilableOrder(90);
+    $this->gateway->completePaymentCheckout((string) $sessionId, paid: false);
+    app(OrderSync::class)->syncSession((string) $sessionId);
+    $this->gateway->settleAsyncPayment((string) $sessionId, false);
+
+    $this->artisan('shop:reconcile-orders')->assertSuccessful();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Canceled)
+        ->and($order->cancel_reason)->toBe(OrderCancelReason::PaymentFailed)
+        ->and($this->product->refresh()->stock)->toBe(10);
+});
+
+it('cancels a failed delayed payment even when no webhook recorded the payment intent', function () {
+    [$order, $sessionId] = reconcilableOrder(90);
+    $this->gateway->completePaymentCheckout((string) $sessionId, paid: false);
+    $this->gateway->settleAsyncPayment((string) $sessionId, false);
+
+    $this->artisan('shop:reconcile-orders')->assertSuccessful();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Canceled)
+        ->and($this->product->refresh()->stock)->toBe(10);
+});
+
+it('leaves a delayed payment that is still processing pending', function () {
+    [$order, $sessionId] = reconcilableOrder(90);
+    $this->gateway->completePaymentCheckout((string) $sessionId, paid: false);
+
+    $this->artisan('shop:reconcile-orders')->assertSuccessful();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Pending)
+        ->and($order->stripe_payment_intent_id)->not->toBeNull()
+        ->and($this->product->refresh()->stock)->toBe(8);
 });

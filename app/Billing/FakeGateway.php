@@ -301,6 +301,20 @@ class FakeGateway implements PaymentGateway
         return new ChargeData($chargeId, $charge['invoice_id'], $charge['amount_refunded'], $charge['disputed'], $charge['payment_intent_id'] ?? null);
     }
 
+    public function retrievePaymentIntentStatus(string $paymentIntentId): string
+    {
+        $paymentIntent = $this->state()['paymentIntents'][$paymentIntentId] ?? throw new BillingException("Unknown payment intent {$paymentIntentId}.");
+
+        return $paymentIntent['status'];
+    }
+
+    public function retrieveLatestChargeId(string $paymentIntentId): ?string
+    {
+        $paymentIntent = $this->state()['paymentIntents'][$paymentIntentId] ?? throw new BillingException("Unknown payment intent {$paymentIntentId}.");
+
+        return $paymentIntent['charge_id'];
+    }
+
     /*
     | Test / dev controls (not part of PaymentGateway)
     */

@@ -74,4 +74,10 @@ interface PaymentGateway
     public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData;
 
     public function retrieveCharge(string $chargeId): ChargeData;
+
+    /** The payment intent's status as the provider reports it (e.g. processing, succeeded, canceled, requires_payment_method). */
+    public function retrievePaymentIntentStatus(string $paymentIntentId): string;
+
+    /** The payment intent's latest charge, or null when it has none yet. */
+    public function retrieveLatestChargeId(string $paymentIntentId): ?string;
 }
