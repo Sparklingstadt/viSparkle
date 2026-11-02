@@ -40,41 +40,43 @@
 
 ## File Structure
 
-| ファイル | 役割 |
-|---|---|
-| `app/Enums/ProductKind.php`（新規） | `physical` / `digital` と表示名 |
-| `database/migrations/2026_11_03_00000{1,2,3}_*.php`（新規） | `products.kind`、`product_files`、`order_items.product_kind` |
-| `app/Models/ProductFile.php`、`database/factories/ProductFileFactory.php`（新規） | 作品のファイル |
-| `app/Models/Product.php`、`OrderItem.php`、`Order.php`（変更） | 種類・ファイル・判定のメソッド |
-| `app/Services/PrivateFileWriter.php`（新規） | `private` ディスクへのストリーム書き込み（`PostFileStorer` から切り出し） |
-| `app/Services/PrivateFileUrls.php`（新規） | 署名付きURL（`PostFileUrls` から切り出し） |
-| `app/Services/Shop/ProductFileStorer.php`（新規） | 作品のファイルの保存と削除 |
-| `app/Services/Shop/DigitalAccess.php`（新規） | 購入済みの判定とダウンロードできない理由 |
-| `app/Http/Controllers/Creator/ProductFileController.php` ＋ Request 2つ（新規） | ファイルの追加・並べ替え・削除・クリエイターのダウンロード |
-| `app/Http/Controllers/Fan/OrderFileDownloadController.php`（新規） | 購入者のダウンロード |
-| `app/Services/Shop/Cart.php`、`Orders.php`、`OrderCheckout.php`（変更） | 種類ごとの在庫・送料・返金・発送 |
-| `app/Billing/Data/PaymentCheckoutRequest.php`、`StripeGateway.php`、`FakeGateway.php`（変更） | `collectShipping` |
-| フロント: `resources/js/pages/creator/products/{edit,index}.tsx`、`creator/orders/show.tsx`、`public/{product,creator}.tsx`、`fan/{cart,cart-confirm}.tsx`、`fan/orders/{index,show}.tsx`、`legal/tokushoho.tsx`、`admin/payments.tsx` | 表示 |
+| ファイル                                                                                                                                                                                                                               | 役割                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `app/Enums/ProductKind.php`（新規）                                                                                                                                                                                                    | `physical` / `digital` と表示名                                           |
+| `database/migrations/2026_11_03_00000{1,2,3}_*.php`（新規）                                                                                                                                                                            | `products.kind`、`product_files`、`order_items.product_kind`              |
+| `app/Models/ProductFile.php`、`database/factories/ProductFileFactory.php`（新規）                                                                                                                                                      | 作品のファイル                                                            |
+| `app/Models/Product.php`、`OrderItem.php`、`Order.php`（変更）                                                                                                                                                                         | 種類・ファイル・判定のメソッド                                            |
+| `app/Services/PrivateFileWriter.php`（新規）                                                                                                                                                                                           | `private` ディスクへのストリーム書き込み（`PostFileStorer` から切り出し） |
+| `app/Services/PrivateFileUrls.php`（新規）                                                                                                                                                                                             | 署名付きURL（`PostFileUrls` から切り出し）                                |
+| `app/Services/Shop/ProductFileStorer.php`（新規）                                                                                                                                                                                      | 作品のファイルの保存と削除                                                |
+| `app/Services/Shop/DigitalAccess.php`（新規）                                                                                                                                                                                          | 購入済みの判定とダウンロードできない理由                                  |
+| `app/Http/Controllers/Creator/ProductFileController.php` ＋ Request 2つ（新規）                                                                                                                                                        | ファイルの追加・並べ替え・削除・クリエイターのダウンロード                |
+| `app/Http/Controllers/Fan/OrderFileDownloadController.php`（新規）                                                                                                                                                                     | 購入者のダウンロード                                                      |
+| `app/Services/Shop/Cart.php`、`Orders.php`、`OrderCheckout.php`（変更）                                                                                                                                                                | 種類ごとの在庫・送料・返金・発送                                          |
+| `app/Billing/Data/PaymentCheckoutRequest.php`、`StripeGateway.php`、`FakeGateway.php`（変更）                                                                                                                                          | `collectShipping`                                                         |
+| フロント: `resources/js/pages/creator/products/{edit,index}.tsx`、`creator/orders/show.tsx`、`public/{product,creator}.tsx`、`fan/{cart,cart-confirm}.tsx`、`fan/orders/{index,show}.tsx`、`legal/tokushoho.tsx`、`admin/payments.tsx` | 表示                                                                      |
 
 ---
 
 ### Task 1: 種類・ファイルのデータモデル
 
 **Files:**
+
 - Create: `app/Enums/ProductKind.php`、`app/Models/ProductFile.php`、`database/factories/ProductFileFactory.php`
 - Create: `database/migrations/2026_11_03_000001_add_kind_to_products.php`、`2026_11_03_000002_create_product_files_table.php`、`2026_11_03_000003_add_product_kind_to_order_items.php`
 - Modify: `app/Models/Product.php`、`app/Models/OrderItem.php`、`app/Models/Order.php`、`database/factories/ProductFactory.php`、`config/fanbox.php`
 - Test: `tests/Feature/Models/ProductKindTest.php`
 
 **Interfaces:**
+
 - Produces:
-  - `enum ProductKind: string { case Physical = 'physical'; case Digital = 'digital'; public function label(): string }`（「グッズ」「デジタル作品」）
-  - `Product::$kind`（cast `ProductKind`）、`Product::files(): HasMany<ProductFile>`（`sort_order` 順）、`Product::isDigital(): bool`、`Product::isPurchasable(): bool`（物: `isListed() && stock > 0`、デジタル: `isListed() && files()->exists()`。`files` が読み込み済みならそれを使う）
-  - `ProductFile`（`#[Fillable(['path', 'original_name', 'mime', 'size', 'sort_order'])]`、`product(): BelongsTo`）
-  - `OrderItem::$product_kind`（cast `ProductKind`、Fillable に足す）
-  - `Order::hasPhysical(): bool`、`Order::hasDigital(): bool`（明細の `product_kind` から。`items` が読み込み済みならそれを使う）
-  - `ProductFactory::digital()`（`kind = digital`、`stock = 0`）、`ProductFileFactory`（`path = creators/0/products/0/{ulid}.zip`、`original_name = 'files.zip'`、`mime = 'application/zip'`、`size = 2048`）
-  - `config('fanbox.product_files_max')` = 10
+    - `enum ProductKind: string { case Physical = 'physical'; case Digital = 'digital'; public function label(): string }`（「グッズ」「デジタル作品」）
+    - `Product::$kind`（cast `ProductKind`）、`Product::files(): HasMany<ProductFile>`（`sort_order` 順）、`Product::isDigital(): bool`、`Product::isPurchasable(): bool`（物: `isListed() && stock > 0`、デジタル: `isListed() && files()->exists()`。`files` が読み込み済みならそれを使う）
+    - `ProductFile`（`#[Fillable(['path', 'original_name', 'mime', 'size', 'sort_order'])]`、`product(): BelongsTo`）
+    - `OrderItem::$product_kind`（cast `ProductKind`、Fillable に足す）
+    - `Order::hasPhysical(): bool`、`Order::hasDigital(): bool`（明細の `product_kind` から。`items` が読み込み済みならそれを使う）
+    - `ProductFactory::digital()`（`kind = digital`、`stock = 0`）、`ProductFileFactory`（`path = creators/0/products/0/{ulid}.zip`、`original_name = 'files.zip'`、`mime = 'application/zip'`、`size = 2048`）
+    - `config('fanbox.product_files_max')` = 10
 
 - [ ] **Step 1: Write the failing test** — `tests/Feature/Models/ProductKindTest.php`
 
@@ -131,15 +133,17 @@ Expected: PASS
 ### Task 2: ファイルの保存・署名付きURLの共通化と作品のファイルの保存
 
 **Files:**
+
 - Create: `app/Services/PrivateFileWriter.php`、`app/Services/PrivateFileUrls.php`、`app/Services/Shop/ProductFileStorer.php`
 - Modify: `app/Services/PostFileStorer.php`（`storeAttachment` と `put` を `PrivateFileWriter` に移す）、`app/Services/PostFileUrls.php`（`sign` を `PrivateFileUrls` に移す）、`app/Console/Commands/PruneOrphanFiles.php`
 - Test: `tests/Feature/Files/ProductFileStorerTest.php`、`tests/Feature/Files/PrivateFileUrlsTest.php`、`tests/Feature/Console/PruneOrphanFilesTest.php`（追記）。既存の `PostFileStorerTest`、`PostFileUrlsTest` はそのまま通ること
 
 **Interfaces:**
+
 - Produces:
-  - `PrivateFileWriter::writeUpload(string $base, UploadedFile $upload): array{path: string, mime: string, size: int}` — 拡張子の正規化（`/^[a-z0-9]{1,10}$/` 以外は `bin`）とストリームでの書き込み。失敗は `RuntimeException`（書いたファイルは消してから投げる）
-  - `PrivateFileUrls::sign(string $path, array $options = []): string`、`PrivateFileUrls::download(string $path, string $originalName): string`（`ResponseContentDisposition` 付き）
-  - `ProductFileStorer::store(Product $product, UploadedFile $upload): ProductFile`（`sort_order` は最大＋1、`original_name` は `Str::limit(..., 250, '')`）、`ProductFileStorer::delete(ProductFile $file): void`（行とファイル）
+    - `PrivateFileWriter::writeUpload(string $base, UploadedFile $upload): array{path: string, mime: string, size: int}` — 拡張子の正規化（`/^[a-z0-9]{1,10}$/` 以外は `bin`）とストリームでの書き込み。失敗は `RuntimeException`（書いたファイルは消してから投げる）
+    - `PrivateFileUrls::sign(string $path, array $options = []): string`、`PrivateFileUrls::download(string $path, string $originalName): string`（`ResponseContentDisposition` 付き）
+    - `ProductFileStorer::store(Product $product, UploadedFile $upload): ProductFile`（`sort_order` は最大＋1、`original_name` は `Str::limit(..., 250, '')`）、`ProductFileStorer::delete(ProductFile $file): void`（行とファイル）
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -201,18 +205,20 @@ Expected: PASS
 ### Task 3: クリエイターの商品管理（種類の選択とファイル）
 
 **Files:**
+
 - Create: `app/Http/Controllers/Creator/ProductFileController.php`、`app/Http/Requests/Creator/StoreProductFileRequest.php`、`app/Http/Requests/Creator/ReorderProductFilesRequest.php`
 - Modify: `app/Http/Requests/Creator/ProductRules.php`、`StoreProductRequest.php`、`app/Http/Controllers/Creator/ProductController.php`、`routes/creator.php`、`resources/js/pages/creator/products/edit.tsx`、`resources/js/pages/creator/products/index.tsx`
 - Test: `tests/Feature/Creator/ProductFileManagementTest.php`、`tests/Feature/Creator/ProductManagementTest.php`（追記）
 
 **Interfaces:**
+
 - Consumes: Task 1 の `ProductKind`、`Product::files()`、Task 2 の `ProductFileStorer`、`PrivateFileUrls::download`
 - Produces: ルート（名前は既存の `creator.` 接頭辞）
-  - `POST creator/products/{product}/files` → `creator.products.files.store`（`throttle:30,1`、フィールド `file`）
-  - `PUT creator/products/{product}/files` → `creator.products.files.reorder`（`ids`）
-  - `DELETE creator/products/{product}/files/{file}` → `creator.products.files.destroy`
-  - `GET creator/products/{product}/files/{file}` → `creator.products.files.download`（署名付きURLへ転送）
-  - `edit` の props の `product` に `kind`、`files: list<{id, original_name, size, mime}>` を足す。`index` の各行に `kind`、`files_count`
+    - `POST creator/products/{product}/files` → `creator.products.files.store`（`throttle:30,1`、フィールド `file`）
+    - `PUT creator/products/{product}/files` → `creator.products.files.reorder`（`ids`）
+    - `DELETE creator/products/{product}/files/{file}` → `creator.products.files.destroy`
+    - `GET creator/products/{product}/files/{file}` → `creator.products.files.download`（署名付きURLへ転送）
+    - `edit` の props の `product` に `kind`、`files: list<{id, original_name, size, mime}>` を足す。`index` の各行に `kind`、`files_count`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -250,10 +256,10 @@ Run: `./vendor/bin/sail artisan test tests/Feature/Creator/ProductFileManagement
 Expected: 新しいテストが FAIL
 
 - [ ] **Step 3: Implement**
-  - `ProductRules`: `stock` を `required_if:kind,physical`（更新時は商品の種類で判断する。`UpdateProductRequest` では `$this->route('product')->isDigital()` なら `stock` の規則を外す）。`StoreProductRequest` だけ `kind` を `required|Rule::enum(ProductKind::class)`
-  - `ProductController::store` は `kind` を保存し、デジタルなら `stock = 0`。`update` はデジタルなら在庫の差分の処理を飛ばす。`ensureCanPublish` にデジタルでファイル0件のとき `is_published` のエラーを足す
-  - `ProductFileController` は `ProductImageController` と同じ形。物の商品・他人の作品・別の作品のファイルは 404。件数の上限は Request の `after` で `product_files_max` と比べる
-  - 画面: 作成時に「グッズ」「デジタル作品」を選ぶ（作成後は表示だけ）。デジタルは在庫の欄の代わりにファイルの欄（`useForm` でのアップロード、並べ替え、削除、ダウンロードのリンク、大きさの表示）。ファイル0件なら「公開するにはファイルを1件以上アップロードしてください」。一覧に「デジタル」の印とファイル数
+    - `ProductRules`: `stock` を `required_if:kind,physical`（更新時は商品の種類で判断する。`UpdateProductRequest` では `$this->route('product')->isDigital()` なら `stock` の規則を外す）。`StoreProductRequest` だけ `kind` を `required|Rule::enum(ProductKind::class)`
+    - `ProductController::store` は `kind` を保存し、デジタルなら `stock = 0`。`update` はデジタルなら在庫の差分の処理を飛ばす。`ensureCanPublish` にデジタルでファイル0件のとき `is_published` のエラーを足す
+    - `ProductFileController` は `ProductImageController` と同じ形。物の商品・他人の作品・別の作品のファイルは 404。件数の上限は Request の `after` で `product_files_max` と比べる
+    - 画面: 作成時に「グッズ」「デジタル作品」を選ぶ（作成後は表示だけ）。デジタルは在庫の欄の代わりにファイルの欄（`useForm` でのアップロード、並べ替え、削除、ダウンロードのリンク、大きさの表示）。ファイル0件なら「公開するにはファイルを1件以上アップロードしてください」。一覧に「デジタル」の印とファイル数
 
 - [ ] **Step 4: Run tests to verify they pass** — 同じコマンドで PASS
 - [ ] **Step 5: Commit** — `feat: クリエイターがデジタル作品を作り、ファイルを管理できるようにする`
@@ -263,14 +269,16 @@ Expected: 新しいテストが FAIL
 ### Task 4: 購入済みの判定とダウンロードの可否（DigitalAccess）
 
 **Files:**
+
 - Create: `app/Services/Shop/DigitalAccess.php`
 - Test: `tests/Feature/Shop/DigitalAccessTest.php`
 
 **Interfaces:**
+
 - Consumes: Task 1 のモデル
 - Produces:
-  - `DigitalAccess::hasPurchased(User $user, Product $product): bool` — `order_items` の `product_id` と `product_kind = digital`、注文の `user_id` と `status in (paid, shipped)`
-  - `DigitalAccess::refusal(User $buyer, Order $order, Product $product): ?string` — ダウンロードできれば null、できなければ Global Constraints の文言。判定の順: 購入者の停止 → 注文の状態（pending / canceled / refunded）→ `disputed_at` → 作品（`withTrashed` で読み、公開中か）とクリエイター（`isShopVisible()`）。注文の持ち主と明細の確認は呼ぶ側（Task 8）が 404 で行う
+    - `DigitalAccess::hasPurchased(User $user, Product $product): bool` — `order_items` の `product_id` と `product_kind = digital`、注文の `user_id` と `status in (paid, shipped)`
+    - `DigitalAccess::refusal(User $buyer, Order $order, Product $product): ?string` — ダウンロードできれば null、できなければ Global Constraints の文言。判定の順: 購入者の停止 → 注文の状態（pending / canceled / refunded）→ `disputed_at` → 作品（`withTrashed` で読み、公開中か）とクリエイター（`isShopVisible()`）。注文の持ち主と明細の確認は呼ぶ側（Task 8）が 404 で行う
 
 - [ ] **Step 1: Write the failing tests** — 1段階目の `tests/Feature/Shop/OrdersTest.php` の `shopPaidOrder` と同じ手順で、デジタル作品の `paid` の注文を作る補助関数 `digitalPaidOrder(Product $work): Order` をこのファイルに置く
 
@@ -299,10 +307,12 @@ it('knows what the buyer has purchased', function () {
 ### Task 5: カートでの扱い
 
 **Files:**
+
 - Modify: `app/Services/Shop/Cart.php`、`app/Http/Controllers/Fan/CartController.php`（props に `kind`）、`resources/js/pages/fan/cart.tsx`
 - Test: `tests/Feature/Fan/CartTest.php`（追記）
 
 **Interfaces:**
+
 - Consumes: `Product::isDigital()`、`Product::isPurchasable()`、`DigitalAccess::hasPurchased`
 - Produces: `Group` の `shipping_fee` は物の明細があるときだけ。`Cart::refusal` は購入済みのデジタルを含むとき「購入済みの作品です」を返す（ほかは今のまま）
 
@@ -329,10 +339,12 @@ it('refuses a cart group with an already purchased work', function () {
 ### Task 6: 注文の確保・在庫・発送・返金
 
 **Files:**
+
 - Modify: `app/Services/Shop/Orders.php`
 - Test: `tests/Feature/Shop/OrdersTest.php`（追記）
 
 **Interfaces:**
+
 - Consumes: `DigitalAccess::hasPurchased`、`Order::hasPhysical()` / `hasDigital()`
 - Produces: `reserve` が明細に `product_kind` をコピーし、送料を物があるときだけ足す。`ship` はデジタルだけの注文を弾く。`refund` は `$by === Creator` でデジタルを含む注文を弾く。`restoreStock` は `product_kind = physical` の明細だけ
 
@@ -359,10 +371,12 @@ it('lets an admin refund an order with a digital work and restocks only goods', 
 ### Task 7: Checkout でお届け先を求めるかどうか
 
 **Files:**
+
 - Modify: `app/Billing/Data/PaymentCheckoutRequest.php`、`app/Billing/StripeGateway.php`、`app/Billing/FakeGateway.php`、`app/Services/Shop/OrderCheckout.php`、`resources/js/pages/fan/cart-confirm.tsx`、`app/Http/Controllers/Fan/CartController.php`（`confirm` の props に `has_physical`・`has_digital`）
 - Test: `tests/Feature/Billing/StripeGatewayTest.php`、`tests/Feature/Fan/OrderCheckoutTest.php`、`tests/Feature/Fan/CheckoutConfirmTest.php`（追記）
 
 **Interfaces:**
+
 - Produces: `PaymentCheckoutRequest` の最後の引数に `public bool $collectShipping = true`。`StripeGateway` は false のとき `shipping_address_collection` と `phone_number_collection` を送らない。`FakeGateway` はセッションに `collect_shipping` を保存し、false なら `completePaymentCheckout` で `shipping` を null にする。`OrderCheckout::begin` は `$order->hasPhysical()` を渡す
 
 - [ ] **Step 1: Write the failing tests**
@@ -392,15 +406,17 @@ it('warns that digital works cannot be canceled', ...);  // has_digital true、h
 ### Task 8: 購入者のダウンロードと注文の画面
 
 **Files:**
+
 - Create: `app/Http/Controllers/Fan/OrderFileDownloadController.php`
 - Modify: `routes/fan.php`、`app/Http/Controllers/Fan/OrderController.php`、`resources/js/pages/fan/orders/show.tsx`、`resources/js/pages/fan/orders/index.tsx`
 - Test: `tests/Feature/Fan/OrderFileDownloadTest.php`、`tests/Feature/Fan/OrdersTest.php`（追記）
 
 **Interfaces:**
+
 - Consumes: `DigitalAccess::refusal`、`PrivateFileUrls::download`
 - Produces:
-  - `GET orders/{order}/files/{file}` → `orders.files.download`（`whereNumber(['order', 'file'])`、`throttle:30,1`）。注文が自分のものでない・ファイルの作品がその注文のデジタルの明細にない・`refusal` が null でない → 404。そうでなければ `redirect()->away(...)`
-  - `show` の各明細に `product_kind`、デジタルなら `downloads: {refusal: ?string, files: list<{id, original_name, size, url}>}`（`refusal` があるときは `files` は空）。`index` はデジタルだけで `paid` の注文の `status_label` を「購入済み」に
+    - `GET orders/{order}/files/{file}` → `orders.files.download`（`whereNumber(['order', 'file'])`、`throttle:30,1`）。注文が自分のものでない・ファイルの作品がその注文のデジタルの明細にない・`refusal` が null でない → 404。そうでなければ `redirect()->away(...)`
+    - `show` の各明細に `product_kind`、デジタルなら `downloads: {refusal: ?string, files: list<{id, original_name, size, url}>}`（`refusal` があるときは `files` は空）。`index` はデジタルだけで `paid` の注文の `status_label` を「購入済み」に
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -424,16 +440,18 @@ it('labels a paid digital-only order as purchased', ...); // index の status_la
 ### Task 9: ショップの表示・クリエイターの注文・メール
 
 **Files:**
+
 - Modify: `app/Http/Controllers/Public/ProductPageController.php`、`app/Http/Controllers/Public/CreatorPageController.php`、`resources/js/pages/public/product.tsx`、`resources/js/pages/public/creator.tsx`、`app/Http/Controllers/Creator/OrderController.php`、`resources/js/pages/creator/orders/show.tsx`、`app/Mail/Shop/OrderConfirmed.php` とそのビュー
 - Test: `tests/Feature/Public/ShopPageTest.php`、`tests/Feature/Creator/OrderManagementTest.php`、`tests/Feature/Shop/OrderMailTest.php`（追記）
 
 **Interfaces:**
+
 - Consumes: `DigitalAccess::hasPurchased`、`Order::hasPhysical()` / `hasDigital()`
 - Produces:
-  - 商品ページの props に `kind`、デジタルなら `files: list<{extension, size}>`（名前は出さない）、`files_total_size`、`purchased_order_id: ?int`（ログイン中の購入者の、その作品を含む最新の `paid` か `shipped` の注文）
-  - ショップのタブの各商品に `kind`（売り切れの印は物だけ）
-  - クリエイターの注文の詳細に `can_ship`（`paid` かつ `hasPhysical()`）と `can_refund`（`paid` かつ `!hasDigital()`）、明細に `product_kind`
-  - `OrderConfirmed`（購入者あて）にデジタルを含むとき「注文の画面からダウンロードできます」と注文のURL
+    - 商品ページの props に `kind`、デジタルなら `files: list<{extension, size}>`（名前は出さない）、`files_total_size`、`purchased_order_id: ?int`（ログイン中の購入者の、その作品を含む最新の `paid` か `shipped` の注文）
+    - ショップのタブの各商品に `kind`（売り切れの印は物だけ）
+    - クリエイターの注文の詳細に `can_ship`（`paid` かつ `hasPhysical()`）と `can_refund`（`paid` かつ `!hasDigital()`）、明細に `product_kind`
+    - `OrderConfirmed`（購入者あて）にデジタルを含むとき「注文の画面からダウンロードできます」と注文のURL
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -455,6 +473,7 @@ it('mentions downloads in the confirmation mail', ...);        // assertSeeInHtm
 ### Task 10: 特定商取引法・運営の画面・デモデータ
 
 **Files:**
+
 - Modify: `resources/js/pages/legal/tokushoho.tsx`、`app/Http/Controllers/Admin/PaymentController.php`（ショップの注文を並べている箇所）、`resources/js/pages/admin/payments.tsx`、`database/seeders/DatabaseSeeder.php`
 - Test: `tests/Feature/Public/LegalPagesTest.php`、`tests/Feature/SeederTest.php`（追記）
 
