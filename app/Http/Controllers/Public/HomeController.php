@@ -29,7 +29,7 @@ class HomeController extends Controller
         $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
         $posts = $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
 
-        $creators = Creator::open()->latest('id')->limit(12)->get()->map->toSummary();
+        $creators = Creator::supportable()->latest('id')->limit(12)->get()->map->toSummary();
         $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
 
         return Inertia::render('public/home', [

@@ -114,7 +114,7 @@ it('marks closed creators on the supporting page', function () {
 
 it('hides a closed creator from the home page and shows the notice on its page', function () {
     $this->actingAs($this->creator->user)->post(route('creator.closure.store'));
-    $open = Creator::factory()->create();
+    $open = Creator::factory()->payable()->has(Plan::factory())->create();
 
     $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
         ->has('creators', 1)
