@@ -73,9 +73,11 @@ it('stops when the payment service fails and keeps the accounts opened so far', 
 it('detaches the payout accounts, even with live Stripe keys', function () {
     $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
     $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
+    $sakuraAccount = Creator::where('slug', 'sakura-illust')->sole()->stripe_account_id;
     config(['fanbox.billing.stripe.secret' => 'sk_live_123']);
 
     $this->artisan('fanbox:demo-payout-accounts', ['--detach' => true])
+        ->expectsOutputToContain("sakura-illust: {$sakuraAccount}")
         ->expectsOutputToContain('入金口座を外しました（8人）')
         ->assertExitCode(0);
 

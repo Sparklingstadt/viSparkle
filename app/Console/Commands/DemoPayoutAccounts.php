@@ -18,7 +18,8 @@ use Illuminate\Console\Command;
  * from these links. Safe to re-run: it reuses existing accounts and reports which ones are ready.
  *
  * With --detach it forgets those accounts instead, so the demo creators go back to "準備中". Run it before switching
- * to live keys: a test-mode account does not exist in live mode, and checkout against it would fail.
+ * to live keys: a test-mode account does not exist in live mode, and checkout against it would fail. It prints each
+ * slug with its account ID first; the accounts stay in Stripe, so writing an ID back undoes the detach.
  */
 #[Signature('fanbox:demo-payout-accounts {--detach : Forget the payout accounts of the demo creators so they stop accepting supports}')]
 #[Description('Open Stripe test-mode payout accounts for the demo creators and print their onboarding links')]
@@ -29,9 +30,14 @@ class DemoPayoutAccounts extends Command
         $slugs = DemoCreatorsSeeder::acceptingSupports();
 
         if ($this->option('detach')) {
-            $detached = Creator::query()->whereIn('slug', $slugs)->whereNotNull('stripe_account_id')
-                ->update(['stripe_account_id' => null, 'payouts_enabled' => false, 'details_submitted' => false]);
-            $this->info("入金口座を外しました（{$detached}人）。");
+            $creators = Creator::query()->whereIn('slug', $slugs)->whereNotNull('stripe_account_id')->orderBy('id')->get();
+
+            foreach ($creators as $creator) {
+                $this->line("{$creator->slug}: {$creator->stripe_account_id}");
+                $creator->forceFill(['stripe_account_id' => null, 'payouts_enabled' => false, 'details_submitted' => false])->save();
+            }
+
+            $this->info("入金口座を外しました（{$creators->count()}人）。");
 
             return self::SUCCESS;
         }
