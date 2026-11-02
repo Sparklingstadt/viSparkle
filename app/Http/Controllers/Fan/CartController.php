@@ -68,6 +68,7 @@ class CartController extends Controller
             'items' => $group['items']->map(fn (CartItem $item) => [
                 'id' => $item->id,
                 'product_id' => $item->variant->product_id,
+                'kind' => $item->variant->product->kind->value,
                 'name' => $item->variant->label(),
                 'price' => $item->variant->product->price,
                 'quantity' => $item->quantity,

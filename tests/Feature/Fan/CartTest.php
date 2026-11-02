@@ -2,7 +2,9 @@
 
 use App\Models\CartItem;
 use App\Models\Creator;
+use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Cart;
 use Illuminate\Validation\ValidationException;
@@ -162,4 +164,93 @@ it('shows only the buyers own cart', function () {
     app(Cart::class)->add(User::factory()->create(), $product->variants()->firstOrFail(), 1);
 
     $this->actingAs($this->buyer)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page->has('groups', 0));
+});
+
+/**
+ * A published digital work of the creator with one file.
+ */
+function cartWork(Creator $creator, int $price = 800): Product
+{
+    $work = Product::factory()->digital()->for($creator)->create(['price' => $price]);
+    ProductFile::factory()->for($work)->create();
+
+    return $work;
+}
+
+it('keeps a digital work at quantity one', function () {
+    $work = cartWork($this->creator);
+    $cart = app(Cart::class);
+
+    $cart->add($this->buyer, $work->variants()->firstOrFail(), 3);
+    $cart->add($this->buyer, $work->variants()->firstOrFail(), 1);
+
+    $item = CartItem::query()->sole();
+    expect($item->quantity)->toBe(1);
+    expect(fn () => $cart->setQuantity($item, 2))->toThrow(ValidationException::class);
+    expect($item->refresh()->quantity)->toBe(1);
+});
+
+it('refuses to add a purchased work', function () {
+    $work = cartWork($this->creator);
+    Order::factory()->paid()->withItem($work)->create(['user_id' => $this->buyer->id, 'creator_id' => $this->creator->id]);
+
+    $this->actingAs($this->buyer)->post(route('cart.items.store'), ['product_variant_id' => $work->variants()->value('id'), 'quantity' => 1])
+        ->assertSessionHasErrors(['cart' => '購入済みの作品です']);
+
+    expect(CartItem::count())->toBe(0);
+});
+
+it('refuses to add a work without files', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+
+    $this->actingAs($this->buyer)->post(route('cart.items.store'), ['product_variant_id' => $work->variants()->value('id'), 'quantity' => 1])
+        ->assertSessionHasErrors(['cart' => '現在購入できません']);
+
+    expect(CartItem::count())->toBe(0);
+});
+
+it('charges no shipping for a digital-only group', function () {
+    $work = cartWork($this->creator, 800);
+    app(Cart::class)->add($this->buyer, $work->variants()->firstOrFail(), 1);
+
+    $group = app(Cart::class)->groups($this->buyer)[0];
+
+    expect($group['shipping_fee'])->toBe(0)
+        ->and($group['total'])->toBe(800)
+        ->and($group['purchasable'])->toBeTrue();
+
+    $this->actingAs($this->buyer)->get(route('cart.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('groups.0.items.0.kind', 'digital')->where('groups.0.shipping_fee', 0));
+});
+
+it('charges shipping when a group mixes kinds', function () {
+    $cart = app(Cart::class);
+    $cart->add($this->buyer, cartWork($this->creator, 800)->variants()->firstOrFail(), 1);
+    $cart->add($this->buyer, Product::factory()->for($this->creator)->create(['price' => 1000])->variants()->firstOrFail(), 1);
+
+    $group = $cart->groups($this->buyer)[0];
+
+    expect($group['shipping_fee'])->toBe(600)->and($group['total'])->toBe(2400);
+});
+
+it('refuses a cart group with an already purchased work', function () {
+    $work = cartWork($this->creator);
+    $cart = app(Cart::class);
+    $cart->add($this->buyer, $work->variants()->firstOrFail(), 1);
+
+    Order::factory()->paid()->withItem($work)->create(['user_id' => $this->buyer->id, 'creator_id' => $this->creator->id]);
+
+    $group = $cart->groups($this->buyer)[0];
+    expect($group['purchasable'])->toBeFalse()
+        ->and($cart->refusal($this->buyer, $group))->toBe('購入済みの作品です');
+});
+
+it('marks a group whose work lost its files as not purchasable', function () {
+    $work = cartWork($this->creator);
+    app(Cart::class)->add($this->buyer, $work->variants()->firstOrFail(), 1);
+    $work->files()->delete();
+
+    $group = app(Cart::class)->groups($this->buyer)[0];
+    expect($group['purchasable'])->toBeFalse()
+        ->and(app(Cart::class)->refusal($this->buyer, $group))->toBe('現在購入できません');
 });

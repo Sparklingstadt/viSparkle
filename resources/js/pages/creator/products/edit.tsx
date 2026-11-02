@@ -24,13 +24,12 @@ import { Label } from '@/components/ui/label';
 import { formatBytes } from '@/lib/format';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
+import type { ProductKind } from '@/types';
 
 const MAX_IMAGES = 10;
 const MAX_VARIANTS = 20;
 
 type ProductImage = { id: number; url: string };
-
-type ProductKind = 'physical' | 'digital';
 
 type WorkFile = {
     id: number;

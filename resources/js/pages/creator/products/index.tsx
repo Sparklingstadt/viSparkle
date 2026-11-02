@@ -8,10 +8,11 @@ import { formatYen } from '@/lib/format';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
 import { edit as shopSettings } from '@/routes/creator/shop';
+import type { ProductKind } from '@/types';
 
 type Row = {
     id: number;
-    kind: 'physical' | 'digital';
+    kind: ProductKind;
     name: string;
     price: number;
     stock: number;

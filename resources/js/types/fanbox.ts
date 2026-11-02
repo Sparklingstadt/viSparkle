@@ -106,9 +106,12 @@ export type ShopProductSummary = {
     cover_url: string | null;
 };
 
+export type ProductKind = 'physical' | 'digital';
+
 export type CartLine = {
     id: number;
     product_id: number;
+    kind: ProductKind;
     name: string;
     price: number;
     quantity: number;
