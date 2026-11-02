@@ -11,6 +11,7 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Cart;
 use Illuminate\Contracts\Cache\Repository;
@@ -369,4 +370,60 @@ it('refuses when the previous checkout turns out to await a delayed payment', fu
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'お支払い待ちの注文があります']);
 
     expect(Order::count())->toBe(1)->and(Order::sole()->status)->toBe(OrderStatus::Pending);
+});
+
+/**
+ * A published digital work of the creator with one file.
+ */
+function checkoutWork(Creator $creator, int $price = 800): Product
+{
+    $work = Product::factory()->digital()->for($creator)->create(['name' => 'イラスト集', 'price' => $price]);
+    ProductFile::factory()->for($work)->create();
+
+    return $work;
+}
+
+it('checks out a digital-only cart without an address', function () {
+    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+    $sessionId = beginOrderCheckout($this->buyer, $this->creator);
+
+    expect($this->gateway->sessionCollectsShipping($sessionId))->toBeFalse();
+
+    $this->gateway->completePaymentCheckout($sessionId);
+    $this->actingAs($this->buyer)->get(route('orders.checkout.complete', ['session_id' => $sessionId]))
+        ->assertRedirect(route('orders.show', Order::sole()));
+
+    expect(Order::sole())
+        ->status->toBe(OrderStatus::Paid)
+        ->shipping_name->toBeNull()
+        ->shipping_fee->toBe(0)
+        ->total->toBe(800);
+});
+
+it('collects an address when the cart mixes kinds', function () {
+    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+    $sessionId = beginOrderCheckout($this->buyer, $this->creator);
+
+    expect($this->gateway->sessionCollectsShipping($sessionId))->toBeTrue();
+
+    $this->gateway->completePaymentCheckout($sessionId);
+    $this->actingAs($this->buyer)->get(route('orders.checkout.complete', ['session_id' => $sessionId]));
+
+    expect(Order::sole())->shipping_name->not->toBeNull()->shipping_fee->toBe(600);
+});
+
+it('warns that digital works cannot be canceled', function () {
+    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('has_digital', true)
+            ->where('has_physical', false)
+            ->where('group.shipping_fee', 0));
+
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertInertia(fn (Assert $page) => $page->where('has_digital', true)->where('has_physical', true));
 });

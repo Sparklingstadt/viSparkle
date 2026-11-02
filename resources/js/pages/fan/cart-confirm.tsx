@@ -11,9 +11,13 @@ import type { CartGroup, CreatorSummary } from '@/types';
 export default function CartConfirm({
     creator,
     group,
+    has_digital: hasDigital,
+    has_physical: hasPhysical,
 }: {
     creator: CreatorSummary;
     group: CartGroup;
+    has_digital: boolean;
+    has_physical: boolean;
 }) {
     const [processing, setProcessing] = useState(false);
 
@@ -30,10 +34,22 @@ export default function CartConfirm({
         );
 
     const rows: [string, string][] = [
-        ['お届け', 'お届けは国内のみです。'],
+        ...(hasPhysical
+            ? ([['お届け', 'お届けは国内のみです。']] as [string, string][])
+            : []),
+        ...(hasDigital
+            ? ([
+                  [
+                      'ダウンロード',
+                      'お支払いの確認後、注文の画面からダウンロードできます。作品が非公開になるとダウンロードできなくなるため、早めに保存してください',
+                  ],
+              ] as [string, string][])
+            : []),
         [
             '取り消し',
-            'お支払いの確定後は、購入者から注文を取り消すことはできません。',
+            hasDigital
+                ? 'デジタル作品は購入後に取り消せません。お支払いの確定後は、購入者から注文を取り消すことはできません。'
+                : 'お支払いの確定後は、購入者から注文を取り消すことはできません。',
         ],
     ];
 
@@ -58,7 +74,10 @@ export default function CartConfirm({
                                 className="flex justify-between gap-4 p-4"
                             >
                                 <span>
-                                    {item.name} × {item.quantity}
+                                    {item.name}
+                                    {item.kind === 'digital'
+                                        ? '（デジタル）'
+                                        : ` × ${item.quantity}`}
                                 </span>
                                 <span>
                                     {formatYen(item.price * item.quantity)}

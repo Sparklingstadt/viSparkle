@@ -121,8 +121,10 @@ class StripeGateway implements PaymentGateway
                 'quantity' => $item->quantity,
             ], $request->lineItems),
             'locale' => 'ja',
-            'shipping_address_collection' => ['allowed_countries' => ['JP']],
-            'phone_number_collection' => ['enabled' => true],
+            ...($request->collectShipping ? [
+                'shipping_address_collection' => ['allowed_countries' => ['JP']],
+                'phone_number_collection' => ['enabled' => true],
+            ] : []),
             'expires_at' => $request->expiresAt->getTimestamp(),
             'success_url' => $request->successUrl,
             'cancel_url' => $request->cancelUrl,

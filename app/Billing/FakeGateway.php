@@ -133,6 +133,7 @@ class FakeGateway implements PaymentGateway
             'payment_status' => 'unpaid',
             'payment_intent_id' => null,
             'shipping' => null,
+            'collect_shipping' => $request->collectShipping,
         ];
         $this->save($state);
 
@@ -390,8 +391,18 @@ class FakeGateway implements PaymentGateway
         $state['sessions'][$sessionId]['status'] = 'complete';
         $state['sessions'][$sessionId]['payment_status'] = $paid ? 'paid' : 'unpaid';
         $state['sessions'][$sessionId]['payment_intent_id'] = $paymentIntentId;
-        $state['sessions'][$sessionId]['shipping'] = ['テスト 太郎', '100-0001', '東京都 千代田区 千代田1-1', '09000000000'];
+        $state['sessions'][$sessionId]['shipping'] = ($state['sessions'][$sessionId]['collect_shipping'] ?? true)
+            ? ['テスト 太郎', '100-0001', '東京都 千代田区 千代田1-1', '09000000000']
+            : null;
         $this->save($state);
+    }
+
+    /**
+     * Whether the payment session asks for an address, as Stripe's shipping_address_collection would.
+     */
+    public function sessionCollectsShipping(string $sessionId): bool
+    {
+        return (bool) ($this->state()['sessions'][$sessionId]['collect_shipping'] ?? true);
     }
 
     /**
