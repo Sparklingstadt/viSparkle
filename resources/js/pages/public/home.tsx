@@ -1,11 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import { PostCard } from '@/components/post-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show } from '@/routes/creators';
-import type { CreatorSummary, PostSummary } from '@/types';
+import { show as showProduct } from '@/routes/shop/products';
+import type { CreatorSummary, PostSummary, ShopProductSummary } from '@/types';
 
 type PostSort = 'new' | 'popular';
 
@@ -16,12 +19,12 @@ const sortTabs: { label: string; sort: PostSort }[] = [
 
 export default function Home({
     posts,
-    creators,
+    products,
     popularCreators,
     sort,
 }: {
     posts: PostSummary[];
-    creators: CreatorSummary[];
+    products: (ShopProductSummary & { creator: CreatorSummary })[];
     popularCreators: CreatorSummary[];
     sort: PostSort;
 }) {
@@ -86,33 +89,48 @@ export default function Home({
                 )}
 
                 <section className="space-y-4">
-                    <h2 className="text-lg font-semibold">新着クリエイター</h2>
-                    {creators.length === 0 ? (
+                    <h2 className="text-lg font-semibold">新着商品</h2>
+                    {products.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                            支援を受け付けているクリエイターはまだいません。
+                            出品されている商品はまだありません。
                         </p>
                     ) : (
-                        <div className="flex flex-wrap gap-4">
-                            {creators.map((creator) => (
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                            {products.map((product) => (
                                 <Link
-                                    key={creator.slug}
-                                    href={show(creator.slug)}
-                                    className="flex w-24 flex-col items-center gap-2 text-center"
+                                    key={product.id}
+                                    href={showProduct({
+                                        creator: product.creator.slug,
+                                        product: product.id,
+                                    })}
+                                    className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
                                 >
-                                    <Avatar className="size-16">
-                                        {creator.avatar_url && (
-                                            <AvatarImage
-                                                src={creator.avatar_url}
+                                    <div className="aspect-square bg-muted">
+                                        {product.cover_url && (
+                                            <img
+                                                src={product.cover_url}
                                                 alt=""
+                                                loading="lazy"
+                                                className="size-full object-cover"
                                             />
                                         )}
-                                        <AvatarFallback>
-                                            {creator.display_name.slice(0, 1)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className="line-clamp-2 text-sm">
-                                        {creator.display_name}
-                                    </span>
+                                    </div>
+                                    <div className="space-y-1 p-3">
+                                        <p className="line-clamp-2 font-medium">
+                                            {product.name}
+                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {product.creator.display_name}
+                                        </p>
+                                        <p className="flex items-center gap-2 text-sm">
+                                            {formatYen(product.price)}
+                                            {product.sold_out && (
+                                                <Badge variant="secondary">
+                                                    売り切れ
+                                                </Badge>
+                                            )}
+                                        </p>
+                                    </div>
                                 </Link>
                             ))}
                         </div>

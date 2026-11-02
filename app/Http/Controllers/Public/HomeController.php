@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
 use App\Models\PostLike;
+use App\Models\Product;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -29,12 +30,18 @@ class HomeController extends Controller
         $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
         $posts = $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
 
-        $creators = Creator::supportable()->latest('id')->limit(12)->get()->map->toSummary();
+        $products = Product::listed()
+            ->whereHas('creator', fn ($query) => $query->open())
+            ->with(['creator', 'images', 'variants'])
+            ->latest('id')
+            ->limit(12)
+            ->get()
+            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
         $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
 
         return Inertia::render('public/home', [
             'posts' => $posts,
-            'creators' => $creators,
+            'products' => $products,
             'popularCreators' => $popularCreators,
             'sort' => $sort,
         ]);

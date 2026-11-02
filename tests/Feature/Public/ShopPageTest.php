@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\OrderStatus;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
@@ -9,8 +10,8 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 it('shows listed products in the shop tab', function () {
     $creator = Creator::factory()->payable()->create(['shop_notice' => '発送は週末です']);
+    Product::factory()->for($creator)->soldOut()->create(['name' => 'ステッカー']);
     Product::factory()->for($creator)->create(['name' => 'マグカップ', 'price' => 1800]);
-    Product::factory()->for($creator)->soldOut()->create(['name' => 'ステッカー', 'sort_order' => 1]);
     Product::factory()->for($creator)->unpublished()->create();
     Product::factory()->for($creator)->create(['hidden_at' => now()]);
     Product::factory()->for($creator)->create()->delete();
@@ -151,4 +152,40 @@ it('shows a work without files as not purchasable', function () {
 
     $this->get(route('shop.products.show', [$creator, $work]))
         ->assertInertia(fn (Assert $page) => $page->where('product.purchasable', false));
+});
+
+it('sorts the shop by units sold in paid orders when popular is chosen', function () {
+    $creator = Creator::factory()->payable()->create();
+    $quiet = Product::factory()->for($creator)->create();
+    $hit = Product::factory()->for($creator)->create();
+    $refundedHit = Product::factory()->for($creator)->create();
+    $newest = Product::factory()->for($creator)->create();
+    Order::factory()->for($creator)->paid()->withItem($quiet)->create();
+    Order::factory()->for($creator)->paid()->withItem($hit, 2)->create();
+    Order::factory()->for($creator)->shipped()->withItem($hit)->create();
+    Order::factory()->for($creator)->withItem($refundedHit, 5)->create();
+    Order::factory()->for($creator)->paid()->state(['status' => OrderStatus::Refunded])->withItem($refundedHit, 5)->create();
+
+    $this->get(route('creators.show', [$creator, 'tab' => 'shop', 'sort' => 'popular']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('shop.sort', 'popular')
+            ->where('shop.products.0.id', $hit->id)
+            ->where('shop.products.1.id', $quiet->id)
+            ->where('shop.products.2.id', $newest->id)
+            ->where('shop.products.3.id', $refundedHit->id));
+});
+
+it('lists the shop newest first by default and for an unknown sort', function () {
+    $creator = Creator::factory()->payable()->create();
+    $old = Product::factory()->for($creator)->create();
+    $new = Product::factory()->for($creator)->create();
+    Order::factory()->for($creator)->paid()->withItem($old, 3)->create();
+
+    foreach (['new', 'bogus'] as $sort) {
+        $this->get(route('creators.show', [$creator, 'tab' => 'shop', 'sort' => $sort]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('shop.sort', 'new')
+                ->where('shop.products.0.id', $new->id)
+                ->where('shop.products.1.id', $old->id));
+    }
 });
