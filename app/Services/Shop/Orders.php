@@ -37,7 +37,8 @@ class Orders
     ) {}
 
     /**
-     * Take the cart's quantities out of stock and create the pending order with copies of the names, kinds and prices.
+     * Take the cart's quantities out of stock and create the pending order with copies of the names, kinds and prices,
+     * plus the buyer's support for the creator (yen, 0 for none) at the support rate of now.
      * Each decrement is conditional on enough stock of a variant of a listed product of this creator, so stock never goes negative.
      * A digital work takes no stock: it must be a listed work of this creator with a file, one of it, not bought by the
      * buyer already. Shipping is charged only when the order holds goods.
@@ -46,13 +47,13 @@ class Orders
      *
      * @throws ValidationException (key `cart`) when a product is short or no longer listed; nothing is reserved then
      */
-    public function reserve(User $buyer, Creator $creator, Collection $cartItems): Order
+    public function reserve(User $buyer, Creator $creator, Collection $cartItems, int $supportAmount = 0): Order
     {
         if ($cartItems->isEmpty()) {
             throw new LogicException('An order needs at least one cart item.');
         }
 
-        return DB::transaction(function () use ($buyer, $creator, $cartItems) {
+        return DB::transaction(function () use ($buyer, $creator, $cartItems, $supportAmount) {
             $lines = [];
 
             // A fixed order of row locks keeps two buyers of the same products from deadlocking.
@@ -95,8 +96,10 @@ class Orders
                 'status' => OrderStatus::Pending,
                 'subtotal' => $subtotal,
                 'shipping_fee' => $shippingFee,
-                'total' => $subtotal + $shippingFee,
+                'support_amount' => $supportAmount,
+                'total' => $subtotal + $shippingFee + $supportAmount,
                 'fee_percent' => (int) config('fanbox.billing.platform_fee_percent'),
+                'support_fee_percent' => (int) config('fanbox.billing.support_fee_percent'),
             ]);
             $order->items()->createMany($lines);
 

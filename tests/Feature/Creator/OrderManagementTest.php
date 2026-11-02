@@ -18,7 +18,7 @@ beforeEach(function () {
 });
 
 /** Reserve, pay on the fake gateway and mark the order paid, as the buyer's checkout would. */
-function paidShopOrder(Product $product, int $quantity = 1): Order
+function paidShopOrder(Product $product, int $quantity = 1, int $supportAmount = 0): Order
 {
     $orders = app(Orders::class);
     $cart = collect([CartItem::query()->create([
@@ -26,7 +26,7 @@ function paidShopOrder(Product $product, int $quantity = 1): Order
         'product_variant_id' => $product->variants()->value('id'),
         'quantity' => $quantity,
     ])]);
-    $order = $orders->reserve(test()->buyer, test()->creator, $cart);
+    $order = $orders->reserve(test()->buyer, test()->creator, $cart, $supportAmount);
     $sessionId = fakeOrderCheckout(test()->gateway, $order);
     test()->gateway->completePaymentCheckout($sessionId);
 
@@ -70,6 +70,16 @@ it('refunds a paid order and restores stock', function () {
     expect($order->fresh())->status->toBe(OrderStatus::Refunded)->refunded_amount->toBe($order->total)
         ->and($product->refresh()->stock)->toBe(5)
         ->and($this->gateway->refundedPaymentIntents())->toBe([$order->stripe_payment_intent_id]);
+});
+
+it('refunds the support along with the goods when the creator cancels', function () {
+    $product = Product::factory()->for($this->creator)->create(['price' => 1500, 'stock' => 5]);
+    $order = paidShopOrder($product, 1, 800);
+    expect($order->total)->toBe(1500 + 500 + 800);
+
+    $this->post(route('creator.orders.refund', $order))->assertSessionHasNoErrors();
+
+    expect($order->fresh())->status->toBe(OrderStatus::Refunded)->refunded_amount->toBe(1500 + 500 + 800);
 });
 
 it('cannot refund a shipped order', function () {
