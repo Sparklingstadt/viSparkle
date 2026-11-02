@@ -104,3 +104,18 @@ it('can be re-run without duplicating creators or replacing images', function ()
     expect(Creator::count())->toBe(11)
         ->and(Creator::where('slug', 'sakura-illust')->sole()->avatar_path)->toBe($avatar);
 });
+
+it('seeds demo products', function () {
+    Storage::fake('public');
+    fakeBilling();
+    $this->seed();
+
+    $creator = Creator::where('slug', 'demo-creator')->sole();
+    $products = $creator->products()->get();
+
+    expect($creator->shipping_fee)->toBe(500)
+        ->and($products)->toHaveCount(3)
+        ->and($products->every->is_published)->toBeTrue()
+        ->and($products->where('stock', 0))->toHaveCount(1)
+        ->and($products->where('stock', '>', 0))->toHaveCount(2);
+});

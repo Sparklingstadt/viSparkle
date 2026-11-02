@@ -6,6 +6,7 @@ use App\Billing\FakeGateway;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -38,6 +39,13 @@ class DatabaseSeeder extends Seeder
 
         foreach ([[300, 'ちょっと応援', '月1回のラフ公開'], [500, 'しっかり応援', '完成イラストの高解像度版'], [1000, '全力応援', '制作過程の動画と素材ファイル']] as $i => [$price, $name, $description]) {
             Plan::factory()->for($creator)->create(['price' => $price, 'name' => $name, 'description' => $description, 'sort' => $i]);
+        }
+
+        // Goods for the shop tab. The seeder writes rows directly, so they are published even though selling needs a payable creator.
+        $creator->forceFill(['shipping_fee' => 500])->save();
+
+        foreach ([['ステッカーセット', 'イラストのステッカー 5 枚セットです。', 600, 20], ['アクリルスタンド', '人気イラストをアクリルスタンドにしました。', 1800, 5], ['缶バッジ', '直径 57mm の缶バッジです。こちらは完売しました。', 400, 0]] as $i => [$name, $description, $price, $stock]) {
+            Product::factory()->for($creator)->create(['name' => $name, 'description' => $description, 'price' => $price, 'stock' => $stock, 'is_published' => true, 'sort_order' => $i]);
         }
 
         foreach ([[0, 'ご挨拶', 'ページを開設しました！'], [300, '今月のラフ', '今月描いたラフをまとめました。'], [1000, 'メイキング', '完成までの工程を解説します。']] as $i => [$price, $title, $excerpt]) {

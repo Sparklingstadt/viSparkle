@@ -30,6 +30,7 @@ class EarningsController extends Controller
             'feePercent' => (int) config('fanbox.billing.platform_fee_percent'),
             'activeSupporters' => $creator->supports()->active()->count(),
             'months' => $this->months($creator),
+            'shop_months' => $this->shopMonths($creator),
         ]);
     }
 
@@ -139,6 +140,51 @@ class EarningsController extends Controller
             'gross' => $gross[$key] ?? 0,
             'fee' => $fee[$key] ?? 0,
             'net' => ($gross[$key] ?? 0) - ($fee[$key] ?? 0),
+        ], $keys);
+    }
+
+    /**
+     * Goods sales for the same twelve months, by the month of payment. Sales are order totals; the fee is estimated
+     * per order (floor) on the total, and is 0 for a fully refunded order.
+     *
+     * @return list<array{month: string, orders: int, sales: int, refunded: int, net: int}>
+     */
+    private function shopMonths(Creator $creator): array
+    {
+        $tz = 'Asia/Tokyo';
+        $thisMonth = Carbon::now($tz)->startOfMonth();
+        $windowStart = $thisMonth->copy()->subMonthsNoOverflow(self::MONTHS - 1);
+
+        $keys = [];
+        for ($i = 0; $i < self::MONTHS; $i++) {
+            $keys[] = $thisMonth->copy()->subMonthsNoOverflow($i)->format('Y-m');
+        }
+
+        $orders = $creator->orders()
+            ->whereNotNull('paid_at')
+            ->where('paid_at', '>=', $windowStart)
+            ->where('paid_at', '<', $thisMonth->copy()->addMonthNoOverflow())
+            ->get(['total', 'refunded_amount', 'fee_percent', 'paid_at']);
+
+        $count = [];
+        $sales = [];
+        $refunded = [];
+        $net = [];
+        foreach ($orders as $order) {
+            $key = $order->paid_at->copy()->setTimezone($tz)->format('Y-m');
+            $fee = $order->refunded_amount >= $order->total ? 0 : intdiv($order->total * $order->fee_percent, 100);
+            $count[$key] = ($count[$key] ?? 0) + 1;
+            $sales[$key] = ($sales[$key] ?? 0) + $order->total;
+            $refunded[$key] = ($refunded[$key] ?? 0) + $order->refunded_amount;
+            $net[$key] = ($net[$key] ?? 0) + $order->total - $order->refunded_amount - $fee;
+        }
+
+        return array_map(fn (string $key) => [
+            'month' => $key,
+            'orders' => $count[$key] ?? 0,
+            'sales' => $sales[$key] ?? 0,
+            'refunded' => $refunded[$key] ?? 0,
+            'net' => $net[$key] ?? 0,
         ], $keys);
     }
 }
