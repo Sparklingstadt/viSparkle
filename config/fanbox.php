@@ -54,6 +54,11 @@ return [
         // choosing fake in production explicitly is refused by BillingServiceProvider.
         'driver' => env('BILLING_DRIVER', env('APP_ENV') === 'production' ? 'stripe' : 'fake'),
         'platform_fee_percent' => (int) env('BILLING_PLATFORM_FEE_PERCENT', 10),
+        // The extra a buyer may add to a shop order to support the creator, and the platform's rate on it.
+        'support_fee_percent' => (int) env('BILLING_SUPPORT_FEE_PERCENT', 5),
+        'support_amount_min' => 100,
+        'support_amount_max' => 50000,
+        'support_amount_presets' => [100, 300, 500, 1000, 3000],
         'stripe' => [
             'secret' => env('STRIPE_SECRET'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),

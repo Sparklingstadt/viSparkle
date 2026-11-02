@@ -29,10 +29,11 @@ use Illuminate\Support\Facades\Storage;
  * @property int $shipping_fee
  * @property string|null $shop_notice
  * @property string|null $shop_contact_email
+ * @property bool $accepts_support
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path', 'shipping_fee', 'shop_notice', 'shop_contact_email'])]
+#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path', 'shipping_fee', 'shop_notice', 'shop_contact_email', 'accepts_support'])]
 class Creator extends Model
 {
     /** @use HasFactory<CreatorFactory> */
@@ -45,6 +46,7 @@ class Creator extends Model
             'details_submitted' => 'boolean',
             'closed_at' => 'datetime',
             'shipping_fee' => 'integer',
+            'accepts_support' => 'boolean',
         ];
     }
 

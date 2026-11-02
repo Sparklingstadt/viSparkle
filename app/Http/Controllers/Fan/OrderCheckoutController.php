@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Fan;
 use App\Billing\BillingException;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StartOrderCheckoutRequest;
 use App\Models\Creator;
 use App\Services\Shop\AwaitingPaymentException;
 use App\Services\Shop\OrderCheckout;
@@ -20,10 +21,10 @@ class OrderCheckoutController extends Controller
     /**
      * Reserve the stock and send the buyer to Stripe Checkout; the order is paid when they come back (or by the webhook).
      */
-    public function store(Request $request, Creator $creator): Response
+    public function store(StartOrderCheckoutRequest $request, Creator $creator): Response
     {
         try {
-            return Inertia::location($this->checkout->begin($request->user(), $creator));
+            return Inertia::location($this->checkout->begin($request->user(), $creator, $request->supportAmount()));
         } catch (AwaitingPaymentException $e) {
             // Lead the buyer to the order whose payment is still being settled.
             Inertia::flash('toast', ['type' => 'error', 'message' => $e->getMessage()]);

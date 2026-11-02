@@ -15,6 +15,7 @@ type Order = {
     has_physical: boolean;
     subtotal: number;
     shipping_fee: number;
+    support_amount: number;
     total: number;
     shipping_name: string | null;
     shipping_postal_code: string | null;
@@ -66,6 +67,7 @@ export default function OrderShow({ order }: { order: Order }) {
                 <OrderTotals
                     subtotal={order.subtotal}
                     shippingFee={order.shipping_fee}
+                    supportAmount={order.support_amount}
                     total={order.total}
                 />
 

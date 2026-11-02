@@ -20,6 +20,7 @@ type Order = {
     has_physical: boolean;
     subtotal: number;
     shipping_fee: number;
+    support_amount: number;
     total: number;
     buyer_name: string | null;
     shipping_name: string | null;
@@ -58,6 +59,7 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                 <OrderTotals
                     subtotal={order.subtotal}
                     shippingFee={order.shipping_fee}
+                    supportAmount={order.support_amount}
                     total={order.total}
                 />
 

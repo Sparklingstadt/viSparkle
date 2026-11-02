@@ -128,3 +128,13 @@ it('labels a paid digital-only order as purchased', function () {
     $this->actingAs($this->buyer)->get(route('orders.index'))
         ->assertInertia(fn (Assert $page) => $page->where('orders.data.0.status_label', '購入済み'));
 });
+
+it('shows the support of an order to its buyer', function () {
+    $order = Order::factory()->paid()->withSupport(500)->for($this->buyer)->for($this->creator)->withItem($this->product)->create();
+
+    $this->actingAs($this->buyer)->get(route('orders.show', $order))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('order.support_amount', 500)
+            ->where('order.total', 1500 + 500));
+});

@@ -214,11 +214,15 @@ function fakeOrderCheckout(FakeGateway $gateway, Order $order, ?array $metadata 
         $lineItems[] = new LineItem('送料', $order->shipping_fee, 1);
     }
 
+    if ($order->support_amount > 0) {
+        $lineItems[] = new LineItem('クリエイターへの応援', $order->support_amount, 1);
+    }
+
     $session = $gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
         customerId: (string) $user->stripe_customer_id,
         lineItems: $lineItems,
         destinationAccountId: (string) $order->creator?->stripe_account_id,
-        applicationFeeAmount: intdiv($order->total * $order->fee_percent, 100),
+        applicationFeeAmount: $order->platformFeeAmount(),
         metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $order->creator_id, 'order_id' => (string) $order->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',

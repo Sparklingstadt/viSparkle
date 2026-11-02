@@ -144,10 +144,10 @@ class EarningsController extends Controller
     }
 
     /**
-     * Goods sales for the same twelve months, by the month of payment. Sales are order totals; the fee is estimated
-     * per order (floor) on the total, and is 0 for a fully refunded order.
+     * Goods sales for the same twelve months, by the month of payment. Sales are order totals, support included; the fee
+     * is the order's own (platform rate on goods and shipping, support rate on support), and 0 for a fully refunded order.
      *
-     * @return list<array{month: string, orders: int, sales: int, refunded: int, net: int}>
+     * @return list<array{month: string, orders: int, sales: int, refunded: int, net: int, supports: int, support_amount: int}>
      */
     private function shopMonths(Creator $creator): array
     {
@@ -164,19 +164,26 @@ class EarningsController extends Controller
             ->whereNotNull('paid_at')
             ->where('paid_at', '>=', $windowStart)
             ->where('paid_at', '<', $thisMonth->copy()->addMonthNoOverflow())
-            ->get(['total', 'refunded_amount', 'fee_percent', 'paid_at']);
+            ->get(['subtotal', 'shipping_fee', 'support_amount', 'total', 'refunded_amount', 'fee_percent', 'support_fee_percent', 'paid_at']);
 
         $count = [];
+        $supports = [];
+        $supportAmount = [];
         $sales = [];
         $refunded = [];
         $net = [];
         foreach ($orders as $order) {
             $key = $order->paid_at->copy()->setTimezone($tz)->format('Y-m');
-            $fee = $order->refunded_amount >= $order->total ? 0 : intdiv($order->total * $order->fee_percent, 100);
+            $fee = $order->refunded_amount >= $order->total ? 0 : $order->platformFeeAmount();
             $count[$key] = ($count[$key] ?? 0) + 1;
             $sales[$key] = ($sales[$key] ?? 0) + $order->total;
             $refunded[$key] = ($refunded[$key] ?? 0) + $order->refunded_amount;
             $net[$key] = ($net[$key] ?? 0) + $order->total - $order->refunded_amount - $fee;
+
+            if ($order->support_amount > 0) {
+                $supports[$key] = ($supports[$key] ?? 0) + 1;
+                $supportAmount[$key] = ($supportAmount[$key] ?? 0) + $order->support_amount;
+            }
         }
 
         return array_map(fn (string $key) => [
@@ -185,6 +192,8 @@ class EarningsController extends Controller
             'sales' => $sales[$key] ?? 0,
             'refunded' => $refunded[$key] ?? 0,
             'net' => $net[$key] ?? 0,
+            'supports' => $supports[$key] ?? 0,
+            'support_amount' => $supportAmount[$key] ?? 0,
         ], $keys);
     }
 }

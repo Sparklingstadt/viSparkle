@@ -62,6 +62,7 @@ class OrderController extends Controller
                 'has_physical' => $order->hasPhysical(),
                 'subtotal' => $order->subtotal,
                 'shipping_fee' => $order->shipping_fee,
+                'support_amount' => $order->support_amount,
                 'total' => $order->total,
                 'shipping_name' => $order->shipping_name,
                 'shipping_postal_code' => $order->shipping_postal_code,

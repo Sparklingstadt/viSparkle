@@ -70,10 +70,12 @@ export function OrderLines({ items }: { items: OrderItemData[] }) {
 export function OrderTotals({
     subtotal,
     shippingFee,
+    supportAmount = 0,
     total,
 }: {
     subtotal: number;
     shippingFee: number;
+    supportAmount?: number;
     total: number;
 }) {
     return (
@@ -86,6 +88,12 @@ export function OrderTotals({
                 <dt className="text-muted-foreground">送料</dt>
                 <dd>{formatYen(shippingFee)}</dd>
             </div>
+            {supportAmount > 0 && (
+                <div className="flex justify-between">
+                    <dt className="text-muted-foreground">応援</dt>
+                    <dd>{formatYen(supportAmount)}</dd>
+                </div>
+            )}
             <div className="flex justify-between border-t pt-1 font-bold">
                 <dt>合計</dt>
                 <dd>{formatYen(total)}</dd>

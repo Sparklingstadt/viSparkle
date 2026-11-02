@@ -37,7 +37,7 @@ class OrderCheckout
      * @throws ValidationException (key `cart`)
      * @throws AwaitingPaymentException when an order of this creator is awaiting a delayed payment
      */
-    public function begin(User $buyer, Creator $creator): string
+    public function begin(User $buyer, Creator $creator, int $supportAmount = 0): string
     {
         if ($buyer->isSuspended() || ! $creator->canSell()) {
             throw self::unavailable();
@@ -46,13 +46,13 @@ class OrderCheckout
         // One begin at a time per buyer and creator, so two tabs cannot both pass the replacement and reserve twice.
         try {
             return Cache::lock("order-checkout:{$buyer->id}:{$creator->id}", 60)
-                ->block(5, fn () => $this->beginLocked($buyer, $creator));
+                ->block(5, fn () => $this->beginLocked($buyer, $creator, $supportAmount));
         } catch (LockTimeoutException) {
             throw self::unavailable();
         }
     }
 
-    private function beginLocked(User $buyer, Creator $creator): string
+    private function beginLocked(User $buyer, Creator $creator, int $supportAmount): string
     {
         $this->replaceUnfinished($buyer, $creator);
 
@@ -67,14 +67,14 @@ class OrderCheckout
             throw ValidationException::withMessages(['cart' => $this->cart->refusal($buyer, $group)]);
         }
 
-        $order = $this->orders->reserve($buyer, $creator, $group['items']);
+        $order = $this->orders->reserve($buyer, $creator, $group['items'], $supportAmount);
 
         try {
             $session = $this->gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
                 customerId: $this->customers->customerId($buyer),
                 lineItems: $this->lineItems($order),
                 destinationAccountId: (string) $creator->stripe_account_id,
-                applicationFeeAmount: intdiv($order->total * $order->fee_percent, 100),
+                applicationFeeAmount: $order->platformFeeAmount(),
                 metadata: [
                     'app' => (string) config('fanbox.billing.idempotency_prefix'),
                     'user_id' => (string) $buyer->id,
@@ -225,6 +225,10 @@ class OrderCheckout
 
         if ($order->shipping_fee > 0) {
             $lines[] = new LineItem('送料', $order->shipping_fee, 1);
+        }
+
+        if ($order->support_amount > 0) {
+            $lines[] = new LineItem('クリエイターへの応援', $order->support_amount, 1);
         }
 
         return $lines;

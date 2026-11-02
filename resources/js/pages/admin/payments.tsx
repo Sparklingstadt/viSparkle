@@ -41,6 +41,7 @@ type OrderRow = {
     total: number;
     has_digital: boolean;
     has_physical: boolean;
+    support_amount: number;
     status: string;
     status_label: string;
     refundable: boolean;
@@ -219,6 +220,8 @@ export default function Payments({
                                             </span>
                                             <span className="font-medium">
                                                 {formatYen(order.total)}
+                                                {order.support_amount > 0 &&
+                                                    `（うち応援 ${formatYen(order.support_amount)}）`}
                                             </span>
                                             <Badge
                                                 variant={

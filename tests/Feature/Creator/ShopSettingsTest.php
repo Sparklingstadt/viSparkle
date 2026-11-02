@@ -16,7 +16,23 @@ it('shows the shop settings', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('creator/shop')
             ->where('shop.shipping_fee', 500)
-            ->where('shop.shop_notice', 'お知らせ'));
+            ->where('shop.shop_notice', 'お知らせ')
+            ->where('shop.accepts_support', true)
+            ->where('support_fee_percent', 5));
+});
+
+it('turns support off and on', function () {
+    // An unchecked checkbox sends nothing, which means off.
+    $this->put(route('creator.shop.update'), ['shipping_fee' => 0])->assertSessionHasNoErrors();
+    expect($this->creator->fresh()->accepts_support)->toBeFalse();
+
+    $this->put(route('creator.shop.update'), ['shipping_fee' => 0, 'accepts_support' => '1'])->assertSessionHasNoErrors();
+    expect($this->creator->fresh()->accepts_support)->toBeTrue();
+});
+
+it('rejects a support setting that is not a boolean', function () {
+    $this->put(route('creator.shop.update'), ['shipping_fee' => 0, 'accepts_support' => 'yes'])
+        ->assertSessionHasErrors('accepts_support');
 });
 
 it('saves shop settings', function () {

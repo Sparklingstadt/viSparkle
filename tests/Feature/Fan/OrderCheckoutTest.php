@@ -28,9 +28,9 @@ beforeEach(function () {
 /**
  * Begin a checkout over HTTP as the buyer and return the fake session id taken from the redirect URL.
  */
-function beginOrderCheckout(User $buyer, Creator $creator): string
+function beginOrderCheckout(User $buyer, Creator $creator, array $data = []): string
 {
-    $response = test()->actingAs($buyer)->post(route('cart.checkout', $creator));
+    $response = test()->actingAs($buyer)->post(route('cart.checkout', $creator), $data);
     $response->assertRedirectContains('/dev/fake-checkout/');
 
     return basename((string) $response->headers->get('Location'));
@@ -47,7 +47,19 @@ it('shows the confirm page', function () {
             ->where('group.subtotal', 3600)
             ->where('group.shipping_fee', 600)
             ->where('group.total', 4200)
-            ->has('group.items', 1));
+            ->has('group.items', 1)
+            ->where('support.presets', [100, 300, 500, 1000, 3000])
+            ->where('support.min', 100)
+            ->where('support.max', 50000));
+});
+
+it('hides the support on the confirm page when the creator does not accept it', function () {
+    $this->creator->update(['accepts_support' => false]);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('support', null));
 });
 
 it('sends an empty or unpurchasable confirm back to the cart', function () {
@@ -142,6 +154,82 @@ it('says the item cannot be bought when it is unlisted, even if it is also short
         ->assertSessionHasErrors(['cart' => '現在購入できません']);
 
     expect(Order::count())->toBe(0);
+});
+
+it('adds the support to the order and to checkout with its own fee', function () {
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+
+    $sessionId = beginOrderCheckout($this->buyer, $this->creator, ['support_amount' => 500]);
+
+    $order = Order::sole();
+    $raw = Cache::get('fake-billing:state')['sessions'][$sessionId];
+    expect($order)->support_amount->toBe(500)->support_fee_percent->toBe(5)->total->toBe(4200 + 500)
+        ->and($raw['line_items'])->toBe([
+            ['name' => 'マグカップ', 'unit_amount' => 1800, 'quantity' => 2],
+            ['name' => '送料', 'unit_amount' => 600, 'quantity' => 1],
+            ['name' => 'クリエイターへの応援', 'unit_amount' => 500, 'quantity' => 1],
+        ])
+        ->and($raw['application_fee_amount'])->toBe(intdiv(4200 * 10, 100) + intdiv(500 * 5, 100));
+});
+
+it('keeps checkout unchanged without support', function (array $data) {
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+
+    $sessionId = beginOrderCheckout($this->buyer, $this->creator, $data);
+
+    $raw = Cache::get('fake-billing:state')['sessions'][$sessionId];
+    expect(Order::sole())->support_amount->toBe(0)->total->toBe(4200)
+        ->and($raw['line_items'])->toHaveCount(2)
+        ->and($raw['application_fee_amount'])->toBe(intdiv(4200 * 10, 100));
+})->with([
+    'not sent' => [[]],
+    'empty' => [['support_amount' => '']],
+    'zero' => [['support_amount' => 0]],
+]);
+
+it('rejects support out of range', function (mixed $amount) {
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->from(route('cart.confirm', $this->creator))
+        ->post(route('cart.checkout', $this->creator), ['support_amount' => $amount])
+        ->assertRedirect(route('cart.confirm', $this->creator))
+        ->assertSessionHasErrors(['support_amount' => '応援額は0円、または100円から50,000円で指定してください。']);
+
+    expect(Order::count())->toBe(0);
+})->with([99, 1, 50001, -100, '300円', 100.5]);
+
+it('accepts the bounds of the support', function (int $amount) {
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    beginOrderCheckout($this->buyer, $this->creator, ['support_amount' => $amount]);
+
+    expect(Order::sole()->support_amount)->toBe($amount);
+})->with([100, 50000]);
+
+it('refuses support when the creator does not accept it, but still sells', function () {
+    $this->creator->update(['accepts_support' => false]);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->from(route('cart.confirm', $this->creator))
+        ->post(route('cart.checkout', $this->creator), ['support_amount' => 300])
+        ->assertRedirect(route('cart.confirm', $this->creator))
+        ->assertSessionHasErrors(['support_amount' => 'このクリエイターは現在応援を受け付けていません']);
+    expect(Order::count())->toBe(0);
+
+    beginOrderCheckout($this->buyer, $this->creator, ['support_amount' => 0]);
+
+    expect(Order::sole()->support_amount)->toBe(0);
+});
+
+it('does not carry the support over when replacing a pending order', function () {
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 2);
+
+    beginOrderCheckout($this->buyer, $this->creator, ['support_amount' => 1000]);
+    beginOrderCheckout($this->buyer, $this->creator);
+
+    $orders = Order::orderBy('id')->get();
+    expect($orders[0])->status->toBe(OrderStatus::Canceled)->cancel_reason->toBe(OrderCancelReason::Abandoned)
+        ->and($orders[1])->support_amount->toBe(0)->total->toBe(4200);
 });
 
 it('replaces an unfinished checkout of the same creator', function () {

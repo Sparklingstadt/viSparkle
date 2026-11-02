@@ -14,6 +14,8 @@ type ShopMonth = {
     sales: number;
     refunded: number;
     net: number;
+    supports: number;
+    support_amount: number;
 };
 
 type Month = { month: string; gross: number; fee: number; net: number };
@@ -130,6 +132,7 @@ export default function Earnings({
                                     <th className="py-2">月</th>
                                     <th className="text-right">注文数</th>
                                     <th className="text-right">売上（税込）</th>
+                                    <th className="text-right">うち応援</th>
                                     <th className="text-right">返金</th>
                                     <th className="text-right">
                                         受取額（目安）
@@ -145,6 +148,10 @@ export default function Earnings({
                                         </td>
                                         <td className="text-right">
                                             {formatYen(row.sales)}
+                                        </td>
+                                        <td className="text-right">
+                                            {row.supports} 件 /{' '}
+                                            {formatYen(row.support_amount)}
                                         </td>
                                         <td className="text-right">
                                             {formatYen(row.refunded)}

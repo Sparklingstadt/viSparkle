@@ -20,8 +20,10 @@ use Illuminate\Support\Carbon;
  * @property OrderStatus $status
  * @property int $subtotal
  * @property int $shipping_fee
+ * @property int $support_amount
  * @property int $total
  * @property int $fee_percent
+ * @property int $support_fee_percent
  * @property string|null $shipping_name
  * @property string|null $shipping_postal_code
  * @property string|null $shipping_address
@@ -39,7 +41,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'creator_id', 'status', 'subtotal', 'shipping_fee', 'total', 'fee_percent'])]
+#[Fillable(['user_id', 'creator_id', 'status', 'subtotal', 'shipping_fee', 'support_amount', 'total', 'fee_percent', 'support_fee_percent'])]
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
@@ -53,6 +55,8 @@ class Order extends Model
             'shipping_fee' => 'integer',
             'total' => 'integer',
             'fee_percent' => 'integer',
+            'support_amount' => 'integer',
+            'support_fee_percent' => 'integer',
             'paid_at' => 'datetime',
             'shipped_at' => 'datetime',
             'canceled_at' => 'datetime',
@@ -83,6 +87,16 @@ class Order extends Model
         return $this->status === OrderStatus::Paid && $this->hasDigital() && ! $this->hasPhysical()
             ? '購入済み'
             : $this->status->label();
+    }
+
+    /**
+     * The platform's cut (§5.2): the platform rate on the goods and shipping plus the support rate on the support,
+     * each floored, both at the rates saved when the order was made.
+     */
+    public function platformFeeAmount(): int
+    {
+        return intdiv(($this->subtotal + $this->shipping_fee) * $this->fee_percent, 100)
+            + intdiv($this->support_amount * $this->support_fee_percent, 100);
     }
 
     public function hasPhysical(): bool

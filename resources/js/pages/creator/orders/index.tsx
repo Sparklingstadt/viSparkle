@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatYen } from '@/lib/format';
 import { index, show } from '@/routes/creator/orders';
@@ -11,6 +12,7 @@ type Row = {
     status: OrderStatusValue;
     status_label: string;
     total: number;
+    support_amount: number;
     created_at: string;
     buyer_name: string | null;
     shipping_name: string | null;
@@ -95,6 +97,11 @@ export default function CreatorOrdersIndex({
                                             status={order.status}
                                             label={order.status_label}
                                         />
+                                        {order.support_amount > 0 && (
+                                            <Badge variant="outline">
+                                                応援あり
+                                            </Badge>
+                                        )}
                                         <span className="text-sm">
                                             {formatYen(order.total)}
                                         </span>

@@ -61,6 +61,7 @@ class PaymentController extends Controller
             'total' => $order->total,
             'has_digital' => $order->hasDigital(),
             'has_physical' => $order->hasPhysical(),
+            'support_amount' => $order->support_amount,
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'refundable' => in_array($order->status, [OrderStatus::Paid, OrderStatus::Shipped], true),
