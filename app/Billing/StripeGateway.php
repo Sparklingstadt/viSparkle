@@ -7,9 +7,11 @@ use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
+use App\Billing\Data\LineItem;
 use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
+use App\Billing\Data\ShippingDetails;
 use App\Billing\Data\SubscriptionData;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -103,6 +105,48 @@ class StripeGateway implements PaymentGateway
     public function expireCheckoutSession(string $id): void
     {
         $this->call(fn () => $this->client->checkout->sessions->expire($id));
+    }
+
+    public function createPaymentCheckoutSession(PaymentCheckoutRequest $request): CheckoutSessionData
+    {
+        $session = $this->call(fn () => $this->client->checkout->sessions->create([
+            'mode' => 'payment',
+            'customer' => $request->customerId,
+            'line_items' => array_map(fn (LineItem $item) => [
+                'price_data' => [
+                    'currency' => 'jpy',
+                    'unit_amount' => $item->unitAmount,
+                    'product_data' => ['name' => $item->name],
+                ],
+                'quantity' => $item->quantity,
+            ], $request->lineItems),
+            'locale' => 'ja',
+            'shipping_address_collection' => ['allowed_countries' => ['JP']],
+            'phone_number_collection' => ['enabled' => true],
+            'expires_at' => $request->expiresAt->getTimestamp(),
+            'success_url' => $request->successUrl,
+            'cancel_url' => $request->cancelUrl,
+            'metadata' => $request->metadata,
+            'payment_intent_data' => [
+                'application_fee_amount' => $request->applicationFeeAmount,
+                'transfer_data' => ['destination' => $request->destinationAccountId],
+                'metadata' => $request->metadata,
+            ],
+        ], ['idempotency_key' => $this->idempotencyKey($request->idempotencyKey)]));
+
+        return self::sessionFrom($session);
+    }
+
+    public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData
+    {
+        // No amount: a full refund, with the transfer reversal and fee refund coming back in full too.
+        $refund = $this->call(fn () => $this->client->refunds->create([
+            'payment_intent' => $paymentIntentId,
+            'reverse_transfer' => true,
+            'refund_application_fee' => true,
+        ], ['idempotency_key' => $this->idempotencyKey($idempotencyKey)]))->toArray();
+
+        return new RefundData((string) $refund['id'], (int) ($refund['amount'] ?? 0));
     }
 
     public function retrieveSubscription(string $id): SubscriptionData
@@ -226,16 +270,6 @@ class StripeGateway implements PaymentGateway
      * Charges no longer carry their invoice in newer API versions; it is found through the invoice payment of the
      * charge's PaymentIntent. The legacy `invoice` field is read first when present.
      */
-    public function createPaymentCheckoutSession(PaymentCheckoutRequest $request): CheckoutSessionData
-    {
-        throw new BillingException('not implemented');
-    }
-
-    public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData
-    {
-        throw new BillingException('not implemented');
-    }
-
     public function retrieveCharge(string $chargeId): ChargeData
     {
         $charge = $this->call(fn () => $this->client->charges->retrieve($chargeId))->toArray();
@@ -254,6 +288,7 @@ class StripeGateway implements PaymentGateway
             invoiceId: $invoiceId,
             amountRefunded: (int) ($charge['amount_refunded'] ?? 0),
             disputed: ($charge['disputed'] ?? false) === true,
+            paymentIntentId: $paymentIntentId,
         );
     }
 
@@ -359,6 +394,37 @@ class StripeGateway implements PaymentGateway
             subscriptionId: self::idOf($data['subscription'] ?? null),
             customerId: self::idOf($data['customer'] ?? null),
             metadata: self::stringMap($data['metadata'] ?? []),
+            paymentStatus: isset($data['payment_status']) ? (string) $data['payment_status'] : null,
+            paymentIntentId: self::idOf($data['payment_intent'] ?? null),
+            shipping: self::shippingFrom($data),
+        );
+    }
+
+    /**
+     * Shipping moved to collected_information in newer API versions; the old top-level field is the fallback.
+     *
+     * @param  array<string, mixed>  $session
+     */
+    private static function shippingFrom(array $session): ?ShippingDetails
+    {
+        $shipping = $session['collected_information']['shipping_details'] ?? $session['shipping_details'] ?? null;
+
+        if (! is_array($shipping)) {
+            return null;
+        }
+
+        $address = is_array($shipping['address'] ?? null) ? $shipping['address'] : [];
+        $parts = array_filter(
+            array_map(fn (string $key) => trim((string) ($address[$key] ?? '')), ['state', 'city', 'line1', 'line2']),
+            fn (string $part) => $part !== '',
+        );
+        $phone = $session['customer_details']['phone'] ?? null;
+
+        return new ShippingDetails(
+            name: (string) ($shipping['name'] ?? ''),
+            postalCode: (string) ($address['postal_code'] ?? ''),
+            address: implode(' ', $parts),
+            phone: is_string($phone) && $phone !== '' ? $phone : null,
         );
     }
 
