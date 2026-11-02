@@ -6,6 +6,7 @@ use App\Billing\BillingException;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\PaymentGateway;
+use App\Billing\StripeGateway;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
@@ -86,9 +87,9 @@ class CheckoutService
      */
     public function assertCanBegin(User $user, Plan $plan): void
     {
-        // Live payments (sk_live_ or restricted rk_live_ keys) need the 特商法 details published first; test keys are never blocked.
+        // Live payments need the 特商法 details published first; test keys are never blocked.
         if (app()->isProduction()
-            && str_contains((string) config('fanbox.billing.stripe.secret'), '_live_')
+            && StripeGateway::usesLiveKeys()
             && ! LegalDocuments::ready()) {
             Log::error('legal.not_ready');
 

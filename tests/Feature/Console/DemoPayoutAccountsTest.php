@@ -44,3 +44,43 @@ it('refuses to run with live Stripe keys', function () {
 
     expect(Creator::whereNotNull('stripe_account_id')->count())->toBe(0);
 });
+
+it('warns about demo creators that have not been seeded', function () {
+    Creator::where('slug', 'aoi-music')->sole()->user->delete();
+
+    $this->artisan('fanbox:demo-payout-accounts')
+        ->expectsOutputToContain('aoi-music: クリエイターが見つかりません')
+        ->expectsOutputToContain('支援可 0/8')
+        ->assertExitCode(0);
+
+    expect(Creator::whereNotNull('stripe_account_id')->count())->toBe(7);
+});
+
+it('stops when the payment service fails and keeps the accounts opened so far', function () {
+    $first = Creator::whereIn('slug', DemoCreatorsSeeder::acceptingSupports())->orderBy('id')->first();
+    $broken = Creator::whereIn('slug', DemoCreatorsSeeder::acceptingSupports())->orderBy('id')->skip(1)->first();
+    $broken->forceFill(['stripe_account_id' => 'acct_missing'])->save();
+
+    $this->artisan('fanbox:demo-payout-accounts')
+        ->expectsOutputToContain('決済サービスに接続できませんでした')
+        ->doesntExpectOutputToContain('支援可 ')
+        ->assertExitCode(1);
+
+    expect($first->fresh()->stripe_account_id)->not->toBeNull()
+        ->and(Creator::whereNotNull('stripe_account_id')->count())->toBe(2);
+});
+
+it('detaches the payout accounts, even with live Stripe keys', function () {
+    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
+    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
+    config(['fanbox.billing.stripe.secret' => 'sk_live_123']);
+
+    $this->artisan('fanbox:demo-payout-accounts', ['--detach' => true])
+        ->expectsOutputToContain('入金口座を外しました（8人）')
+        ->assertExitCode(0);
+
+    $sakura = Creator::where('slug', 'sakura-illust')->sole();
+    expect(Creator::whereNotNull('stripe_account_id')->count())->toBe(0)
+        ->and($sakura->payouts_enabled)->toBeFalse()
+        ->and($sakura->canAcceptSupports())->toBeFalse();
+});

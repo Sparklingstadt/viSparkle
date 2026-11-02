@@ -30,6 +30,14 @@ class StripeGateway implements PaymentGateway
 {
     public function __construct(private readonly StripeClient $client) {}
 
+    /**
+     * Whether the configured secret moves real money (sk_live_ or restricted rk_live_ keys); test keys never do.
+     */
+    public static function usesLiveKeys(): bool
+    {
+        return str_contains((string) config('fanbox.billing.stripe.secret'), '_live_');
+    }
+
     public function createCustomer(User $user): string
     {
         $customer = $this->call(fn () => $this->client->customers->create([
