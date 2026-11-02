@@ -6,7 +6,10 @@ use App\Http\Controllers\Creator\EarningsController;
 use App\Http\Controllers\Creator\PlanController;
 use App\Http\Controllers\Creator\PostController;
 use App\Http\Controllers\Creator\PostFileController;
+use App\Http\Controllers\Creator\ProductController;
+use App\Http\Controllers\Creator\ProductImageController;
 use App\Http\Controllers\Creator\ProfileController;
+use App\Http\Controllers\Creator\ShopSettingsController;
 use App\Http\Controllers\Creator\SupporterController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,5 +46,21 @@ Route::middleware(['auth', 'verified'])->prefix('creator')->name('creator.')->gr
             ->middleware('throttle:60,1')
             ->name('posts.files.store');
         Route::delete('posts/{post}/files/{file}', [PostFileController::class, 'destroy'])->name('posts.files.destroy');
+
+        Route::get('shop', [ShopSettingsController::class, 'edit'])->name('shop.edit');
+        Route::put('shop', [ShopSettingsController::class, 'update'])->name('shop.update');
+
+        Route::get('products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
+        Route::post('products', [ProductController::class, 'store'])->name('products.store');
+        Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
+        Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+        Route::post('products/{product}/images', [ProductImageController::class, 'store'])
+            ->middleware('throttle:60,1')
+            ->name('products.images.store');
+        Route::put('products/{product}/images', [ProductImageController::class, 'reorder'])->name('products.images.reorder');
+        Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy'])->name('products.images.destroy');
     });
 });

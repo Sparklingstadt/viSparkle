@@ -4,6 +4,7 @@ import {
     FileText,
     Heart,
     Newspaper,
+    Package,
     Palette,
     Shield,
     Ticket,
@@ -28,6 +29,7 @@ import { feed } from '@/routes';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
+import { index as creatorProducts } from '@/routes/creator/products';
 import { index as creatorSupporters } from '@/routes/creator/supporters';
 import { index as supporting } from '@/routes/supporting';
 import { edit as creatorProfile } from '@/routes/creator/profile';
@@ -61,6 +63,11 @@ const creatorNavItems: NavItem[] = [
         title: '投稿管理',
         href: creatorPosts(),
         icon: FileText,
+    },
+    {
+        title: '商品管理',
+        href: creatorProducts(),
+        icon: Package,
     },
     {
         title: '支援者',

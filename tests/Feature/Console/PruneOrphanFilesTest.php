@@ -3,6 +3,7 @@
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\PostFile;
+use App\Models\Product;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Storage;
 
@@ -40,6 +41,17 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
     Storage::disk('private')->assertMissing($orphan);
     Storage::disk('public')->assertExists([$avatar, $cover]);
     Storage::disk('public')->assertMissing($oldAvatar);
+});
+
+it('keeps product images', function () {
+    $image = Product::factory()->create()->images()->create(['path' => 'creators/9/products/p.jpg', 'sort_order' => 0]);
+    $kept = putFile('public', $image->path, 48);
+    $orphan = putFile('public', 'creators/9/products/orphan.jpg', 48);
+
+    $this->artisan('fanbox:prune-orphan-files')->assertSuccessful();
+
+    Storage::disk('public')->assertExists($kept);
+    Storage::disk('public')->assertMissing($orphan);
 });
 
 it('only reports in dry-run mode', function () {
