@@ -3,18 +3,22 @@ import ShopSettingsController from '@/actions/App/Http/Controllers/Creator/ShopS
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/creator/shop';
 
 export default function ShopSettings({
     shop,
+    support_fee_percent,
 }: {
     shop: {
         shipping_fee: number;
         shop_notice: string | null;
         shop_contact_email: string | null;
+        accepts_support: boolean;
     };
+    support_fee_percent: number;
 }) {
     return (
         <>
@@ -74,6 +78,24 @@ export default function ShopSettings({
                                 <InputError
                                     message={errors.shop_contact_email}
                                 />
+                            </div>
+                            <div className="grid gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="accepts_support"
+                                        name="accepts_support"
+                                        value="1"
+                                        defaultChecked={shop.accepts_support}
+                                    />
+                                    <Label htmlFor="accepts_support">
+                                        購入時の応援を受け付ける
+                                    </Label>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    応援分の手数料は{support_fee_percent}
+                                    %です。オフにしても、作成済みの注文は変わりません。
+                                </p>
+                                <InputError message={errors.accepts_support} />
                             </div>
                             <Button disabled={processing}>保存</Button>
                         </>

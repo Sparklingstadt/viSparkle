@@ -16,6 +16,8 @@ class UpdateShopSettingsRequest extends FormRequest
             'shipping_fee' => ['required', 'integer', 'between:0,100000'],
             'shop_notice' => ['nullable', 'string', 'max:2000'],
             'shop_contact_email' => ['nullable', 'email', 'max:255'],
+            // A checkbox: unchecked sends nothing, which is off.
+            'accepts_support' => ['boolean'],
         ];
     }
 
@@ -24,6 +26,6 @@ class UpdateShopSettingsRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['shipping_fee' => '送料', 'shop_notice' => 'お知らせ', 'shop_contact_email' => '連絡先メールアドレス'];
+        return ['shipping_fee' => '送料', 'shop_notice' => 'お知らせ', 'shop_contact_email' => '連絡先メールアドレス', 'accepts_support' => '応援の受付'];
     }
 }
