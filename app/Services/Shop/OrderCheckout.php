@@ -86,6 +86,7 @@ class OrderCheckout
                 // Stripe requires at least 30 minutes by its own clock, so give it a minute of slack.
                 expiresAt: now()->addMinutes((int) config('fanbox.billing.checkout_expires_minutes') + 1),
                 idempotencyKey: "order-{$order->id}-checkout",
+                collectShipping: $order->hasPhysical(),
             ));
         } catch (BillingException $e) {
             report($e);

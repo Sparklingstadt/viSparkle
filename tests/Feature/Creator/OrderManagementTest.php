@@ -5,6 +5,7 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Orders;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -153,4 +154,40 @@ it('requires a creator', function () {
     $this->actingAs(User::factory()->create());
 
     $this->get(route('creator.orders.index'))->assertRedirect();
+});
+
+/**
+ * A published digital work of the creator with one file.
+ */
+function managedWork(): Product
+{
+    $work = Product::factory()->digital()->for(test()->creator)->create(['name' => 'イラスト集']);
+    ProductFile::factory()->for($work)->create();
+
+    return $work;
+}
+
+it('hides ship and refund for a digital-only order', function () {
+    $order = Order::factory()->paid()->for($this->creator)->withItem(managedWork())->create();
+
+    $this->get(route('creator.orders.show', $order))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('order.can_ship', false)
+            ->where('order.can_refund', false)
+            ->where('order.status_label', '購入済み')
+            ->where('order.has_physical', false)
+            ->where('order.items.0.product_kind', 'digital'));
+
+    $this->post(route('creator.orders.refund', $order))->assertSessionHasErrors(['order' => 'デジタル作品を含む注文は取り消せません。']);
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('offers only shipping for a mixed order', function () {
+    $order = Order::factory()->paid()->for($this->creator)
+        ->withItem(managedWork())
+        ->withItem(Product::factory()->for($this->creator)->create())
+        ->create();
+
+    $this->get(route('creator.orders.show', $order))
+        ->assertInertia(fn (Assert $page) => $page->where('order.can_ship', true)->where('order.can_refund', false));
 });

@@ -36,7 +36,7 @@ class OrderController extends Controller
             ->through(fn (Order $order) => [
                 'id' => $order->id,
                 'status' => $order->status->value,
-                'status_label' => $order->status->label(),
+                'status_label' => $order->statusLabel(),
                 'total' => $order->total,
                 'created_at' => $order->created_at,
                 'buyer_name' => $order->user?->name,
@@ -65,13 +65,15 @@ class OrderController extends Controller
             'order' => [
                 'id' => $order->id,
                 'status' => $order->status->value,
-                'status_label' => $order->status->label(),
+                'status_label' => $order->statusLabel(),
                 'items' => $order->items->map(fn (OrderItem $item) => [
                     'id' => $item->id,
                     'product_name' => $item->product_name,
+                    'product_kind' => $item->product_kind->value,
                     'unit_price' => $item->unit_price,
                     'quantity' => $item->quantity,
                 ])->values(),
+                'has_physical' => $order->hasPhysical() || ! $order->hasDigital(),
                 'subtotal' => $order->subtotal,
                 'shipping_fee' => $order->shipping_fee,
                 'total' => $order->total,
@@ -85,8 +87,9 @@ class OrderController extends Controller
                 'created_at' => $order->created_at,
                 'paid_at' => $order->paid_at,
                 'shipped_at' => $order->shipped_at,
-                'can_ship' => $order->status === OrderStatus::Paid,
-                'can_refund' => $order->status === OrderStatus::Paid,
+                // Digital-only orders have nothing to ship; an order with a digital work is refunded by an admin only.
+                'can_ship' => $order->status === OrderStatus::Paid && ($order->hasPhysical() || ! $order->hasDigital()),
+                'can_refund' => $order->status === OrderStatus::Paid && ! $order->hasDigital(),
             ],
         ]);
     }

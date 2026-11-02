@@ -4,6 +4,8 @@ use App\Enums\OrderStatus;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
+use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('shows listed products in the shop tab', function () {
@@ -108,6 +110,48 @@ it('lets the owner see the product but not buy it', function () {
 
     $this->actingAs($creator->user)->get(route('shop.products.show', [$creator, $product]))
         ->assertInertia(fn (Assert $page) => $page->where('is_owner', true));
+});
+
+it('shows a digital work with its files and no stock', function () {
+    $creator = Creator::factory()->payable()->create();
+    $work = Product::factory()->digital()->for($creator)->create(['name' => 'イラスト集']);
+    ProductFile::factory()->for($work)->create(['original_name' => 'a.ZIP', 'size' => 1000, 'path' => 'creators/1/products/1/x.zip']);
+    ProductFile::factory()->for($work)->create(['original_name' => 'b.pdf', 'size' => 500, 'path' => 'creators/1/products/1/y.pdf']);
+
+    $this->get(route('shop.products.show', [$creator, $work]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('product.kind', 'digital')
+            ->has('product.files', 2)
+            ->where('product.files.0', ['extension' => 'zip', 'size' => 1000])
+            ->where('product.files.1.extension', 'pdf')
+            ->where('product.files_total_size', 1500)
+            ->where('product.purchasable', true)
+            ->where('purchased_order_id', null));
+
+    $this->get(route('creators.show', [$creator, 'tab' => 'shop']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('shop.products.0.kind', 'digital')
+            ->where('shop.products.0.sold_out', false));
+});
+
+it('links a purchased work to its order', function () {
+    $creator = Creator::factory()->payable()->create();
+    $work = Product::factory()->digital()->for($creator)->create();
+    ProductFile::factory()->for($work)->create();
+    $buyer = User::factory()->create();
+    $order = Order::factory()->paid()->for($buyer)->for($creator)->withItem($work)->create();
+
+    $this->actingAs($buyer)->get(route('shop.products.show', [$creator, $work]))
+        ->assertInertia(fn (Assert $page) => $page->where('purchased_order_id', $order->id));
+});
+
+it('shows a work without files as not purchasable', function () {
+    $creator = Creator::factory()->payable()->create();
+    $work = Product::factory()->digital()->for($creator)->create();
+
+    $this->get(route('shop.products.show', [$creator, $work]))
+        ->assertInertia(fn (Assert $page) => $page->where('product.purchasable', false));
 });
 
 it('sorts the shop by units sold in paid orders when popular is chosen', function () {

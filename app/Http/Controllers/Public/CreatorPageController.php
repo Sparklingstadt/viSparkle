@@ -73,7 +73,7 @@ class CreatorPageController extends Controller
     }
 
     /**
-     * @return list<array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}>
+     * @return list<array{id: int, kind: string, name: string, price: int, sold_out: bool, cover_url: string|null}>
      */
     private static function shopProducts(Creator $creator, string $sort): array
     {

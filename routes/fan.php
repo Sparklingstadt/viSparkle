@@ -9,6 +9,7 @@ use App\Http\Controllers\Fan\FeedController;
 use App\Http\Controllers\Fan\FollowController;
 use App\Http\Controllers\Fan\OrderCheckoutController;
 use App\Http\Controllers\Fan\OrderController;
+use App\Http\Controllers\Fan\OrderFileDownloadController;
 use App\Http\Controllers\Fan\PostLikeController;
 use App\Http\Controllers\Fan\SupportController;
 use App\Http\Controllers\Fan\SupportingController;
@@ -70,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('orders.checkout.complete');
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+    Route::get('orders/{order}/files/{file}', OrderFileDownloadController::class)
+        ->whereNumber(['order', 'file'])
+        ->middleware('throttle:30,1')
+        ->name('orders.files.download');
     Route::post('billing/portal', BillingPortalController::class)
         ->middleware('throttle:10,1')
         ->name('billing.portal');

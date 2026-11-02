@@ -8,12 +8,15 @@ import { formatYen } from '@/lib/format';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
 import { edit as shopSettings } from '@/routes/creator/shop';
+import type { ProductKind } from '@/types';
 
 type Row = {
     id: number;
+    kind: ProductKind;
     name: string;
     price: number;
     stock: number;
+    files_count: number;
     is_published: boolean;
     hidden: boolean;
     cover_url: string | null;
@@ -86,11 +89,18 @@ export default function ProductsIndex({
                                             {product.name}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            {formatYen(product.price)} ・ 在庫{' '}
-                                            {product.stock}
+                                            {formatYen(product.price)} ・{' '}
+                                            {product.kind === 'digital'
+                                                ? `ファイル ${product.files_count}件`
+                                                : `在庫 ${product.stock}`}
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 gap-1">
+                                        {product.kind === 'digital' && (
+                                            <Badge variant="outline">
+                                                デジタル
+                                            </Badge>
+                                        )}
                                         {product.hidden && (
                                             <Badge variant="destructive">
                                                 運営により非表示

@@ -2,17 +2,20 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Product;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
 /**
  * Goods for the shop tab of every demo creator. Each sells two acrylic stands, a random cheki (3–6 designs), and
  * can badges (2–5 designs as kinds); an acrylic charm, a pass case, a tapestry and a T-shirt (S / M / L / フリー)
- * each turn up by chance. The chances and stock come from a random engine seeded by the slug, so a creator gets the
+ * each turn up by chance. Last comes a digital work (ラフ画集) whose small text file is written to the private disk, so
+ * buying and downloading work out of the box. The chances and stock come from a random engine seeded by the slug, so a creator gets the
  * same goods on every run.
  *
  * Rows are written directly, so they are published even for a creator who cannot sell yet. Uses no model factories,
@@ -83,6 +86,24 @@ class DemoProductsSeeder extends Seeder
                 $product->variants()->create(['name' => $kind, 'stock' => $stock, 'sort_order' => $i]);
             }
         }
+
+        $this->digitalWork($creator, count($items));
+    }
+
+    /**
+     * A digital work with one small file: no stock, a single unnamed kind holding none.
+     */
+    private function digitalWork(Creator $creator, int $sort): void
+    {
+        $work = new Product(['name' => 'ラフ画集', 'description' => "{$creator->display_name}のラフ画をまとめたダウンロード作品です。", 'price' => 800, 'is_published' => true, 'sort_order' => $sort]);
+        $work->kind = ProductKind::Digital;
+        $creator->products()->save($work);
+        $work->variants()->create(['name' => null, 'stock' => 0, 'sort_order' => 0]);
+
+        $path = "creators/{$creator->id}/products/{$work->id}/demo-rough-collection.txt";
+        $contents = "デモ用のダウンロードファイルです。\n";
+        Storage::disk('private')->put($path, $contents);
+        $work->files()->create(['path' => $path, 'original_name' => 'ラフ画集.txt', 'mime' => 'text/plain', 'size' => strlen($contents), 'sort_order' => 0]);
     }
 
     /**

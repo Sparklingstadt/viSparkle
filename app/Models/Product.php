@@ -121,15 +121,17 @@ class Product extends Model
     }
 
     /**
-     * @return array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}
+     * @return array{id: int, kind: string, name: string, price: int, sold_out: bool, cover_url: string|null}
      */
     public function toSummary(): array
     {
         return [
             'id' => $this->id,
+            'kind' => $this->kind->value,
             'name' => $this->name,
             'price' => $this->price,
-            'sold_out' => $this->stock < 1,
+            // Only goods sell out; a digital work holds no stock.
+            'sold_out' => ! $this->isDigital() && $this->stock < 1,
             'cover_url' => $this->coverUrl(),
         ];
     }

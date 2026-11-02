@@ -4,6 +4,7 @@ use App\Enums\OrderStatus;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -80,4 +81,50 @@ it('shows a refund made without a reason', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('order.status_label', '返金済み')
             ->where('order.refunded_amount', 1500));
+});
+
+it('lists the files on the order page', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create(['name' => 'イラスト集']);
+    $file = ProductFile::factory()->for($work)->create(['original_name' => 'a.pdf', 'size' => 4096]);
+    $order = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+
+    $this->actingAs($this->buyer)->get(route('orders.show', $order))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('order.items.0.product_kind', 'digital')
+            ->where('order.items.0.downloads.refusal', null)
+            ->has('order.items.0.downloads.files', 1)
+            ->where('order.items.0.downloads.files.0.original_name', 'a.pdf')
+            ->where('order.items.0.downloads.files.0.size', 4096)
+            ->where('order.items.0.downloads.files.0.url', route('orders.files.download', [$order, $file]))
+            ->where('order.status_label', '購入済み')
+            ->where('order.has_physical', false));
+});
+
+it('shows why the files cannot be downloaded', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    ProductFile::factory()->for($work)->create();
+    $order = Order::factory()->refunded()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+
+    $this->actingAs($this->buyer)->get(route('orders.show', $order))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('order.items.0.downloads.refusal', '返金済みのためダウンロードできません')
+            ->has('order.items.0.downloads.files', 0));
+});
+
+it('gives goods no downloads', function () {
+    $order = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($this->product)->create();
+
+    $this->actingAs($this->buyer)->get(route('orders.show', $order))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('order.items.0.product_kind', 'physical')
+            ->where('order.items.0.downloads', null)
+            ->where('order.has_physical', true));
+});
+
+it('labels a paid digital-only order as purchased', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+
+    $this->actingAs($this->buyer)->get(route('orders.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('orders.data.0.status_label', '購入済み'));
 });

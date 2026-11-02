@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\ProductImage;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -29,7 +31,7 @@ function productPayload(array $overrides = [], ?Product $product = null): array
 
     unset($overrides['stock'], $overrides['stock_seen']);
 
-    return ['name' => 'アクリルスタンド', 'description' => '説明', 'price' => 1500, 'variants' => [$variant], ...$overrides];
+    return ['kind' => 'physical', 'name' => 'アクリルスタンド', 'description' => '説明', 'price' => 1500, 'variants' => [$variant], ...$overrides];
 }
 
 it('lists own products only, without deleted ones', function () {
@@ -263,4 +265,67 @@ it('does not delete an image that belongs to a different product', function () {
 
     expect(ProductImage::find($foreign->id))->not->toBeNull();
     Storage::disk('public')->assertExists('creators/2/products/f.jpg');
+});
+
+it('creates a digital work without stock', function () {
+    $this->post(route('creator.products.store'), ['kind' => 'digital', 'name' => 'イラスト集', 'price' => 800, 'is_published' => false])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $work = Product::query()->sole();
+    expect($work)->kind->toBe(ProductKind::Digital)->stock->toBe(0)
+        ->and($work->variants)->toHaveCount(1)
+        ->and($work->variants->first()->name)->toBeNull();
+});
+
+it('requires the kind when creating', function () {
+    $this->post(route('creator.products.store'), [...productPayload(), 'kind' => 'service'])->assertSessionHasErrors('kind');
+    expect(Product::query()->count())->toBe(0);
+});
+
+it('does not change the kind on update', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+
+    $this->put(route('creator.products.update', $work), productPayload(['kind' => 'physical', 'name' => '新しい名前'], $work))
+        ->assertSessionHasNoErrors();
+
+    expect($work->fresh())->kind->toBe(ProductKind::Digital)->name->toBe('新しい名前')->stock->toBe(0);
+});
+
+it('updates a digital work without variants', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+
+    $this->put(route('creator.products.update', $work), ['name' => '画集', 'price' => 900])->assertSessionHasNoErrors();
+
+    expect($work->fresh())->name->toBe('画集')->stock->toBe(0)
+        ->and($work->variants()->count())->toBe(1);
+});
+
+it('refuses to publish a digital work without files', function () {
+    $this->post(route('creator.products.store'), ['kind' => 'digital', 'name' => 'イラスト集', 'price' => 800, 'is_published' => true])
+        ->assertSessionHasErrors(['is_published' => '公開するにはファイルを1件以上アップロードしてください']);
+
+    $work = Product::factory()->digital()->unpublished()->for($this->creator)->create();
+    $this->put(route('creator.products.update', $work), ['name' => 'イラスト集', 'price' => 800, 'is_published' => true])
+        ->assertSessionHasErrors(['is_published' => '公開するにはファイルを1件以上アップロードしてください']);
+
+    ProductFile::factory()->for($work)->create();
+    $this->put(route('creator.products.update', $work), ['name' => 'イラスト集', 'price' => 800, 'is_published' => true])
+        ->assertSessionHasNoErrors();
+    expect($work->fresh()->is_published)->toBeTrue();
+});
+
+it('shows the kind and files on the edit page and in the list', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    ProductFile::factory()->for($work)->create(['original_name' => 'a.pdf', 'size' => 300, 'mime' => 'application/pdf']);
+
+    $this->get(route('creator.products.edit', $work))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('product.kind', 'digital')
+            ->where('product.files.0.original_name', 'a.pdf')
+            ->where('product.files.0.size', 300)
+            ->where('files_max', 10));
+
+    $this->get(route('creator.products.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('products.0.kind', 'digital')->where('products.0.files_count', 1));
 });

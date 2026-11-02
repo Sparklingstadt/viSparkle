@@ -11,6 +11,7 @@ use App\Mail\Shop\OrderShipped as OrderShippedMail;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
@@ -70,4 +71,22 @@ it('skips mail to the buyer when the buyer account is gone', function () {
     Mail::assertNotQueued(OrderShippedMail::class);
     Mail::assertNotQueued(OrderRefundedMail::class);
     Mail::assertQueued(OrderReceived::class, 1);
+});
+
+it('mentions downloads in the confirmation mail', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    ProductFile::factory()->for($work)->create();
+    $order = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+
+    expect((new OrderConfirmed($order))->render())->toContain('注文の画面からダウンロードできます')
+        ->and((new OrderConfirmed($this->order))->render())->not->toContain('ダウンロード');
+});
+
+it('leaves the address out of the creator mail for a digital-only order', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    $order = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+    $goods = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($this->product)->create(['shipping_name' => '山田 花子']);
+
+    expect((new OrderReceived($order))->render())->not->toContain('お届け先')
+        ->and((new OrderReceived($goods))->render())->toContain('お届け先: 山田 花子');
 });

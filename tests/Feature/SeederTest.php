@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Product;
 use App\Models\User;
@@ -7,6 +8,8 @@ use Database\Seeders\DemoCreatorsSeeder;
 use Database\Seeders\DemoProductsSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+
+beforeEach(fn () => fakePrivateDisk());
 
 it('seeds demo accounts, plans and posts', function () {
     Storage::fake('public');
@@ -128,7 +131,7 @@ it('seeds the same shop goods for every demo creator on each run', function () {
             ->and($cheki->variants)->toHaveCount(1)
             ->and($byName['缶バッジ']->variants->count())->toBeBetween(2, 5)
             ->and($byName['缶バッジ']->variants->first()->name)->toBe('デザイン1')
-            ->and($names->diff(['アクリルスタンドA', 'アクリルスタンドB', $cheki->name, '缶バッジ', ...$optional]))->toBeEmpty()
+            ->and($names->diff(['アクリルスタンドA', 'アクリルスタンドB', $cheki->name, '缶バッジ', 'ラフ画集', ...$optional]))->toBeEmpty()
             ->and($creator->products->every->is_published)->toBeTrue()
             ->and($creator->shipping_fee)->toBeGreaterThan(0);
 
@@ -152,4 +155,26 @@ it('seeds the same shop goods for every demo creator on each run', function () {
     $after = Creator::with('products.variants')->get()->mapWithKeys(fn ($creator) => [$creator->slug => $creator->products->map(fn ($product) => [$product->name, $product->variants->pluck('stock')->all()])->all()]);
 
     expect($after->all())->toBe($before->all());
+});
+
+it('seeds a digital work with a file on the private disk for every demo creator', function () {
+    Storage::fake('public');
+    fakeBilling();
+    $this->seed();
+
+    $works = Product::query()->where('kind', ProductKind::Digital)->with(['files', 'variants'])->get();
+
+    expect($works)->toHaveCount(11);
+
+    foreach ($works as $work) {
+        $file = $work->files->sole();
+
+        expect($work->name)->toBe('ラフ画集')
+            ->and($work->is_published)->toBeTrue()
+            ->and($work->stock)->toBe(0)
+            ->and($work->variants)->toHaveCount(1)
+            ->and($work->isPurchasable())->toBeTrue()
+            ->and($file->path)->toStartWith("creators/{$work->creator_id}/products/{$work->id}/");
+        Storage::disk('private')->assertExists($file->path);
+    }
 });

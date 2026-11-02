@@ -6,7 +6,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
 /**
- * Shared by StoreProductRequest and UpdateProductRequest.
+ * Shared by StoreProductRequest and UpdateProductRequest. A digital work has no kinds or stock of its own (its single
+ * variant holds none), so the variant fields apply to goods only.
  */
 trait ProductRules
 {
@@ -17,17 +18,30 @@ trait ProductRules
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:5000'],
             'price' => ['required', 'integer', 'between:50,1000000'],
+            'is_published' => ['boolean'],
+        ];
+
+        if ($this->isDigitalWork()) {
+            return $rules;
+        }
+
+        return [
+            ...$rules,
             'variants' => ['required', 'array', 'min:1', 'max:'.self::MAX_VARIANTS],
             'variants.*.id' => ['nullable', 'integer'],
             'variants.*.name' => ['nullable', 'string', 'max:50', 'distinct'],
             'variants.*.stock' => ['required', 'integer', 'between:0,99999'],
-            'is_published' => ['boolean'],
         ];
     }
+
+    /**
+     * Whether the form is for a digital work.
+     */
+    abstract protected function isDigitalWork(): bool;
 
     /**
      * A product with several kinds needs a name for each, so the buyer can tell them apart.
@@ -39,7 +53,7 @@ trait ProductRules
         return [function (Validator $validator) {
             $variants = $this->array('variants');
 
-            if (count($variants) < 2) {
+            if ($this->isDigitalWork() || count($variants) < 2) {
                 return;
             }
 

@@ -9,6 +9,7 @@ final readonly class PaymentCheckoutRequest
     /**
      * @param  list<LineItem>  $lineItems
      * @param  array<string, string>  $metadata
+     * @param  bool  $collectShipping  ask for the address and phone (goods); a digital-only order needs neither
      */
     public function __construct(
         public string $customerId,
@@ -20,5 +21,6 @@ final readonly class PaymentCheckoutRequest
         public string $cancelUrl,
         public CarbonImmutable $expiresAt,
         public string $idempotencyKey,
+        public bool $collectShipping = true,
     ) {}
 }

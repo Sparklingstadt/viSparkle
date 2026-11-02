@@ -4,12 +4,14 @@ use App\Billing\BillingException;
 use App\Billing\Data\ChargeData;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Events\Shop\OrderRefunded;
 use App\Events\Shop\OrderShipped;
 use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Orders;
 use Illuminate\Support\Collection;
@@ -294,4 +296,120 @@ it('moves a pending order that is fully refunded to refunded and restores its st
         ->and($order->paid_at)->toBeNull()
         ->and($product->refresh()->stock)->toBe(5);
     Event::assertDispatchedTimes(OrderRefunded::class, 1);
+});
+
+/**
+ * A published digital work of the creator with one file.
+ */
+function ordersWork(int $price = 800): Product
+{
+    $work = Product::factory()->digital()->for(test()->creator)->create(['price' => $price]);
+    ProductFile::factory()->for($work)->create();
+
+    return $work;
+}
+
+it('reserves a digital work without touching stock', function () {
+    $work = ordersWork(800);
+
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]]));
+
+    expect($order->shipping_fee)->toBe(0)
+        ->and($order->total)->toBe(800)
+        ->and($order->items()->sole()->product_kind)->toBe(ProductKind::Digital)
+        ->and($work->refresh()->stock)->toBe(0);
+});
+
+it('adds shipping when the order has goods', function () {
+    $mug = Product::factory()->for($this->creator)->create(['price' => 1800, 'stock' => 2]);
+
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(800), 1], [$mug, 1]]));
+
+    expect($order->shipping_fee)->toBe(500)
+        ->and($order->total)->toBe(800 + 1800 + 500)
+        ->and($order->hasDigital())->toBeTrue()
+        ->and($order->hasPhysical())->toBeTrue()
+        ->and($mug->refresh()->stock)->toBe(1);
+});
+
+it('refuses to reserve an already purchased work', function () {
+    $work = ordersWork();
+    shopPaidOrder($work);
+    $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
+    $orders = Order::query()->count();
+
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$mug, 1], [$work, 1]])))
+        ->toThrow(ValidationException::class);
+
+    expect(Order::query()->count())->toBe($orders)
+        ->and($mug->refresh()->stock)->toBe(2);
+});
+
+it('refuses to reserve a work without files', function () {
+    $work = ordersWork();
+    $work->files()->delete();
+
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]])))
+        ->toThrow(ValidationException::class);
+    expect(Order::query()->count())->toBe(0);
+});
+
+it('refuses to reserve more than one of a work', function () {
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(), 2]])))
+        ->toThrow(ValidationException::class);
+    expect(Order::query()->count())->toBe(0);
+});
+
+it('refuses to ship a digital-only order', function () {
+    $order = shopPaidOrder(ordersWork());
+
+    expect(fn () => app(Orders::class)->ship($order, null))
+        ->toThrow(ValidationException::class, 'この注文は発送できません。');
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('ships an order that mixes kinds', function () {
+    $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
+    $orders = app(Orders::class);
+    $order = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(), 1], [$mug, 1]]));
+    $sessionId = fakeOrderCheckout($this->gateway, $order);
+    $this->gateway->completePaymentCheckout($sessionId);
+    $order = $orders->markPaid($order, $this->gateway->retrieveCheckoutSession($sessionId));
+
+    expect($orders->ship($order, null)->status)->toBe(OrderStatus::Shipped);
+});
+
+it('refuses a creator refund of an order with a digital work', function () {
+    $order = shopPaidOrder(ordersWork());
+
+    expect(fn () => app(Orders::class)->refund($order, OrderCancelReason::Creator))
+        ->toThrow(ValidationException::class, 'デジタル作品を含む注文は取り消せません。');
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($this->gateway->refundedPaymentIntents())->toBe([]);
+});
+
+it('lets an admin refund an order with a digital work and restocks only goods', function () {
+    $work = ordersWork();
+    $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
+    $orders = app(Orders::class);
+    $order = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1], [$mug, 1]]));
+    $sessionId = fakeOrderCheckout($this->gateway, $order);
+    $this->gateway->completePaymentCheckout($sessionId);
+    $order = $orders->markPaid($order, $this->gateway->retrieveCheckoutSession($sessionId));
+
+    $orders->refund($order, OrderCancelReason::Admin);
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($mug->refresh()->stock)->toBe(2)
+        ->and($work->refresh()->stock)->toBe(0);
+});
+
+it('gives no stock to a work when a pending order is canceled', function () {
+    $work = ordersWork();
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]]));
+
+    app(Orders::class)->cancel($order, OrderCancelReason::Expired);
+
+    expect($work->refresh()->stock)->toBe(0);
 });

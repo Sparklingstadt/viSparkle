@@ -16,7 +16,8 @@ const onError = (errors: Record<string, string>) =>
     toast.error(errors.cart ?? errors.quantity ?? '処理に失敗しました。');
 
 function Line({ group, item }: { group: CartGroup; item: CartLine }) {
-    const soldOut = item.stock < item.quantity;
+    const digital = item.kind === 'digital';
+    const soldOut = !digital && item.stock < item.quantity;
 
     return (
         <li className="flex gap-3 p-4">
@@ -45,6 +46,7 @@ function Line({ group, item }: { group: CartGroup; item: CartLine }) {
                 )}
                 <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     {formatYen(item.price)}
+                    {digital && <Badge variant="outline">デジタル</Badge>}
                     {!item.listed && (
                         <Badge variant="destructive">現在購入できません</Badge>
                     )}
@@ -56,35 +58,39 @@ function Line({ group, item }: { group: CartGroup; item: CartLine }) {
                 </p>
             </div>
             <div className="flex items-start gap-2">
-                <Input
-                    type="number"
-                    min={1}
-                    defaultValue={item.quantity}
-                    aria-label={`${item.name} の数量`}
-                    className="w-20"
-                    onBlur={(event) => {
-                        const quantity = Math.max(
-                            1,
-                            Number(event.target.value) || 1,
-                        );
+                {!digital && (
+                    <Input
+                        type="number"
+                        min={1}
+                        defaultValue={item.quantity}
+                        aria-label={`${item.name} の数量`}
+                        className="w-20"
+                        onBlur={(event) => {
+                            const quantity = Math.max(
+                                1,
+                                Number(event.target.value) || 1,
+                            );
 
-                        if (quantity === item.quantity) {
-                            return;
-                        }
+                            if (quantity === item.quantity) {
+                                return;
+                            }
 
-                        router.put(
-                            update(item.id).url,
-                            { quantity },
-                            {
-                                preserveScroll: true,
-                                onError: (errors) => {
-                                    event.target.value = String(item.quantity);
-                                    onError(errors);
+                            router.put(
+                                update(item.id).url,
+                                { quantity },
+                                {
+                                    preserveScroll: true,
+                                    onError: (errors) => {
+                                        event.target.value = String(
+                                            item.quantity,
+                                        );
+                                        onError(errors);
+                                    },
                                 },
-                            },
-                        );
-                    }}
-                />
+                            );
+                        }}
+                    />
+                )}
                 <Button
                     variant="ghost"
                     size="icon"

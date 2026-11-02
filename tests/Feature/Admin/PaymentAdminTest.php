@@ -3,8 +3,10 @@
 use App\Enums\SupportStatus;
 use App\Models\AdminAction;
 use App\Models\Creator;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\PaymentRecorder;
@@ -133,4 +135,15 @@ it('returns 404 to non-admins', function () {
     $this->actingAs($user)->post(route('admin.payments.refund', $payment), ['cancel_support' => false])->assertNotFound();
 
     expect($payment->fresh()->refunded_amount)->toBe(0);
+});
+
+it('shows the kinds of the lines on shop orders', function () {
+    $creator = Creator::factory()->payable()->create();
+    $digital = Order::factory()->for($creator)->paid()->withItem(Product::factory()->for($creator)->digital()->create())->create();
+    $goods = Order::factory()->for($creator)->paid()->withItem(Product::factory()->for($creator)->create())->create();
+
+    $this->actingAs($this->admin)->get(route('admin.payments.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('orders.data', fn ($rows) => collect($rows)->firstWhere('id', $digital->id)['has_digital'] === true
+                && collect($rows)->firstWhere('id', $goods->id)['has_digital'] === false));
 });

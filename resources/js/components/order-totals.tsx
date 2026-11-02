@@ -1,22 +1,68 @@
-import { formatYen } from '@/lib/format';
-import type { OrderItemData } from '@/types';
+import { Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { formatBytes, formatYen } from '@/lib/format';
+import type { OrderItemData, OrderItemDownloads } from '@/types';
+
+function Downloads({ downloads }: { downloads: OrderItemDownloads }) {
+    if (downloads.refusal !== null) {
+        return (
+            <p className="text-xs text-muted-foreground">{downloads.refusal}</p>
+        );
+    }
+
+    return (
+        <ul className="space-y-1">
+            {downloads.files.map((file) => (
+                <li key={file.id}>
+                    <a
+                        href={file.url}
+                        className="flex items-center gap-2 rounded-md border px-3 py-2 hover:bg-muted"
+                    >
+                        <Download className="size-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">
+                            {file.original_name}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                            {formatBytes(file.size)}
+                        </span>
+                        <span className="shrink-0 text-xs underline">
+                            ダウンロード
+                        </span>
+                    </a>
+                </li>
+            ))}
+        </ul>
+    );
+}
 
 export function OrderLines({ items }: { items: OrderItemData[] }) {
     return (
         <ul className="divide-y rounded-xl border">
-            {items.map((item) => (
-                <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-4 p-3 text-sm"
-                >
-                    <span className="min-w-0 truncate">
-                        {item.product_name} × {item.quantity}
-                    </span>
-                    <span className="shrink-0">
-                        {formatYen(item.unit_price * item.quantity)}
-                    </span>
-                </li>
-            ))}
+            {items.map((item) => {
+                const digital = item.product_kind === 'digital';
+
+                return (
+                    <li key={item.id} className="space-y-2 p-3 text-sm">
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="flex min-w-0 items-center gap-2">
+                                <span className="truncate">
+                                    {item.product_name}
+                                    {!digital && ` × ${item.quantity}`}
+                                </span>
+                                {digital && (
+                                    <Badge variant="outline">デジタル</Badge>
+                                )}
+                            </span>
+                            <span className="shrink-0">
+                                {formatYen(item.unit_price * item.quantity)}
+                            </span>
+                        </div>
+                        {item.downloads && (
+                            <Downloads downloads={item.downloads} />
+                        )}
+                    </li>
+                );
+            })}
         </ul>
     );
 }

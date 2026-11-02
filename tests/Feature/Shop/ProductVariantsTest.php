@@ -17,7 +17,7 @@ beforeEach(function () {
 
 it('creates a product with several kinds in the order given', function () {
     $this->actingAs($this->creator->user)->post(route('creator.products.store'), [
-        'name' => 'Tシャツ', 'price' => 3500,
+        'kind' => 'physical', 'name' => 'Tシャツ', 'price' => 3500,
         'variants' => [['name' => 'S', 'stock' => 2], ['name' => 'M', 'stock' => 5], ['name' => 'フリー', 'stock' => 0]],
     ])->assertSessionHasNoErrors();
 
@@ -30,7 +30,7 @@ it('creates a product with several kinds in the order given', function () {
 
 it('needs a distinct name for each kind when there are several', function (array $variants, string $field) {
     $this->actingAs($this->creator->user)
-        ->post(route('creator.products.store'), ['name' => 'Tシャツ', 'price' => 3500, 'variants' => $variants])
+        ->post(route('creator.products.store'), ['kind' => 'physical', 'name' => 'Tシャツ', 'price' => 3500, 'variants' => $variants])
         ->assertSessionHasErrors($field);
 
     expect($this->creator->products()->count())->toBe(0);
@@ -46,7 +46,7 @@ it('updates kinds: changes stock by the difference, adds new ones and removes le
     $m->decrement('stock'); // sold while the form was open
 
     $this->actingAs($this->creator->user)->put(route('creator.products.update', $product), [
-        'name' => 'Tシャツ', 'price' => 3500,
+        'kind' => 'physical', 'name' => 'Tシャツ', 'price' => 3500,
         'variants' => [
             ['id' => $m->id, 'name' => 'M', 'stock' => 5, 'stock_seen' => 3],
             ['id' => $s->id, 'name' => 'S', 'stock' => 3, 'stock_seen' => 3],

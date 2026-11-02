@@ -100,15 +100,19 @@ export type PostDetail = PostSummary & {
 
 export type ShopProductSummary = {
     id: number;
+    kind: ProductKind;
     name: string;
     price: number;
     sold_out: boolean;
     cover_url: string | null;
 };
 
+export type ProductKind = 'physical' | 'digital';
+
 export type CartLine = {
     id: number;
     product_id: number;
+    kind: ProductKind;
     name: string;
     price: number;
     quantity: number;
@@ -133,9 +137,22 @@ export type OrderStatusValue =
     | 'canceled'
     | 'refunded';
 
+export type OrderItemDownloads = {
+    refusal: string | null;
+    files: {
+        id: number;
+        original_name: string;
+        size: number;
+        url: string;
+    }[];
+};
+
 export type OrderItemData = {
     id: number;
     product_name: string;
+    product_kind?: ProductKind;
     unit_price: number;
     quantity: number;
+    /** The buyer's files of a digital work (the buyer's order page only). */
+    downloads?: OrderItemDownloads | null;
 };

@@ -561,6 +561,29 @@ it('creates a payment checkout with destination, fee and shipping collection', f
         ->and($session->paymentStatus)->toBe('unpaid');
 });
 
+it('omits shipping collection for a digital-only checkout', function () {
+    $this->http->queue([
+        'id' => 'cs_d', 'object' => 'checkout.session', 'url' => 'https://checkout.stripe.test/cs_d',
+        'status' => 'open', 'customer' => 'cus_x', 'metadata' => ['order_id' => '8'], 'payment_status' => 'unpaid',
+    ]);
+
+    $this->gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
+        customerId: 'cus_x',
+        lineItems: [new LineItem('イラスト集', 800, 1)],
+        destinationAccountId: 'acct_x',
+        applicationFeeAmount: 80,
+        metadata: ['order_id' => '8'],
+        successUrl: 'https://app.test/success',
+        cancelUrl: 'https://app.test/cancel',
+        expiresAt: CarbonImmutable::createFromTimestamp(1793836800),
+        idempotencyKey: 'order-8-checkout',
+        collectShipping: false,
+    ));
+
+    expect($this->http->requests[0]['params'])->not->toHaveKey('shipping_address_collection')
+        ->not->toHaveKey('phone_number_collection');
+});
+
 it('reads shipping details and payment status from a session', function () {
     $this->http->queue([
         'id' => 'cs_p', 'object' => 'checkout.session', 'url' => null, 'status' => 'complete',

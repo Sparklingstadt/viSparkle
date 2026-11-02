@@ -51,9 +51,13 @@ class CartController extends Controller
             return to_route('cart.index');
         }
 
+        $digital = $group['items']->filter(fn (CartItem $item) => $item->variant->product->isDigital());
+
         return Inertia::render('fan/cart-confirm', [
             'creator' => $creator->toSummary(),
             'group' => $this->present($group),
+            'has_digital' => $digital->isNotEmpty(),
+            'has_physical' => $digital->count() < $group['items']->count(),
         ]);
     }
 
@@ -68,6 +72,7 @@ class CartController extends Controller
             'items' => $group['items']->map(fn (CartItem $item) => [
                 'id' => $item->id,
                 'product_id' => $item->variant->product_id,
+                'kind' => $item->variant->product->kind->value,
                 'name' => $item->variant->label(),
                 'price' => $item->variant->product->price,
                 'quantity' => $item->quantity,

@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Storage::fake('public');
+    // The demo shop writes its digital work's file to the private disk.
+    fakePrivateDisk();
     // Seed as production does: no payout accounts.
     config(['fanbox.billing.driver' => 'stripe']);
     $this->seed(DemoCreatorsSeeder::class);
