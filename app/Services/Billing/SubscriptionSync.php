@@ -175,6 +175,8 @@ class SubscriptionSync
             }
         }
 
+        $isNew = ! $support->exists;
+
         $support->forceFill([
             'stripe_subscription_id' => $data->id,
             'plan_id' => $this->planForPrice($data, $support->creator_id) ?? $support->plan_id,
@@ -189,6 +191,11 @@ class SubscriptionSync
                 default => now(),
             },
         ])->save();
+
+        // Only a new support follows: a fan who unfollowed is not followed again by a later plan change or renewal.
+        if ($isNew && $status === SupportStatus::Active) {
+            $support->creator?->follow($user);
+        }
 
         return ['support' => $support];
     }
