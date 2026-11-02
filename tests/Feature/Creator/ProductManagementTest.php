@@ -196,3 +196,14 @@ it('requires a creator account', function () {
 
     $this->get(route('creator.products.index'))->assertRedirect();
 });
+
+it('does not delete an image that belongs to a different product', function () {
+    Storage::disk('public')->put('creators/2/products/f.jpg', 'x');
+    $own = Product::factory()->for($this->creator)->create();
+    $foreign = Product::factory()->create()->images()->create(['path' => 'creators/2/products/f.jpg', 'sort_order' => 0]);
+
+    $this->delete(route('creator.products.images.destroy', [$own, $foreign]))->assertForbidden();
+
+    expect(ProductImage::find($foreign->id))->not->toBeNull();
+    Storage::disk('public')->assertExists('creators/2/products/f.jpg');
+});
