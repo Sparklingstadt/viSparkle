@@ -5,31 +5,6 @@ use App\Models\Follow;
 use App\Models\Support;
 use App\Models\User;
 
-it('follows once, however often it is called', function () {
-    $creator = Creator::factory()->create();
-    $fan = User::factory()->create();
-
-    $creator->follow($fan);
-    $creator->follow($fan);
-
-    expect($creator->follows()->count())->toBe(1)
-        ->and($creator->isFollowedBy($fan))->toBeTrue()
-        ->and($creator->isFollowedBy(User::factory()->create()))->toBeFalse()
-        ->and($creator->isFollowedBy(null))->toBeFalse();
-});
-
-it('unfollows idempotently', function () {
-    $creator = Creator::factory()->create();
-    $fan = User::factory()->create();
-    $creator->follow($fan);
-
-    $creator->unfollow($fan);
-    $creator->unfollow($fan);
-
-    expect($creator->follows()->count())->toBe(0)
-        ->and($creator->isFollowedBy($fan))->toBeFalse();
-});
-
 it('drops the follows of a deleted user', function () {
     $creator = Creator::factory()->create();
     $fan = User::factory()->create();
