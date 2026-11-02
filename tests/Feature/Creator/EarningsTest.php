@@ -194,6 +194,31 @@ it('shows monthly shop sales net of refunds and fees', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('shop_months', 12)
-            ->where('shop_months.0', ['month' => '2026-11', 'orders' => 2, 'sales' => 5000, 'refunded' => 2000, 'net' => 2700])
-            ->where('shop_months.1', ['month' => '2026-10', 'orders' => 1, 'sales' => 1005, 'refunded' => 0, 'net' => 905]));
+            ->where('shop_months.0', ['month' => '2026-11', 'orders' => 2, 'sales' => 5000, 'refunded' => 2000, 'net' => 2700, 'supports' => 0, 'support_amount' => 0])
+            ->where('shop_months.1', ['month' => '2026-10', 'orders' => 1, 'sales' => 1005, 'refunded' => 0, 'net' => 905, 'supports' => 0, 'support_amount' => 0]));
+});
+
+it('counts support in shop sales and takes its own fee', function () {
+    $this->travelTo(Carbon::parse('2026-11-15 12:00:00', 'Asia/Tokyo'));
+    $creator = Creator::factory()->payable()->create();
+
+    // No support: fee 300.
+    Order::factory()->for($creator)->paid()->create(['subtotal' => 3000, 'total' => 3000, 'fee_percent' => 10, 'paid_at' => now()]);
+    // Support 1000 at 5%: fee 300 + 50.
+    Order::factory()->for($creator)->paid()->create([
+        'subtotal' => 3000, 'support_amount' => 1000, 'total' => 4000,
+        'fee_percent' => 10, 'support_fee_percent' => 5, 'paid_at' => now(),
+    ]);
+    // Fully refunded with support: no fee, nothing left, but the support is still counted.
+    Order::factory()->for($creator)->paid()->create([
+        'subtotal' => 1000, 'support_amount' => 300, 'total' => 1300,
+        'fee_percent' => 10, 'support_fee_percent' => 5, 'paid_at' => now(), 'refunded_amount' => 1300,
+    ]);
+
+    $this->actingAs($creator->user)->get(route('creator.earnings.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('shop_months.0', [
+            'month' => '2026-11', 'orders' => 3, 'sales' => 8300, 'refunded' => 1300,
+            'net' => 8300 - 1300 - 300 - 350, 'supports' => 2, 'support_amount' => 1300,
+        ]));
 });
