@@ -52,6 +52,7 @@ class CreatorPageController extends Controller
             'viewerPlanId' => $support?->plan_id,
             'viewerSupportId' => $support?->id,
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
+            'viewerFollows' => $creator->isFollowedBy($viewer),
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
             'reportReasons' => ReportReason::options(),

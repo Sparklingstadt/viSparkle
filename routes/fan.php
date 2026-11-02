@@ -4,6 +4,7 @@ use App\Http\Controllers\Fan\BillingPortalController;
 use App\Http\Controllers\Fan\CheckoutCompleteController;
 use App\Http\Controllers\Fan\CheckoutConfirmController;
 use App\Http\Controllers\Fan\FeedController;
+use App\Http\Controllers\Fan\FollowController;
 use App\Http\Controllers\Fan\PostLikeController;
 use App\Http\Controllers\Fan\SupportController;
 use App\Http\Controllers\Fan\SupportingController;
@@ -38,6 +39,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('post')
         ->middleware('throttle:60,1,post-likes')
         ->name('posts.like.destroy');
+    Route::post('/@{creator}/follow', [FollowController::class, 'store'])
+        ->middleware('throttle:60,1,creator-follows')
+        ->name('creators.follow.store');
+    Route::delete('/@{creator}/follow', [FollowController::class, 'destroy'])
+        ->middleware('throttle:60,1,creator-follows')
+        ->name('creators.follow.destroy');
     Route::post('billing/portal', BillingPortalController::class)
         ->middleware('throttle:10,1')
         ->name('billing.portal');
