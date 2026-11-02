@@ -202,7 +202,7 @@ stripe listen \
 - [ ] 利用規約・プライバシーポリシー（`resources/legal/terms.md` / `privacy.md`）を専門家に確認してもらい、直したうえで直した場合は `version:` を上げた。**利用規約（`terms.md`）の `version:` を上げると、全会員に再同意を求める**（同意画面が出る）。プライバシーポリシーの `version:` は表示用で、再同意は求めない。確認前のひな形のまま公開しない
 - [ ] 管理者を作った（`php artisan fanbox:admin you@example.com`。`laravel-cloud.md` §6）
 - [ ] 失敗したジョブの確認・再実行の方法（本番は Monitoring → Queues）を運用担当が把握している
-- [ ] **テストキーから本番キーに切り替えるとき、DB を作り直したか、テストモードで保存された Stripe の ID を消した。** テストモードの ID は本番モードでは無効なので、そのまま残すと顧客・価格・接続アカウントの取得に失敗する。作り直さない場合は、`users.stripe_customer_id`、`plans.stripe_product_id` / `plans.stripe_price_id`、`creators.stripe_account_id` / `creators.payouts_enabled` / `creators.details_submitted` をクリアする（クリエイターは口座登録をやり直す）
+- [ ] **テストキーから本番キーに切り替えるとき、DB を作り直したか、テストモードで保存された Stripe の ID を消した。** テストモードの ID は本番モードでは無効なので、そのまま残すと顧客・価格・接続アカウントの取得に失敗する。作り直さない場合は、`users.stripe_customer_id`、`plans.stripe_product_id` / `plans.stripe_price_id`、`creators.stripe_account_id` / `creators.payouts_enabled` / `creators.details_submitted` をクリアする（クリエイターは口座登録をやり直す）。デモクリエイターの口座だけなら `php artisan fanbox:demo-payout-accounts --detach` で外せる（`laravel-cloud.md` §6.3）
 - [ ] **既存の DB にマイグレーションを流す前に、同じ支援者・クリエイターの組（`supports` の `user_id` と `creator_id`）で `active` の支援が重複していないことを確認した。** 重複があると一意インデックスの作成に失敗する。たとえば次の SQL が0件であること:
 
     ```sql
