@@ -7,6 +7,7 @@ use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
+use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
@@ -225,6 +226,16 @@ class StripeGateway implements PaymentGateway
      * Charges no longer carry their invoice in newer API versions; it is found through the invoice payment of the
      * charge's PaymentIntent. The legacy `invoice` field is read first when present.
      */
+    public function createPaymentCheckoutSession(PaymentCheckoutRequest $request): CheckoutSessionData
+    {
+        throw new BillingException('not implemented');
+    }
+
+    public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData
+    {
+        throw new BillingException('not implemented');
+    }
+
     public function retrieveCharge(string $chargeId): ChargeData
     {
         $charge = $this->call(fn () => $this->client->charges->retrieve($chargeId))->toArray();

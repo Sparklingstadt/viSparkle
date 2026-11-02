@@ -9,5 +9,6 @@ final readonly class ChargeData
         public ?string $invoiceId,
         public int $amountRefunded,
         public bool $disputed,
+        public ?string $paymentIntentId = null,
     ) {}
 }

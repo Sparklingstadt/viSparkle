@@ -7,8 +7,10 @@ use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
+use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
+use App\Billing\Data\ShippingDetails;
 use App\Billing\Data\SubscriptionData;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -27,7 +29,8 @@ use Illuminate\Support\Str;
  *     sessions: array<string, array<string, mixed>>,
  *     subscriptions: array<string, array<string, mixed>>,
  *     invoices: array<string, array<string, mixed>>,
- *     charges: array<string, array{invoice_id: string, amount: int, amount_refunded: int, disputed: bool}>,
+ *     charges: array<string, array{invoice_id: string|null, amount: int, amount_refunded: int, disputed: bool, payment_intent_id?: string}>,
+ *     paymentIntents: array<string, array{status: string, amount: int, charge_id: string, refunded: bool}>,
  *     accounts: array<string, array{payouts_enabled: bool, details_submitted: bool}>,
  *     cancelledNow: list<string>,
  *     failPayments: bool,
@@ -96,6 +99,39 @@ class FakeGateway implements PaymentGateway
             'cancel_url' => $request->cancelUrl,
             'expires_at' => $request->expiresAt->getTimestamp(),
             'subscription_id' => null,
+            'mode' => 'subscription',
+        ];
+        $this->save($state);
+
+        return $this->sessionData($state['sessions'][$id]);
+    }
+
+    public function createPaymentCheckoutSession(PaymentCheckoutRequest $request): CheckoutSessionData
+    {
+        $state = $this->state();
+        $this->customer($state, $request->customerId);
+
+        $id = $this->newId('cs');
+        $state['sessions'][$id] = [
+            'id' => $id,
+            'status' => 'open',
+            'mode' => 'payment',
+            'customer_id' => $request->customerId,
+            'line_items' => array_map(
+                fn ($item) => ['name' => $item->name, 'unit_amount' => $item->unitAmount, 'quantity' => $item->quantity],
+                $request->lineItems,
+            ),
+            'amount_total' => array_sum(array_map(fn ($item) => $item->unitAmount * $item->quantity, $request->lineItems)),
+            'application_fee_amount' => $request->applicationFeeAmount,
+            'destination_account_id' => $request->destinationAccountId,
+            'metadata' => $request->metadata,
+            'success_url' => $request->successUrl,
+            'cancel_url' => $request->cancelUrl,
+            'expires_at' => $request->expiresAt->getTimestamp(),
+            'subscription_id' => null,
+            'payment_status' => 'unpaid',
+            'payment_intent_id' => null,
+            'shipping' => null,
         ];
         $this->save($state);
 
@@ -236,11 +272,31 @@ class FakeGateway implements PaymentGateway
         return new RefundData($this->newId('re'), (int) $invoice['amount_paid']);
     }
 
+    public function refundPaymentIntent(string $paymentIntentId, string $idempotencyKey): RefundData
+    {
+        $state = $this->state();
+        $paymentIntent = $state['paymentIntents'][$paymentIntentId] ?? throw new BillingException("Unknown payment intent {$paymentIntentId}.");
+
+        if ($paymentIntent['status'] !== 'succeeded') {
+            throw new BillingException("Payment intent {$paymentIntentId} has no payment to refund.");
+        }
+
+        if ($paymentIntent['refunded']) {
+            throw new BillingException("Payment intent {$paymentIntentId} has already been refunded.");
+        }
+
+        $state['paymentIntents'][$paymentIntentId]['refunded'] = true;
+        $state['charges'][$paymentIntent['charge_id']] = ['amount_refunded' => $paymentIntent['amount']] + $this->charge($state, $paymentIntent['charge_id']);
+        $this->save($state);
+
+        return new RefundData($this->newId('re'), $paymentIntent['amount']);
+    }
+
     public function retrieveCharge(string $chargeId): ChargeData
     {
         $charge = $this->charge($this->state(), $chargeId);
 
-        return new ChargeData($chargeId, $charge['invoice_id'], $charge['amount_refunded'], $charge['disputed']);
+        return new ChargeData($chargeId, $charge['invoice_id'], $charge['amount_refunded'], $charge['disputed'], $charge['payment_intent_id'] ?? null);
     }
 
     /*
@@ -279,6 +335,79 @@ class FakeGateway implements PaymentGateway
         $this->save($state);
 
         return $this->subscriptionData($state['subscriptions'][$subscriptionId]);
+    }
+
+    /**
+     * Turn an open payment checkout session into a complete one with a payment intent and charge.
+     * With $paid = false the payment is still pending (a delayed payment method) until settleAsyncPayment().
+     */
+    public function completePaymentCheckout(string $sessionId, bool $paid = true): void
+    {
+        $state = $this->state();
+        $session = $this->session($state, $sessionId);
+
+        if (($session['mode'] ?? 'subscription') !== 'payment') {
+            throw new BillingException("Checkout session {$sessionId} is not a payment session.");
+        }
+
+        if ($session['status'] !== 'open') {
+            throw new BillingException("Checkout session {$sessionId} is {$session['status']}.");
+        }
+
+        $paymentIntentId = $this->newId('pi');
+        $chargeId = $this->newId('ch');
+        $amount = (int) $session['amount_total'];
+
+        $state['paymentIntents'][$paymentIntentId] = [
+            'status' => $paid ? 'succeeded' : 'processing',
+            'amount' => $amount,
+            'charge_id' => $chargeId,
+            'refunded' => false,
+        ];
+        $state['charges'][$chargeId] = [
+            'invoice_id' => null,
+            'amount' => $amount,
+            'amount_refunded' => 0,
+            'disputed' => false,
+            'payment_intent_id' => $paymentIntentId,
+        ];
+        $state['sessions'][$sessionId]['status'] = 'complete';
+        $state['sessions'][$sessionId]['payment_status'] = $paid ? 'paid' : 'unpaid';
+        $state['sessions'][$sessionId]['payment_intent_id'] = $paymentIntentId;
+        $state['sessions'][$sessionId]['shipping'] = ['テスト 太郎', '100-0001', '東京都 千代田区 千代田1-1', '09000000000'];
+        $this->save($state);
+    }
+
+    /**
+     * Resolve a delayed payment: it becomes paid, or the payment intent is canceled (the session stays complete and unpaid).
+     */
+    public function settleAsyncPayment(string $sessionId, bool $succeeded): void
+    {
+        $state = $this->state();
+        $session = $this->session($state, $sessionId);
+        $paymentIntentId = $session['payment_intent_id'] ?? null;
+
+        if (! is_string($paymentIntentId) || $session['payment_status'] !== 'unpaid' || ! isset($state['paymentIntents'][$paymentIntentId])) {
+            throw new BillingException("Checkout session {$sessionId} has no pending payment.");
+        }
+
+        $state['paymentIntents'][$paymentIntentId]['status'] = $succeeded ? 'succeeded' : 'canceled';
+
+        if ($succeeded) {
+            $state['sessions'][$sessionId]['payment_status'] = 'paid';
+        }
+
+        $this->save($state);
+    }
+
+    /**
+     * Payment intents refunded so far.
+     *
+     * @return list<string>
+     */
+    public function refundedPaymentIntents(): array
+    {
+        return array_keys(array_filter($this->state()['paymentIntents'], fn ($paymentIntent) => $paymentIntent['refunded']));
     }
 
     /**
@@ -346,7 +475,7 @@ class FakeGateway implements PaymentGateway
     /**
      * What the dev checkout page shows for a session, or null when it does not exist.
      *
-     * @return array{amount: int, plan_id: int, user_id: string|null, status: string, success_url: string, cancel_url: string}|null
+     * @return array{amount: int, plan_id: int, user_id: string|null, status: string, success_url: string, cancel_url: string, mode: string, order_id: int|null}|null
      */
     public function describeSession(string $id): ?array
     {
@@ -356,13 +485,17 @@ class FakeGateway implements PaymentGateway
             return null;
         }
 
+        $isPayment = ($session['mode'] ?? 'subscription') === 'payment';
+
         return [
-            'amount' => (int) $session['amount'],
-            'plan_id' => (int) $session['plan_id'],
+            'amount' => (int) ($isPayment ? $session['amount_total'] : $session['amount']),
+            'plan_id' => $isPayment ? 0 : (int) $session['plan_id'],
             'user_id' => isset($session['metadata']['user_id']) ? (string) $session['metadata']['user_id'] : null,
             'status' => (string) $session['status'],
             'success_url' => (string) $session['success_url'],
             'cancel_url' => (string) $session['cancel_url'],
+            'mode' => $isPayment ? 'payment' : 'subscription',
+            'order_id' => isset($session['metadata']['order_id']) ? (int) $session['metadata']['order_id'] : null,
         ];
     }
 
@@ -381,6 +514,14 @@ class FakeGateway implements PaymentGateway
         $chargeId = $this->invoice($this->state(), $invoiceId)['charge_id'] ?? null;
 
         return is_string($chargeId) ? $chargeId : throw new BillingException("Invoice {$invoiceId} has no charge.");
+    }
+
+    /**
+     * The fake charge created for a payment intent.
+     */
+    public function chargeIdForPaymentIntent(string $paymentIntentId): string
+    {
+        return $this->state()['paymentIntents'][$paymentIntentId]['charge_id'] ?? throw new BillingException("Unknown payment intent {$paymentIntentId}.");
     }
 
     /**
@@ -413,17 +554,18 @@ class FakeGateway implements PaymentGateway
         /** @var State|null $state */
         $state = $this->cache->get(self::KEY);
 
-        return $state ?? [
+        return $state === null ? [
             'customers' => [],
             'prices' => [],
             'sessions' => [],
             'subscriptions' => [],
             'invoices' => [],
             'charges' => [],
+            'paymentIntents' => [],
             'accounts' => [],
             'cancelledNow' => [],
             'failPayments' => false,
-        ];
+        ] : $state + ['paymentIntents' => []];
     }
 
     /**
@@ -486,7 +628,7 @@ class FakeGateway implements PaymentGateway
 
     /**
      * @param  State  $state
-     * @return array{invoice_id: string, amount: int, amount_refunded: int, disputed: bool}
+     * @return array{invoice_id: string|null, amount: int, amount_refunded: int, disputed: bool, payment_intent_id?: string}
      */
     private function charge(array $state, string $id): array
     {
@@ -541,6 +683,9 @@ class FakeGateway implements PaymentGateway
             subscriptionId: $session['subscription_id'] === null ? null : (string) $session['subscription_id'],
             customerId: (string) $session['customer_id'],
             metadata: $session['metadata'],
+            paymentStatus: $session['payment_status'] ?? null,
+            paymentIntentId: $session['payment_intent_id'] ?? null,
+            shipping: isset($session['shipping']) ? new ShippingDetails(...$session['shipping']) : null,
         );
     }
 
