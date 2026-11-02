@@ -58,6 +58,11 @@ class CartController extends Controller
             'group' => $this->present($group),
             'has_digital' => $digital->isNotEmpty(),
             'has_physical' => $digital->count() < $group['items']->count(),
+            'support' => $creator->accepts_support ? [
+                'presets' => config('fanbox.billing.support_amount_presets'),
+                'min' => (int) config('fanbox.billing.support_amount_min'),
+                'max' => (int) config('fanbox.billing.support_amount_max'),
+            ] : null,
         ]);
     }
 

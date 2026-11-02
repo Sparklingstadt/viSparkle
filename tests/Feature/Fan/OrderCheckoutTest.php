@@ -47,7 +47,19 @@ it('shows the confirm page', function () {
             ->where('group.subtotal', 3600)
             ->where('group.shipping_fee', 600)
             ->where('group.total', 4200)
-            ->has('group.items', 1));
+            ->has('group.items', 1)
+            ->where('support.presets', [100, 300, 500, 1000, 3000])
+            ->where('support.min', 100)
+            ->where('support.max', 50000));
+});
+
+it('hides the support on the confirm page when the creator does not accept it', function () {
+    $this->creator->update(['accepts_support' => false]);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('support', null));
 });
 
 it('sends an empty or unpurchasable confirm back to the cart', function () {
