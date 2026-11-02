@@ -81,13 +81,7 @@ class CreatorPageController extends Controller
             ->orderBy('sort_order')
             ->orderByDesc('id')
             ->get()
-            ->map(fn (Product $product) => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'price' => $product->price,
-                'sold_out' => $product->stock < 1,
-                'cover_url' => $product->coverUrl(),
-            ]);
+            ->map(fn (Product $product) => $product->toSummary());
 
         return array_values($products->all());
     }

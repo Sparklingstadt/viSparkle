@@ -103,6 +103,20 @@ class Product extends Model
         return $this->images->first()?->url();
     }
 
+    /**
+     * @return array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}
+     */
+    public function toSummary(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'price' => $this->price,
+            'sold_out' => $this->stock < 1,
+            'cover_url' => $this->coverUrl(),
+        ];
+    }
+
     /** @return BelongsTo<Creator, $this> */
     public function creator(): BelongsTo
     {
