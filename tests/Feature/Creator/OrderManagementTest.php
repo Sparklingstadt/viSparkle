@@ -201,3 +201,15 @@ it('offers only shipping for a mixed order', function () {
     $this->get(route('creator.orders.show', $order))
         ->assertInertia(fn (Assert $page) => $page->where('order.can_ship', true)->where('order.can_refund', false));
 });
+
+it('shows the support to the creator in the list and the detail', function () {
+    $order = Order::factory()->paid()->withSupport(800)->for($this->buyer)->for($this->creator)->create();
+
+    $this->get(route('creator.orders.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('orders.data.0.support_amount', 800));
+
+    $this->get(route('creator.orders.show', $order))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('order.support_amount', 800));
+});

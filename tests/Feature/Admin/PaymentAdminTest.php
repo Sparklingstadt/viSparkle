@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\PaymentRecorder;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
@@ -146,4 +147,12 @@ it('shows the kinds of the lines on shop orders', function () {
         ->assertInertia(fn ($page) => $page
             ->where('orders.data', fn ($rows) => collect($rows)->firstWhere('id', $digital->id)['has_digital'] === true
                 && collect($rows)->firstWhere('id', $goods->id)['has_digital'] === false));
+});
+
+it('shows the support of shop orders', function () {
+    Order::factory()->paid()->withSupport(300)->create();
+
+    $this->actingAs($this->admin)->get(route('admin.payments.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('orders.data.0.support_amount', 300));
 });

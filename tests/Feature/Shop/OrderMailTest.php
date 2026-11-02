@@ -90,3 +90,11 @@ it('leaves the address out of the creator mail for a digital-only order', functi
     expect((new OrderReceived($order))->render())->not->toContain('お届け先')
         ->and((new OrderReceived($goods))->render())->toContain('お届け先: 山田 花子');
 });
+
+it('lists the support in the order mails only when there is one', function () {
+    $supported = Order::factory()->paid()->withSupport(500)->for($this->buyer)->for($this->creator)->withItem($this->product)->create();
+
+    expect((new OrderConfirmed($supported))->render())->toContain('応援: 500円')
+        ->and((new OrderReceived($supported))->render())->toContain('応援: 500円')
+        ->and((new OrderConfirmed($this->order))->render())->not->toContain('応援');
+});
