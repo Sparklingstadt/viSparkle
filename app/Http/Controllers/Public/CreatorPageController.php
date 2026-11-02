@@ -8,6 +8,7 @@ use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\PostLike;
+use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Presenters\PostPresenter;
@@ -25,6 +26,9 @@ class CreatorPageController extends Controller
         $entitlement = Entitlement::for($viewer);
         $isOwner = $viewer !== null && $creator->user_id === $viewer->id;
         $support = self::activeSupport($viewer, $creator);
+
+        $shopVisible = $creator->isShopVisible() && $creator->products()->listed()->exists();
+        $tab = $shopVisible && $request->query('tab') === 'shop' ? 'shop' : 'posts';
 
         $posts = $creator->posts()
             ->published()
@@ -56,7 +60,36 @@ class CreatorPageController extends Controller
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
             'reportReasons' => ReportReason::options(),
+            'tab' => $tab,
+            'can_buy' => $creator->canSell(),
+            'shop' => [
+                'visible' => $shopVisible,
+                'notice' => $shopVisible ? $creator->shop_notice : null,
+                'products' => $tab === 'shop' ? self::shopProducts($creator) : [],
+            ],
         ]);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}>
+     */
+    private static function shopProducts(Creator $creator): array
+    {
+        $products = $creator->products()
+            ->listed()
+            ->with('images')
+            ->orderBy('sort_order')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Product $product) => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'sold_out' => $product->stock < 1,
+                'cover_url' => $product->coverUrl(),
+            ]);
+
+        return array_values($products->all());
     }
 
     public static function activeSupport(?User $viewer, Creator $creator): ?Support

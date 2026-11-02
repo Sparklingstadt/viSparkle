@@ -8,7 +8,17 @@ import {
     type ReportReasonOption,
 } from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
-import type { CreatorProfile, Paginated, PlanData, PostSummary } from '@/types';
+import { show } from '@/routes/creators';
+import { show as showProduct } from '@/routes/shop/products';
+import type {
+    CreatorProfile,
+    Paginated,
+    PlanData,
+    PostSummary,
+    ShopProductSummary,
+} from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { formatYen } from '@/lib/format';
 
 export default function CreatorPage({
     creator,
@@ -23,6 +33,9 @@ export default function CreatorPage({
     acceptsSupports,
     closed,
     reportReasons,
+    tab,
+    can_buy: canBuy,
+    shop,
 }: {
     creator: CreatorProfile & { id: number };
     plans: PlanData[];
@@ -36,6 +49,13 @@ export default function CreatorPage({
     acceptsSupports: boolean;
     closed: boolean;
     reportReasons: ReportReasonOption[];
+    tab: 'posts' | 'shop';
+    can_buy: boolean;
+    shop: {
+        visible: boolean;
+        notice: string | null;
+        products: ShopProductSummary[];
+    };
 }) {
     return (
         <>
@@ -110,30 +130,116 @@ export default function CreatorPage({
                     )}
                 </section>
 
-                <section className="space-y-4">
-                    <h2 className="text-lg font-semibold">投稿</h2>
-                    {posts.data.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            まだ投稿がありません。
-                        </p>
-                    ) : (
+                {shop.visible && (
+                    <nav
+                        className="flex gap-2 border-b"
+                        aria-label="コンテンツ"
+                    >
+                        {(
+                            [
+                                ['posts', '投稿'],
+                                ['shop', 'ショップ'],
+                            ] as const
+                        ).map(([key, label]) => (
+                            <Link
+                                key={key}
+                                href={
+                                    key === 'shop'
+                                        ? show(creator.slug, {
+                                              query: { tab: 'shop' },
+                                          })
+                                        : show(creator.slug)
+                                }
+                                preserveScroll
+                                aria-current={tab === key ? 'page' : undefined}
+                                className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+                                    tab === key
+                                        ? 'border-primary'
+                                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {label}
+                            </Link>
+                        ))}
+                    </nav>
+                )}
+
+                {tab === 'shop' ? (
+                    <section className="space-y-4">
+                        <h2 className="text-lg font-semibold">ショップ</h2>
+                        {shop.notice && (
+                            <p className="rounded-md border bg-muted p-4 text-sm whitespace-pre-wrap">
+                                {shop.notice}
+                            </p>
+                        )}
+                        {!canBuy && (
+                            <p className="text-sm text-muted-foreground">
+                                現在購入できません
+                            </p>
+                        )}
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {posts.data.map((post) => (
-                                <PostCard key={post.id} post={post} />
+                            {shop.products.map((product) => (
+                                <Link
+                                    key={product.id}
+                                    href={showProduct({
+                                        creator: creator.slug,
+                                        product: product.id,
+                                    })}
+                                    className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+                                >
+                                    <div className="aspect-square bg-muted">
+                                        {product.cover_url && (
+                                            <img
+                                                src={product.cover_url}
+                                                alt=""
+                                                loading="lazy"
+                                                className="size-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 p-3">
+                                        <p className="line-clamp-2 font-medium">
+                                            {product.name}
+                                        </p>
+                                        <p className="flex items-center gap-2 text-sm">
+                                            {formatYen(product.price)}
+                                            {product.sold_out && (
+                                                <Badge variant="secondary">
+                                                    売り切れ
+                                                </Badge>
+                                            )}
+                                        </p>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
-                    )}
-                    <div className="flex justify-between">
-                        {posts.prev_page_url ? (
-                            <Link href={posts.prev_page_url}>← 前へ</Link>
+                    </section>
+                ) : (
+                    <section className="space-y-4">
+                        <h2 className="text-lg font-semibold">投稿</h2>
+                        {posts.data.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                まだ投稿がありません。
+                            </p>
                         ) : (
-                            <span />
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {posts.data.map((post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))}
+                            </div>
                         )}
-                        {posts.next_page_url && (
-                            <Link href={posts.next_page_url}>次へ →</Link>
-                        )}
-                    </div>
-                </section>
+                        <div className="flex justify-between">
+                            {posts.prev_page_url ? (
+                                <Link href={posts.prev_page_url}>← 前へ</Link>
+                            ) : (
+                                <span />
+                            )}
+                            {posts.next_page_url && (
+                                <Link href={posts.next_page_url}>次へ →</Link>
+                            )}
+                        </div>
+                    </section>
+                )}
             </div>
         </>
     );

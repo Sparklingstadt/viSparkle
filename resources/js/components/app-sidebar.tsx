@@ -5,6 +5,7 @@ import {
     Heart,
     Newspaper,
     Package,
+    ShoppingCart,
     Palette,
     Shield,
     Ticket,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed } from '@/routes';
+import { index as cart } from '@/routes/cart';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
@@ -45,6 +47,11 @@ const fanNavItems: NavItem[] = [
         title: '支援中',
         href: supporting(),
         icon: Heart,
+    },
+    {
+        title: 'カート',
+        href: cart(),
+        icon: ShoppingCart,
     },
 ];
 
