@@ -5,6 +5,7 @@ use App\Enums\ReportStatus;
 use App\Enums\ReportTarget;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\Product;
 use App\Models\Report;
 use App\Models\User;
 
@@ -130,4 +131,33 @@ it('passes the reason options to the public pages', function () {
 
     $this->get(route('creators.show', $this->post->creator))
         ->assertInertia(fn ($page) => $page->has('reportReasons', 5));
+});
+
+it('accepts a report on a product', function () {
+    $product = Product::factory()->create();
+
+    $this->actingAs($this->fan)->post(route('reports.store'), [
+        'target_type' => 'product',
+        'target_id' => $product->id,
+        'reason' => 'rights',
+    ])->assertRedirect();
+
+    $report = Report::sole();
+    expect($report->target_type)->toBe(ReportTarget::Product)
+        ->and($report->target_id)->toBe($product->id);
+});
+
+it('rejects a report on a hidden product or on your own product', function () {
+    $hidden = Product::factory()->create(['hidden_at' => now(), 'hidden_reason' => 'x']);
+    $mine = Product::factory()->for(Creator::factory()->create(['user_id' => $this->fan->id]))->create();
+
+    foreach ([$hidden, $mine] as $product) {
+        $this->actingAs($this->fan)->post(route('reports.store'), [
+            'target_type' => 'product',
+            'target_id' => $product->id,
+            'reason' => 'rights',
+        ])->assertSessionHasErrors('target_id');
+    }
+
+    expect(Report::count())->toBe(0);
 });

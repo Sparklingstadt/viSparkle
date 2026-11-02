@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\ReportStatus;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Post;
+use App\Models\Product;
 use App\Models\Report;
 use App\Models\Support;
 use App\Models\User;
@@ -15,6 +17,9 @@ dataset('admin routes', [
     'payment refund' => ['post', fn () => route('admin.payments.refund', Payment::factory()->create())],
     'post' => ['get', fn () => route('admin.posts.show', Post::factory()->create())],
     'post update' => ['patch', fn () => route('admin.posts.update', Post::factory()->create())],
+    'order refund' => ['post', fn () => route('admin.orders.refund', Order::factory()->paid()->create())],
+    'product' => ['get', fn () => route('admin.products.show', Product::factory()->create())],
+    'product update' => ['put', fn () => route('admin.products.update', Product::factory()->create())],
     'users' => ['get', fn () => route('admin.users.index')],
     'user update' => ['patch', fn () => route('admin.users.update', User::factory()->create())],
 ]);

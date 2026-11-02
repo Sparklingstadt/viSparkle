@@ -23,7 +23,7 @@ export function ReportDialog({
     reasons,
     isOwner,
 }: {
-    targetType: 'post' | 'creator';
+    targetType: 'post' | 'creator' | 'product';
     targetId: number;
     reasons: ReportReasonOption[];
     isOwner: boolean;
@@ -51,7 +51,9 @@ export function ReportDialog({
                 <DialogTitle>
                     {targetType === 'post'
                         ? 'この投稿を通報する'
-                        : 'このクリエイターを通報する'}
+                        : targetType === 'product'
+                          ? 'この商品を通報する'
+                          : 'このクリエイターを通報する'}
                 </DialogTitle>
                 <DialogDescription>
                     理由を選んでください。運営が内容を確認します。

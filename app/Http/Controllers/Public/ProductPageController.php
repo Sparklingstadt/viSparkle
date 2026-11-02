@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Product;
@@ -32,6 +33,7 @@ class ProductPageController extends Controller
             'shipping_fee' => $creator->shipping_fee,
             'shop_notice' => $creator->shop_notice,
             'can_buy' => $creator->canSell(),
+            'reportReasons' => ReportReason::options(),
             'is_owner' => $viewer !== null && $creator->user_id === $viewer->id,
         ]);
     }

@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import Heading from '@/components/heading';
@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate, formatYen } from '@/lib/format';
+import { refund as refundOrder } from '@/routes/admin/orders';
 import { index, refund } from '@/routes/admin/payments';
 import type { Paginated } from '@/types';
 
@@ -31,11 +32,24 @@ type Row = {
     support_active: boolean;
 };
 
+type OrderRow = {
+    id: number;
+    paid_at: string | null;
+    creator: { name: string; slug: string } | null;
+    buyer: { name: string; email: string } | null;
+    total: number;
+    status: string;
+    status_label: string;
+    refundable: boolean;
+};
+
 export default function Payments({
     payments,
+    orders,
     filters,
 }: {
     payments: Paginated<Row>;
+    orders: Paginated<OrderRow>;
     filters: { creator: string | null; user: string | null };
 }) {
     const [refunding, setRefunding] = useState<Row | null>(null);
@@ -44,6 +58,18 @@ export default function Payments({
     const openRefund = (payment: Row) => {
         setCancelSupport(false);
         setRefunding(payment);
+    };
+
+    const refundOrderRow = (order: OrderRow) => {
+        if (
+            !window.confirm(
+                `注文 #${order.id}（${formatYen(order.total)}）を返金しますか？`,
+            )
+        ) {
+            return;
+        }
+
+        router.post(refundOrder(order.id).url, {}, { preserveScroll: true });
     };
 
     return (
@@ -161,6 +187,78 @@ export default function Payments({
                         <Link href={payments.next_page_url}>次へ →</Link>
                     )}
                 </div>
+
+                <section className="space-y-3">
+                    <h2 className="font-medium">ショップの注文</h2>
+                    {orders.data.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            注文はありません。
+                        </p>
+                    ) : (
+                        <ul className="divide-y rounded-xl border">
+                            {orders.data.map((order) => (
+                                <li
+                                    key={order.id}
+                                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                                >
+                                    <div className="space-y-1 text-sm">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="font-medium">
+                                                注文 #{order.id}
+                                            </span>
+                                            <span className="font-medium">
+                                                {formatYen(order.total)}
+                                            </span>
+                                            <Badge
+                                                variant={
+                                                    order.status === 'refunded'
+                                                        ? 'secondary'
+                                                        : 'outline'
+                                                }
+                                            >
+                                                {order.status_label}
+                                            </Badge>
+                                            <span className="text-muted-foreground">
+                                                {formatDate(order.paid_at)}
+                                            </span>
+                                        </div>
+                                        <p className="text-muted-foreground">
+                                            {order.creator
+                                                ? `${order.creator.name}（@${order.creator.slug}）`
+                                                : '（削除済み）'}{' '}
+                                            ←{' '}
+                                            {order.buyer
+                                                ? `${order.buyer.name}（${order.buyer.email}）`
+                                                : '（退会済み）'}
+                                        </p>
+                                    </div>
+                                    {order.refundable && (
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() =>
+                                                refundOrderRow(order)
+                                            }
+                                        >
+                                            返金
+                                        </Button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <div className="flex justify-between">
+                        {orders.prev_page_url ? (
+                            <Link href={orders.prev_page_url}>← 前へ</Link>
+                        ) : (
+                            <span />
+                        )}
+                        {orders.next_page_url && (
+                            <Link href={orders.next_page_url}>次へ →</Link>
+                        )}
+                    </div>
+                </section>
             </div>
 
             <Dialog

@@ -1,6 +1,10 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import {
+    ReportDialog,
+    type ReportReasonOption,
+} from '@/components/report-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatYen } from '@/lib/format';
@@ -17,6 +21,7 @@ export default function ProductPage({
     shop_notice: shopNotice,
     can_buy: canBuy,
     is_owner: isOwner,
+    reportReasons,
 }: {
     creator: CreatorSummary;
     product: {
@@ -31,6 +36,7 @@ export default function ProductPage({
     shop_notice: string | null;
     can_buy: boolean;
     is_owner: boolean;
+    reportReasons: ReportReasonOption[];
 }) {
     const { auth } = usePage().props;
     const [image, setImage] = useState(0);
@@ -207,6 +213,14 @@ export default function ProductPage({
                                 </Button>
                             </div>
                         )}
+                        <div className="flex justify-end">
+                            <ReportDialog
+                                targetType="product"
+                                targetId={product.id}
+                                reasons={reportReasons}
+                                isOwner={isOwner}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
