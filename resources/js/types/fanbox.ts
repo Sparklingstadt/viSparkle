@@ -136,9 +136,22 @@ export type OrderStatusValue =
     | 'canceled'
     | 'refunded';
 
+export type OrderItemDownloads = {
+    refusal: string | null;
+    files: {
+        id: number;
+        original_name: string;
+        size: number;
+        url: string;
+    }[];
+};
+
 export type OrderItemData = {
     id: number;
     product_name: string;
+    product_kind?: ProductKind;
     unit_price: number;
     quantity: number;
+    /** The buyer's files of a digital work (the buyer's order page only). */
+    downloads?: OrderItemDownloads | null;
 };

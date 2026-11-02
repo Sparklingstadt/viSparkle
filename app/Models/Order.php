@@ -75,6 +75,16 @@ class Order extends Model
         return $this->belongsTo(Creator::class);
     }
 
+    /**
+     * The state as the buyer and the creator read it: a paid order of digital works only is simply 「購入済み」.
+     */
+    public function statusLabel(): string
+    {
+        return $this->status === OrderStatus::Paid && $this->hasDigital() && ! $this->hasPhysical()
+            ? '購入済み'
+            : $this->status->label();
+    }
+
     public function hasPhysical(): bool
     {
         return $this->kindItems()->contains(fn (OrderItem $item) => ! $item->isDigital());
