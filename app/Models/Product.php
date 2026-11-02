@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductKind;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $creator_id
+ * @property ProductKind $kind
  * @property string $name
  * @property string|null $description
  * @property int $price
@@ -40,6 +42,7 @@ class Product extends Model
     protected function casts(): array
     {
         return [
+            'kind' => ProductKind::class,
             'price' => 'integer',
             'is_published' => 'boolean',
             'sort_order' => 'integer',
@@ -57,6 +60,27 @@ class Product extends Model
     public function isListed(): bool
     {
         return $this->is_published && $this->hidden_at === null && ! $this->trashed();
+    }
+
+    public function isDigital(): bool
+    {
+        return $this->kind === ProductKind::Digital;
+    }
+
+    /**
+     * Listed and on offer: goods need stock, a digital work needs at least one file (it holds no stock).
+     */
+    public function isPurchasable(): bool
+    {
+        if (! $this->isListed()) {
+            return false;
+        }
+
+        if ($this->isDigital()) {
+            return $this->relationLoaded('files') ? $this->files->isNotEmpty() : $this->files()->exists();
+        }
+
+        return $this->stock > 0;
     }
 
     /**
@@ -89,6 +113,12 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** @return HasMany<ProductFile, $this> */
+    public function files(): HasMany
+    {
+        return $this->hasMany(ProductFile::class)->orderBy('sort_order')->orderBy('id');
     }
 
     /** @return HasMany<ProductImage, $this> */

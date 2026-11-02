@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductKind;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,20 +14,27 @@ use Illuminate\Support\Carbon;
  * @property int|null $product_id
  * @property int|null $product_variant_id
  * @property string $product_name
+ * @property ProductKind $product_kind
  * @property int $unit_price
  * @property int $quantity
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'product_variant_id', 'product_name', 'unit_price', 'quantity'])]
+#[Fillable(['product_id', 'product_variant_id', 'product_name', 'product_kind', 'unit_price', 'quantity'])]
 class OrderItem extends Model
 {
     protected function casts(): array
     {
         return [
+            'product_kind' => ProductKind::class,
             'unit_price' => 'integer',
             'quantity' => 'integer',
         ];
+    }
+
+    public function isDigital(): bool
+    {
+        return $this->product_kind === ProductKind::Digital;
     }
 
     public function lineTotal(): int
