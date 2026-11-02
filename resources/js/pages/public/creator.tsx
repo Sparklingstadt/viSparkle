@@ -203,6 +203,11 @@ export default function CreatorPage({
                                         </p>
                                         <p className="flex items-center gap-2 text-sm">
                                             {formatYen(product.price)}
+                                            {product.kind === 'digital' && (
+                                                <Badge variant="outline">
+                                                    デジタル
+                                                </Badge>
+                                            )}
                                             {product.sold_out && (
                                                 <Badge variant="secondary">
                                                     売り切れ

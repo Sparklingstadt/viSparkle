@@ -71,7 +71,7 @@ class CreatorPageController extends Controller
     }
 
     /**
-     * @return list<array{id: int, name: string, price: int, sold_out: bool, cover_url: string|null}>
+     * @return list<array{id: int, kind: string, name: string, price: int, sold_out: bool, cover_url: string|null}>
      */
     private static function shopProducts(Creator $creator): array
     {
@@ -83,9 +83,11 @@ class CreatorPageController extends Controller
             ->get()
             ->map(fn (Product $product) => [
                 'id' => $product->id,
+                'kind' => $product->kind->value,
                 'name' => $product->name,
                 'price' => $product->price,
-                'sold_out' => $product->stock < 1,
+                // Only goods sell out; a digital work holds no stock.
+                'sold_out' => ! $product->isDigital() && $product->stock < 1,
                 'cover_url' => $product->coverUrl(),
             ]);
 

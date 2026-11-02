@@ -100,6 +100,7 @@ export type PostDetail = PostSummary & {
 
 export type ShopProductSummary = {
     id: number;
+    kind: ProductKind;
     name: string;
     price: number;
     sold_out: boolean;

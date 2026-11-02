@@ -11,6 +11,7 @@ use App\Mail\Shop\OrderShipped as OrderShippedMail;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductFile;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
@@ -70,4 +71,13 @@ it('skips mail to the buyer when the buyer account is gone', function () {
     Mail::assertNotQueued(OrderShippedMail::class);
     Mail::assertNotQueued(OrderRefundedMail::class);
     Mail::assertQueued(OrderReceived::class, 1);
+});
+
+it('mentions downloads in the confirmation mail', function () {
+    $work = Product::factory()->digital()->for($this->creator)->create();
+    ProductFile::factory()->for($work)->create();
+    $order = Order::factory()->paid()->for($this->buyer)->for($this->creator)->withItem($work)->create();
+
+    expect((new OrderConfirmed($order))->render())->toContain('注文の画面からダウンロードできます')
+        ->and((new OrderConfirmed($this->order))->render())->not->toContain('ダウンロード');
 });

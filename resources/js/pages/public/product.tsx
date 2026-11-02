@@ -1,18 +1,21 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
     ReportDialog,
     type ReportReasonOption,
 } from '@/components/report-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatYen } from '@/lib/format';
+import { formatBytes, formatYen } from '@/lib/format';
 import { login } from '@/routes';
 import { index as cartIndex } from '@/routes/cart';
 import { store as storeCartItem } from '@/routes/cart/items';
 import { show } from '@/routes/creators';
-import type { CreatorSummary } from '@/types';
+import { show as showOrder } from '@/routes/orders';
+import type { CreatorSummary, ProductKind } from '@/types';
 
 export default function ProductPage({
     creator,
@@ -21,18 +24,24 @@ export default function ProductPage({
     shop_notice: shopNotice,
     can_buy: canBuy,
     is_owner: isOwner,
+    purchased_order_id: purchasedOrderId,
     reportReasons,
 }: {
     creator: CreatorSummary;
     product: {
         id: number;
+        kind: ProductKind;
         name: string;
         description: string | null;
         price: number;
         stock: number;
         variants: { id: number; name: string | null; stock: number }[];
         images: string[];
+        purchasable: boolean;
+        files: { extension: string; size: number }[];
+        files_total_size: number;
     };
+    purchased_order_id: number | null;
     shipping_fee: number;
     shop_notice: string | null;
     can_buy: boolean;
@@ -53,8 +62,12 @@ export default function ProductPage({
     const variant =
         product.variants.find((v) => v.id === variantId) ?? product.variants[0];
 
-    const soldOut = variant.stock < 1;
-    const unavailable = !canBuy;
+    const digital = product.kind === 'digital';
+    const soldOut = !digital && variant.stock < 1;
+    const unavailable = !canBuy || (digital && !product.purchasable);
+    const extensions = [
+        ...new Set(product.files.map((file) => file.extension.toUpperCase())),
+    ];
 
     const addToCart = () =>
         router.post(
@@ -123,7 +136,14 @@ export default function ProductPage({
                     </div>
 
                     <div className="space-y-4">
-                        <h1 className="text-2xl font-bold">{product.name}</h1>
+                        <div className="space-y-1">
+                            {digital && (
+                                <Badge variant="outline">デジタル</Badge>
+                            )}
+                            <h1 className="text-2xl font-bold">
+                                {product.name}
+                            </h1>
+                        </div>
                         <p className="text-2xl font-bold">
                             {formatYen(product.price)}
                             <span className="text-sm font-normal text-muted-foreground">
@@ -131,24 +151,47 @@ export default function ProductPage({
                                 税込
                             </span>
                         </p>
-                        <dl className="space-y-1 text-sm">
-                            <div className="flex gap-4">
-                                <dt className="w-12 text-muted-foreground">
-                                    送料
-                                </dt>
-                                <dd>{formatYen(shippingFee)}</dd>
-                            </div>
-                            <div className="flex gap-4">
-                                <dt className="w-12 text-muted-foreground">
-                                    在庫
-                                </dt>
-                                <dd>
-                                    {soldOut
-                                        ? '売り切れ'
-                                        : `${variant.stock} 点`}
-                                </dd>
-                            </div>
-                        </dl>
+                        {digital ? (
+                            <dl className="space-y-1 text-sm">
+                                <div className="flex gap-4">
+                                    <dt className="w-16 text-muted-foreground">
+                                        お渡し
+                                    </dt>
+                                    <dd>ダウンロード販売</dd>
+                                </div>
+                                <div className="flex gap-4">
+                                    <dt className="w-16 text-muted-foreground">
+                                        ファイル
+                                    </dt>
+                                    <dd>
+                                        {product.files.length} 件（合計{' '}
+                                        {formatBytes(product.files_total_size)}
+                                        ）
+                                        {extensions.length > 0 &&
+                                            ` ・ ${extensions.join(' / ')}`}
+                                    </dd>
+                                </div>
+                            </dl>
+                        ) : (
+                            <dl className="space-y-1 text-sm">
+                                <div className="flex gap-4">
+                                    <dt className="w-12 text-muted-foreground">
+                                        送料
+                                    </dt>
+                                    <dd>{formatYen(shippingFee)}</dd>
+                                </div>
+                                <div className="flex gap-4">
+                                    <dt className="w-12 text-muted-foreground">
+                                        在庫
+                                    </dt>
+                                    <dd>
+                                        {soldOut
+                                            ? '売り切れ'
+                                            : `${variant.stock} 点`}
+                                    </dd>
+                                </div>
+                            </dl>
+                        )}
 
                         {kinds && (
                             <div className="space-y-2">
@@ -201,7 +244,19 @@ export default function ProductPage({
                             </p>
                         )}
 
-                        {unavailable ? (
+                        {purchasedOrderId !== null ? (
+                            <div className="space-y-2">
+                                <p className="flex items-center gap-2 text-sm font-medium">
+                                    <CheckCircle2 className="size-4" />
+                                    購入済み
+                                </p>
+                                <Button asChild className="w-full">
+                                    <Link href={showOrder(purchasedOrderId)}>
+                                        注文の画面でダウンロードする
+                                    </Link>
+                                </Button>
+                            </div>
+                        ) : unavailable ? (
                             <Button disabled className="w-full">
                                 現在購入できません
                             </Button>
@@ -213,33 +268,35 @@ export default function ProductPage({
                             </Button>
                         ) : (
                             <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <label
-                                        htmlFor="quantity"
-                                        className="text-sm text-muted-foreground"
-                                    >
-                                        数量
-                                    </label>
-                                    <Input
-                                        id="quantity"
-                                        type="number"
-                                        min={1}
-                                        max={Math.max(variant.stock, 1)}
-                                        value={quantity}
-                                        onChange={(event) =>
-                                            setQuantity(
-                                                Math.max(
-                                                    1,
-                                                    Number(
-                                                        event.target.value,
-                                                    ) || 1,
-                                                ),
-                                            )
-                                        }
-                                        disabled={soldOut || isOwner}
-                                        className="w-24"
-                                    />
-                                </div>
+                                {!digital && (
+                                    <div className="flex items-center gap-2">
+                                        <label
+                                            htmlFor="quantity"
+                                            className="text-sm text-muted-foreground"
+                                        >
+                                            数量
+                                        </label>
+                                        <Input
+                                            id="quantity"
+                                            type="number"
+                                            min={1}
+                                            max={Math.max(variant.stock, 1)}
+                                            value={quantity}
+                                            onChange={(event) =>
+                                                setQuantity(
+                                                    Math.max(
+                                                        1,
+                                                        Number(
+                                                            event.target.value,
+                                                        ) || 1,
+                                                    ),
+                                                )
+                                            }
+                                            disabled={soldOut || isOwner}
+                                            className="w-24"
+                                        />
+                                    </div>
+                                )}
                                 <Button
                                     className="w-full"
                                     disabled={soldOut || isOwner || processing}
