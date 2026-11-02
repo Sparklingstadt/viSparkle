@@ -228,7 +228,8 @@ class Orders
     }
 
     /**
-     * Mirror a charge's refunds and dispute onto its order. A full refund marks the order refunded (stock as in refund()).
+     * Mirror a charge's refunds and dispute onto its order. A full refund marks the order refunded (stock as in refund(); a
+     * still pending order gets its stock back too).
      */
     public function syncRefund(Order $order, ChargeData $charge): Order
     {
@@ -244,7 +245,8 @@ class Orders
 
             $from = $order->status;
 
-            if ($refunded >= $order->total && in_array($from, [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Canceled], true)) {
+            // A pending order can be fully refunded before its delayed payment's success reaches us; it must not turn paid later.
+            if ($refunded >= $order->total && in_array($from, [OrderStatus::Pending, OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Canceled], true)) {
                 $this->markRefunded($order, $from, $order->cancel_reason);
             }
 
@@ -261,7 +263,7 @@ class Orders
     }
 
     /**
-     * Inside a transaction, on the locked order: → refunded, putting the stock back when it was still paid.
+     * Inside a transaction, on the locked order: → refunded, putting the stock back when it still held it (paid or pending).
      */
     private function markRefunded(Order $order, OrderStatus $from, ?OrderCancelReason $by): void
     {
@@ -272,7 +274,7 @@ class Orders
             'cancel_reason' => $by,
         ])->save();
 
-        if ($from === OrderStatus::Paid) {
+        if ($from === OrderStatus::Paid || $from === OrderStatus::Pending) {
             $this->restoreStock($order);
         }
 

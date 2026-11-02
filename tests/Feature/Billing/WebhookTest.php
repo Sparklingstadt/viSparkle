@@ -1,14 +1,22 @@
 <?php
 
+use App\Billing\FakeGateway;
+use App\Enums\OrderCancelReason;
+use App\Enums\OrderStatus;
 use App\Enums\SupportStatus;
 use App\Jobs\ProcessStripeEvent;
+use App\Models\CartItem;
 use App\Models\Creator;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Product;
 use App\Models\StripeEvent;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\SubscriptionSync;
+use App\Services\Shop\Orders;
+use App\Services\Shop\OrderSync;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
@@ -257,3 +265,138 @@ it('passes the charge id of charge events to the job', function (string $type, a
     'refund' => ['charge.refunded', ['id' => 'ch_1', 'object' => 'charge']],
     'dispute' => ['charge.dispute.created', ['id' => 'du_1', 'object' => 'dispute', 'charge' => 'ch_1']],
 ]);
+
+/**
+ * A pending order for 2 of a product (stock 5 → 3) with its open checkout session; returns [order, product, session ID].
+ *
+ * @return array{0: Order, 1: Product, 2: string}
+ */
+function webhookOrder(FakeGateway $gateway): array
+{
+    $creator = Creator::factory()->payable()->create(['shipping_fee' => 500]);
+    $buyer = User::factory()->create();
+    $product = Product::factory()->for($creator)->create(['price' => 1200, 'stock' => 5]);
+    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_id' => $product->id, 'quantity' => 2])]);
+    $order = app(Orders::class)->reserve($buyer, $creator, $cart);
+
+    return [$order, $product, fakeOrderCheckout($gateway, $order)];
+}
+
+it('marks an order paid on checkout.session.completed', function () {
+    $gateway = fakeBilling();
+    [$order, , $sessionId] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($sessionId);
+
+    postStripeEvent('evt_o1', 'checkout.session.completed', ['id' => $sessionId, 'subscription' => null])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and(StripeEvent::findOrFail('evt_o1')->processed_at)->not->toBeNull();
+});
+
+it('cancels an order on checkout.session.expired', function () {
+    $gateway = fakeBilling();
+    [$order, $product, $sessionId] = webhookOrder($gateway);
+    $gateway->expireCheckoutSession($sessionId);
+
+    postStripeEvent('evt_o2', 'checkout.session.expired', ['id' => $sessionId])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Canceled)
+        ->and($order->cancel_reason)->toBe(OrderCancelReason::Expired)
+        ->and($product->refresh()->stock)->toBe(5);
+});
+
+it('settles an order on async_payment_succeeded and cancels on async_payment_failed', function () {
+    $gateway = fakeBilling();
+    [$paid, , $paidSession] = webhookOrder($gateway);
+    [$failed, $product, $failedSession] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($paidSession, paid: false);
+    $gateway->completePaymentCheckout($failedSession, paid: false);
+    postStripeEvent('evt_o3a', 'checkout.session.completed', ['id' => $paidSession, 'subscription' => null])->assertOk();
+    expect($paid->refresh()->status)->toBe(OrderStatus::Pending);
+
+    $gateway->settleAsyncPayment($paidSession, true);
+    $gateway->settleAsyncPayment($failedSession, false);
+    postStripeEvent('evt_o3b', 'checkout.session.async_payment_succeeded', ['id' => $paidSession])->assertOk();
+    postStripeEvent('evt_o3c', 'checkout.session.async_payment_failed', ['id' => $failedSession])->assertOk();
+
+    expect($paid->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($failed->refresh()->status)->toBe(OrderStatus::Canceled)
+        ->and($failed->cancel_reason)->toBe(OrderCancelReason::PaymentFailed)
+        ->and($product->refresh()->stock)->toBe(3 + 2);
+});
+
+it('ignores a replayed order event', function () {
+    $gateway = fakeBilling();
+    [$order, $product, $sessionId] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($sessionId);
+
+    postStripeEvent('evt_o4', 'checkout.session.completed', ['id' => $sessionId, 'subscription' => null])->assertOk();
+    $paidAt = $order->refresh()->paid_at;
+    postStripeEvent('evt_o4', 'checkout.session.completed', ['id' => $sessionId, 'subscription' => null])->assertOk();
+    // A different event about the same state changes nothing either.
+    postStripeEvent('evt_o4b', 'checkout.session.completed', ['id' => $sessionId, 'subscription' => null])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($order->paid_at->equalTo($paidAt))->toBeTrue()
+        ->and($product->refresh()->stock)->toBe(3);
+});
+
+it('ignores a checkout session of another app', function () {
+    $gateway = fakeBilling();
+    [$order, , $sessionId] = webhookOrder($gateway);
+    $foreign = fakeOrderCheckout($gateway, $order, ['app' => 'other-app', 'order_id' => (string) $order->id]);
+    $gateway->completePaymentCheckout($foreign);
+
+    postStripeEvent('evt_o5', 'checkout.session.completed', ['id' => $foreign, 'subscription' => null])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Pending)
+        ->and(StripeEvent::findOrFail('evt_o5')->processed_at)->not->toBeNull();
+});
+
+it('syncs a refund made in the Stripe dashboard', function () {
+    $gateway = fakeBilling();
+    [$order, $product, $sessionId] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($sessionId);
+    $order = app(OrderSync::class)->syncSession($sessionId);
+    expect($product->refresh()->stock)->toBe(3);
+    $paymentIntentId = (string) $order?->stripe_payment_intent_id;
+    $gateway->refundPaymentIntent($paymentIntentId, 'dashboard');
+
+    postStripeEvent('evt_o6', 'charge.refunded', ['id' => $gateway->chargeIdForPaymentIntent($paymentIntentId)])->assertOk();
+
+    expect($order?->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($order->refunded_amount)->toBe($order->total)
+        ->and($product->refresh()->stock)->toBe(5);
+});
+
+it('keeps a refunded order refunded when the payment success arrives late', function () {
+    $gateway = fakeBilling();
+    [$order, $product, $sessionId] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($sessionId, paid: false);
+    postStripeEvent('evt_o7a', 'checkout.session.completed', ['id' => $sessionId, 'subscription' => null])->assertOk();
+    $gateway->settleAsyncPayment($sessionId, true);
+    $paymentIntentId = (string) $order->refresh()->stripe_payment_intent_id;
+    $gateway->refundPaymentIntent($paymentIntentId, 'dashboard');
+
+    postStripeEvent('evt_o7b', 'charge.refunded', ['id' => $gateway->chargeIdForPaymentIntent($paymentIntentId)])->assertOk();
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($product->refresh()->stock)->toBe(5);
+
+    postStripeEvent('evt_o7c', 'checkout.session.async_payment_succeeded', ['id' => $sessionId])->assertOk();
+    postStripeEvent('evt_o7d', 'checkout.session.async_payment_succeeded', ['id' => $sessionId])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($order->paid_at)->toBeNull()
+        ->and($product->refresh()->stock)->toBe(5);
+});
+
+it('still ignores a charge that belongs to neither a payment nor an order', function () {
+    $gateway = fakeBilling();
+    [$order, , $sessionId] = webhookOrder($gateway);
+    $gateway->completePaymentCheckout($sessionId);
+
+    postStripeEvent('evt_o8', 'charge.refunded', ['id' => $gateway->chargeIdForPaymentIntent((string) $gateway->retrieveCheckoutSession($sessionId)->paymentIntentId)])->assertOk();
+
+    // The order was never synced, so it has no payment intent on it: nothing to attribute the charge to.
+    expect($order->refresh()->status)->toBe(OrderStatus::Pending);
+});

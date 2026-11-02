@@ -185,6 +185,7 @@ it('refunds a paid order and restores stock', function () {
         ->and($refunded->refunded_at->equalTo(now()))->toBeTrue()
         ->and($refunded->cancel_reason)->toBe(OrderCancelReason::Creator)
         ->and($this->gateway->refundedPaymentIntents())->toBe([$order->stripe_payment_intent_id])
+        ->and($this->gateway->refundIdempotencyKeys())->toBe([(string) $order->stripe_payment_intent_id => "order-{$order->id}-refund"])
         ->and($product->refresh()->stock)->toBe(5);
     Event::assertDispatchedTimes(OrderRefunded::class, 1);
 });
@@ -262,4 +263,25 @@ it('records a partial refund at Stripe without changing the status', function ()
     expect($synced->status)->toBe(OrderStatus::Paid)
         ->and($synced->refunded_amount)->toBe(700)
         ->and($synced->disputed_at)->toBeNull();
+});
+
+it('moves a pending order that is fully refunded to refunded and restores its stock once', function () {
+    Event::fake([OrderRefunded::class]);
+    $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 2]]));
+    $sessionId = fakeOrderCheckout($this->gateway, $order);
+    $this->gateway->completePaymentCheckout($sessionId, paid: false);
+    $session = $this->gateway->retrieveCheckoutSession($sessionId);
+    app(Orders::class)->recordAwaitingPayment($order, $session);
+    $this->gateway->settleAsyncPayment($sessionId, true);
+    $this->gateway->refundPaymentIntent((string) $session->paymentIntentId, 'dashboard');
+    $charge = $this->gateway->retrieveCharge($this->gateway->chargeIdForPaymentIntent((string) $session->paymentIntentId));
+
+    app(Orders::class)->syncRefund($order, $charge);
+    app(Orders::class)->syncRefund($order, $charge);
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($order->paid_at)->toBeNull()
+        ->and($product->refresh()->stock)->toBe(5);
+    Event::assertDispatchedTimes(OrderRefunded::class, 1);
 });

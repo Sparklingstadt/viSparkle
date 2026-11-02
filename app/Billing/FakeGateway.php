@@ -33,6 +33,7 @@ use Illuminate\Support\Str;
  *     paymentIntents: array<string, array{status: string, amount: int, charge_id: string, refunded: bool}>,
  *     accounts: array<string, array{payouts_enabled: bool, details_submitted: bool}>,
  *     cancelledNow: list<string>,
+ *     refundKeys: array<string, string>,
  *     failPayments: bool,
  * }
  */
@@ -286,6 +287,7 @@ class FakeGateway implements PaymentGateway
         }
 
         $state['paymentIntents'][$paymentIntentId]['refunded'] = true;
+        $state['refundKeys'][$paymentIntentId] = $idempotencyKey;
         $state['charges'][$paymentIntent['charge_id']] = ['amount_refunded' => $paymentIntent['amount']] + $this->charge($state, $paymentIntent['charge_id']);
         $this->save($state);
 
@@ -408,6 +410,16 @@ class FakeGateway implements PaymentGateway
     public function refundedPaymentIntents(): array
     {
         return array_keys(array_filter($this->state()['paymentIntents'], fn ($paymentIntent) => $paymentIntent['refunded']));
+    }
+
+    /**
+     * The idempotency key each payment intent's refund was requested with, keyed by payment intent.
+     *
+     * @return array<string, string>
+     */
+    public function refundIdempotencyKeys(): array
+    {
+        return $this->state()['refundKeys'];
     }
 
     /**
@@ -564,8 +576,9 @@ class FakeGateway implements PaymentGateway
             'paymentIntents' => [],
             'accounts' => [],
             'cancelledNow' => [],
+            'refundKeys' => [],
             'failPayments' => false,
-        ] : $state + ['paymentIntents' => []];
+        ] : $state + ['paymentIntents' => [], 'refundKeys' => []];
     }
 
     /**
