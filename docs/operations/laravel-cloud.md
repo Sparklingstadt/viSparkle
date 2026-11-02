@@ -193,6 +193,8 @@ php artisan fanbox:admin you@example.com --revoke   # 管理者権限を外す
     php artisan fanbox:demo-payout-accounts --detach
     ```
 
+    外す前に、クリエイターごとの口座 ID（`sakura-illust: acct_...`）を一覧で出すので、控えておく。テストキーに戻して支援可に戻したくなったら、控えた ID を各クリエイターの `stripe_account_id` に書き戻し、`--detach` なしでコマンドを実行する（口座の状態を Stripe から読み直すので、手続き済みの人はそのまま支援可になる）。
+
 ## 7. 独自ドメイン（任意）
 
 **Domains** でドメインを追加し、DNS を設定する。証明書は Cloud が発行する。ドメインを変えたら、次の3つを新しいドメインに合わせる。
