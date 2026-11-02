@@ -45,7 +45,7 @@ class CartController extends Controller
 
         if ($group === null || ! $group['purchasable']) {
             if ($group !== null) {
-                Inertia::flash('toast', ['type' => 'error', 'message' => '現在購入できません']);
+                Inertia::flash('toast', ['type' => 'error', 'message' => $this->cart->refusal($request->user(), $group)]);
             }
 
             return to_route('cart.index');

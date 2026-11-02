@@ -55,7 +55,15 @@ it('sends an empty or unpurchasable confirm back to the cart', function () {
     app(Cart::class)->add($this->buyer, $this->mug, 2);
     $this->mug->forceFill(['stock' => 1])->save();
 
-    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))->assertRedirect(route('cart.index'));
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertRedirect(route('cart.index'))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => '在庫が足りません']);
+
+    $this->mug->forceFill(['is_published' => false])->save();
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertRedirect(route('cart.index'))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => '現在購入できません']);
 });
 
 it('starts a checkout and reserves stock', function () {
@@ -119,6 +127,16 @@ it('refuses an empty cart and a sold-out item', function () {
     app(Cart::class)->add($this->buyer, $this->mug, 2);
     $this->mug->forceFill(['stock' => 1])->save();
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
+        ->assertSessionHasErrors(['cart' => '在庫が足りません']);
+
+    expect(Order::count())->toBe(0);
+});
+
+it('says the item cannot be bought when it is unlisted, even if it is also short', function () {
+    app(Cart::class)->add($this->buyer, $this->mug, 2);
+    $this->mug->forceFill(['stock' => 1, 'is_published' => false])->save();
+
+    $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
         ->assertSessionHasErrors(['cart' => '現在購入できません']);
 
     expect(Order::count())->toBe(0);
@@ -163,7 +181,8 @@ it('refuses while a delayed payment is pending', function () {
     expect(Order::sole()->stripe_payment_intent_id)->not->toBeNull();
 
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
-        ->assertSessionHasErrors(['cart' => 'お支払い待ちの注文があります']);
+        ->assertRedirect(route('orders.show', Order::sole()))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'お支払い待ちの注文があります']);
 
     expect(Order::count())->toBe(1)
         ->and(Order::sole()->status)->toBe(OrderStatus::Pending)
@@ -345,7 +364,8 @@ it('refuses when the previous checkout turns out to await a delayed payment', fu
     $this->gateway->completePaymentCheckout($first, paid: false);
 
     $this->actingAs($this->buyer)->post(route('cart.checkout', $this->creator))
-        ->assertSessionHasErrors(['cart' => 'お支払い待ちの注文があります']);
+        ->assertRedirect(route('orders.show', Order::sole()))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'お支払い待ちの注文があります']);
 
     expect(Order::count())->toBe(1)->and(Order::sole()->status)->toBe(OrderStatus::Pending);
 });

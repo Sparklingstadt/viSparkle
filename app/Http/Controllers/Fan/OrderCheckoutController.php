@@ -6,6 +6,7 @@ use App\Billing\BillingException;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
+use App\Services\Shop\AwaitingPaymentException;
 use App\Services\Shop\OrderCheckout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,14 @@ class OrderCheckoutController extends Controller
      */
     public function store(Request $request, Creator $creator): Response
     {
-        return Inertia::location($this->checkout->begin($request->user(), $creator));
+        try {
+            return Inertia::location($this->checkout->begin($request->user(), $creator));
+        } catch (AwaitingPaymentException $e) {
+            // Lead the buyer to the order whose payment is still being settled.
+            Inertia::flash('toast', ['type' => 'error', 'message' => $e->getMessage()]);
+
+            return to_route('orders.show', $e->order);
+        }
     }
 
     /**

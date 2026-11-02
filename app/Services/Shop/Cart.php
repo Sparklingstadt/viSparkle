@@ -110,6 +110,24 @@ class Cart
     }
 
     /**
+     * Why a group cannot be bought (§8): 「在庫が足りません」 when only the stock falls short, otherwise 「現在購入できません」.
+     *
+     * @param  Group  $group
+     */
+    public function refusal(User $user, array $group): string
+    {
+        $creator = $group['creator'];
+        $items = $group['items'];
+
+        $onlyShort = $creator->canSell()
+            && $creator->user_id !== $user->id
+            && $items->every(fn (CartItem $item) => $item->product->isListed())
+            && $items->contains(fn (CartItem $item) => $item->product->stock < $item->quantity);
+
+        return $onlyShort ? '在庫が足りません' : '現在購入できません';
+    }
+
+    /**
      * @param  Collection<int, CartItem>  $items
      * @return Group
      */

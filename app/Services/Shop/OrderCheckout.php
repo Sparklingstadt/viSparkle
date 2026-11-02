@@ -35,6 +35,7 @@ class OrderCheckout
      * Reserve the stock, create the Checkout session and return its URL.
      *
      * @throws ValidationException (key `cart`)
+     * @throws AwaitingPaymentException when an order of this creator is awaiting a delayed payment
      */
     public function begin(User $buyer, Creator $creator): string
     {
@@ -58,8 +59,12 @@ class OrderCheckout
         // After the replacement: the stock the buyer's own unfinished order held is back by now.
         $group = $this->cart->group($buyer, $creator);
 
-        if ($group === null || ! $group['purchasable']) {
+        if ($group === null) {
             throw self::unavailable();
+        }
+
+        if (! $group['purchasable']) {
+            throw ValidationException::withMessages(['cart' => $this->cart->refusal($buyer, $group)]);
         }
 
         $order = $this->orders->reserve($buyer, $creator, $group['items']);
@@ -133,7 +138,7 @@ class OrderCheckout
     /**
      * One open checkout per buyer and creator, so a second tab cannot reserve the stock twice.
      *
-     * @throws ValidationException (key `cart`) when a delayed payment is still being settled
+     * @throws AwaitingPaymentException when a delayed payment is still being settled
      */
     private function replaceUnfinished(User $buyer, Creator $creator): void
     {
@@ -144,15 +149,18 @@ class OrderCheckout
             ->get();
 
         // A payment already made (waiting to settle) cannot be thrown away; check them all before closing any.
-        if ($pending->contains(fn (Order $order) => $order->stripe_payment_intent_id !== null)) {
-            throw ValidationException::withMessages(['cart' => 'お支払い待ちの注文があります']);
+        $awaiting = $pending->first(fn (Order $order) => $order->stripe_payment_intent_id !== null);
+
+        if ($awaiting !== null) {
+            throw new AwaitingPaymentException($awaiting);
         }
 
         // Closing re-reads each order from Stripe: one that was paid or is awaiting payment is kept as it is.
         $closed = $pending->map(fn (Order $order) => $this->close($order));
+        $awaiting = $closed->first(fn (Order $order) => $order->status === OrderStatus::Pending && $order->stripe_payment_intent_id !== null);
 
-        if ($closed->contains(fn (Order $order) => $order->status === OrderStatus::Pending && $order->stripe_payment_intent_id !== null)) {
-            throw ValidationException::withMessages(['cart' => 'お支払い待ちの注文があります']);
+        if ($awaiting !== null) {
+            throw new AwaitingPaymentException($awaiting);
         }
     }
 
