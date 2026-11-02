@@ -56,39 +56,39 @@ viSparkle と candy-rain-stores を1つのサービスにする。そのため�
 
 ### creators（変更）
 
-| カラム              | 型                         | 備考                                     |
-| ------------------- | -------------------------- | ---------------------------------------- |
-| shipping_fee        | unsigned int, default 0    | 送料（一律・円・税込）。0 なら送料無料   |
-| shop_notice         | text, nullable             | ストアからのお知らせ（ショップのタブに表示） |
-| shop_contact_email  | string(255), nullable      | 購入者の注文詳細に表示する連絡先         |
+| カラム             | 型                      | 備考                                         |
+| ------------------ | ----------------------- | -------------------------------------------- |
+| shipping_fee       | unsigned int, default 0 | 送料（一律・円・税込）。0 なら送料無料       |
+| shop_notice        | text, nullable          | ストアからのお知らせ（ショップのタブに表示） |
+| shop_contact_email | string(255), nullable   | 購入者の注文詳細に表示する連絡先             |
 
 ### products（新規）
 
-| カラム       | 型                           | 備考                                         |
-| ------------ | ---------------------------- | -------------------------------------------- |
-| id           | bigint                       |                                              |
-| creator_id   | FK creators, cascade         |                                              |
-| name         | string(100)                  |                                              |
-| description  | text, nullable               | 最大 5000 文字                               |
-| price        | unsigned int                 | 円・税込。50〜1,000,000                       |
-| stock        | unsigned int                 | 0 なら売り切れ                               |
-| is_published | bool, default false          |                                              |
-| sort_order   | unsigned int, default 0      |                                              |
-| hidden_at / hidden_reason | datetime / string(500), nullable | 運営が非公開にしたとき（投稿と同じ） |
-| deleted_at   | datetime, nullable           | 論理削除（注文で使われていても消せるように） |
-| timestamps   |                              |                                              |
+| カラム                    | 型                               | 備考                                         |
+| ------------------------- | -------------------------------- | -------------------------------------------- |
+| id                        | bigint                           |                                              |
+| creator_id                | FK creators, cascade             |                                              |
+| name                      | string(100)                      |                                              |
+| description               | text, nullable                   | 最大 5000 文字                               |
+| price                     | unsigned int                     | 円・税込。50〜1,000,000                      |
+| stock                     | unsigned int                     | 0 なら売り切れ                               |
+| is_published              | bool, default false              |                                              |
+| sort_order                | unsigned int, default 0          |                                              |
+| hidden_at / hidden_reason | datetime / string(500), nullable | 運営が非公開にしたとき（投稿と同じ）         |
+| deleted_at                | datetime, nullable               | 論理削除（注文で使われていても消せるように） |
+| timestamps                |                                  |                                              |
 
 インデックス: `(creator_id, is_published, sort_order)`。
 
 ### product_images（新規）
 
-| カラム     | 型                   | 備考                       |
-| ---------- | -------------------- | -------------------------- |
-| id         | bigint               |                            |
-| product_id | FK products, cascade |                            |
-| path       | string               | 既存の S3 互換ストレージ   |
-| sort_order | unsigned int         |                            |
-| timestamps |                      |                            |
+| カラム     | 型                   | 備考                     |
+| ---------- | -------------------- | ------------------------ |
+| id         | bigint               |                          |
+| product_id | FK products, cascade |                          |
+| path       | string               | 既存の S3 互換ストレージ |
+| sort_order | unsigned int         |                          |
+| timestamps |                      |                          |
 
 商品1件につき最大 10 枚。JPEG / PNG / WebP、1枚 10MB まで。
 
@@ -106,36 +106,36 @@ viSparkle と candy-rain-stores を1つのサービスにする。そのため�
 
 ### orders（新規）
 
-| カラム                   | 型                          | 備考                                                                 |
-| ------------------------ | --------------------------- | -------------------------------------------------------------------- |
-| id                       | bigint                      |                                                                      |
-| user_id                  | FK users, nullOnDelete      | 購入者                                                               |
-| creator_id               | FK creators                 |                                                                      |
-| status                   | string(32)                  | `OrderStatus` enum（6.1）                                            |
-| subtotal / shipping_fee / total | unsigned int         | 円。注文を作った時点の値                                             |
-| fee_percent              | unsigned int                | 注文を作った時点の手数料率                                           |
-| shipping_name / shipping_postal_code / shipping_address / shipping_phone | string, nullable | 支払い完了時に Checkout から保存 |
-| stripe_checkout_session_id | string, nullable, unique  |                                                                      |
-| stripe_payment_intent_id | string, nullable, unique    |                                                                      |
-| tracking_number          | string(100), nullable       | 発送時に任意で入力                                                   |
-| paid_at / shipped_at / canceled_at / refunded_at / disputed_at | datetime, nullable |                                             |
-| refunded_amount          | unsigned int, default 0     |                                                                      |
-| cancel_reason            | string(32), nullable        | `expired` / `abandoned` / `payment_failed` / `checkout_error` / `creator` / `admin` |
-| timestamps               |                             |                                                                      |
+| カラム                                                                   | 型                       | 備考                                                                                |
+| ------------------------------------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------- |
+| id                                                                       | bigint                   |                                                                                     |
+| user_id                                                                  | FK users, nullOnDelete   | 購入者                                                                              |
+| creator_id                                                               | FK creators              |                                                                                     |
+| status                                                                   | string(32)               | `OrderStatus` enum（6.1）                                                           |
+| subtotal / shipping_fee / total                                          | unsigned int             | 円。注文を作った時点の値                                                            |
+| fee_percent                                                              | unsigned int             | 注文を作った時点の手数料率                                                          |
+| shipping_name / shipping_postal_code / shipping_address / shipping_phone | string, nullable         | 支払い完了時に Checkout から保存                                                    |
+| stripe_checkout_session_id                                               | string, nullable, unique |                                                                                     |
+| stripe_payment_intent_id                                                 | string, nullable, unique |                                                                                     |
+| tracking_number                                                          | string(100), nullable    | 発送時に任意で入力                                                                  |
+| paid_at / shipped_at / canceled_at / refunded_at / disputed_at           | datetime, nullable       |                                                                                     |
+| refunded_amount                                                          | unsigned int, default 0  |                                                                                     |
+| cancel_reason                                                            | string(32), nullable     | `expired` / `abandoned` / `payment_failed` / `checkout_error` / `creator` / `admin` |
+| timestamps                                                               |                          |                                                                                     |
 
 インデックス: `(user_id, created_at)`、`(creator_id, status, created_at)`、`(status, created_at)`（照合ジョブ用）。
 
 ### order_items（新規）
 
-| カラム       | 型                         | 備考                       |
-| ------------ | -------------------------- | -------------------------- |
-| id           | bigint                     |                            |
-| order_id     | FK orders, cascade         |                            |
-| product_id   | FK products, nullOnDelete  | 商品は論理削除なので通常は残る |
-| product_name | string(100)                | 購入時のコピー             |
-| unit_price   | unsigned int               | 購入時のコピー             |
-| quantity     | unsigned int               |                            |
-| timestamps   |                            |                            |
+| カラム       | 型                        | 備考                           |
+| ------------ | ------------------------- | ------------------------------ |
+| id           | bigint                    |                                |
+| order_id     | FK orders, cascade        |                                |
+| product_id   | FK products, nullOnDelete | 商品は論理削除なので通常は残る |
+| product_name | string(100)               | 購入時のコピー                 |
+| unit_price   | unsigned int              | 購入時のコピー                 |
+| quantity     | unsigned int              |                                |
+| timestamps   |                           |                                |
 
 ### その他
 
@@ -174,15 +174,15 @@ pending（支払い待ち） ─(決済完了)→ paid（支払い済み） ─(
 
 **② 支払い**（Webhook。既存の `stripe_events` と `ProcessStripeEvent` に足す。注文に関わるイベントは、メタデータの `order_id` があるかで支援と見分ける）
 
-| イベント                                   | 処理                                                                 |
-| ------------------------------------------ | -------------------------------------------------------------------- |
-| `checkout.session.completed`（`payment_status=paid`） | `paid` にし、お届け先・PaymentIntent ID・`paid_at` を保存。カートからその商品を消す。確定メールを送る |
-| `checkout.session.completed`（`payment_status=unpaid`） | `pending` のまま（在庫は確保したまま）。PaymentIntent ID とお届け先は保存する |
-| `checkout.session.async_payment_succeeded` | `paid` にする（上と同じ処理）                                        |
-| `checkout.session.async_payment_failed`    | `canceled`（`payment_failed`）にして在庫を戻す                       |
-| `checkout.session.expired`                 | `canceled`（`expired`）にして在庫を戻す                              |
-| `charge.refunded`                          | 返金額を同期する。全額なら `refunded`                                |
-| `charge.dispute.created`                   | `disputed_at` を記録する（既存の支援と同じ扱い）                    |
+| イベント                                                | 処理                                                                                                  |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `checkout.session.completed`（`payment_status=paid`）   | `paid` にし、お届け先・PaymentIntent ID・`paid_at` を保存。カートからその商品を消す。確定メールを送る |
+| `checkout.session.completed`（`payment_status=unpaid`） | `pending` のまま（在庫は確保したまま）。PaymentIntent ID とお届け先は保存する                         |
+| `checkout.session.async_payment_succeeded`              | `paid` にする（上と同じ処理）                                                                         |
+| `checkout.session.async_payment_failed`                 | `canceled`（`payment_failed`）にして在庫を戻す                                                        |
+| `checkout.session.expired`                              | `canceled`（`expired`）にして在庫を戻す                                                               |
+| `charge.refunded`                                       | 返金額を同期する。全額なら `refunded`                                                                 |
+| `charge.dispute.created`                                | `disputed_at` を記録する（既存の支援と同じ扱い）                                                      |
 
 - 支払い完了の戻り先（`/orders/checkout/complete?session_id=...`）では、既存の支援と同じく Webhook を待たずにその場で Checkout セッションを取得し、上の表と同じ処理で状態を揃えてから注文の詳細へリダイレクトする（`paid` なら「ご注文ありがとうございました」、あとで支払う方法なら「お支払いをお待ちしています」）
 - Checkout から「戻る」で `cancel_url`（`/cart?canceled={order}`）に来たら、その注文の Checkout を失効させ、`canceled`（`abandoned`）にして在庫をすぐ戻す
@@ -216,28 +216,28 @@ pending（支払い待ち） ─(決済完了)→ paid（支払い済み） ─(
 
 ### 誰でも見られる
 
-| URL                            | 内容                                                                                           |
-| ------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `/@{creator}`                  | 「投稿」「ショップ」のタブを足す。ショップのタブには公開中の商品（画像・名前・価格・売り切れ）とストアからのお知らせ。公開中の商品が1件もなければタブを出さない |
-| `/@{creator}/shop/{product}`   | 商品の詳細。画像、説明、価格、送料、在庫、「カートに入れる」と数量。未ログインならログインへ案内。購入できない状態（6.2 ①の条件）なら「現在購入できません」 |
+| URL                          | 内容                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/@{creator}`                | 「投稿」「ショップ」のタブを足す。ショップのタブには公開中の商品（画像・名前・価格・売り切れ）とストアからのお知らせ。公開中の商品が1件もなければタブを出さない |
+| `/@{creator}/shop/{product}` | 商品の詳細。画像、説明、価格、送料、在庫、「カートに入れる」と数量。未ログインならログインへ案内。購入できない状態（6.2 ①の条件）なら「現在購入できません」     |
 
 ### 購入者（サイドメニューの「フィード」「支援中」の下に「カート」「注文履歴」）
 
-| URL                          | 内容                                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| URL                          | 内容                                                                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/cart`                      | クリエイターごとにまとめて表示。数量の変更と削除。まとまりごとに小計・送料・合計と「この商品を購入」。売り切れ・非公開の商品には印を付け、そのまとまりは購入できない |
-| `/cart/{creator}/confirm`    | 購入前の確認。商品・金額、お届けは国内のみであること、確定後は購入者から取り消せないこと、返品の案内（特定商取引法ページへのリンク）。「支払いへ進む」で Stripe へ |
-| `/orders/checkout/complete`  | 画面は持たない。状態を揃えて注文の詳細へリダイレクトし、トーストで知らせる（6.2 ②）                 |
-| `/orders`、`/orders/{order}` | 注文履歴と詳細。状態、明細、お届け先、お問い合わせ番号、クリエイターの連絡先。他人の注文は 404     |
+| `/cart/{creator}/confirm`    | 購入前の確認。商品・金額、お届けは国内のみであること、確定後は購入者から取り消せないこと、返品の案内（特定商取引法ページへのリンク）。「支払いへ進む」で Stripe へ   |
+| `/orders/checkout/complete`  | 画面は持たない。状態を揃えて注文の詳細へリダイレクトし、トーストで知らせる（6.2 ②）                                                                                  |
+| `/orders`、`/orders/{order}` | 注文履歴と詳細。状態、明細、お届け先、お問い合わせ番号、クリエイターの連絡先。他人の注文は 404                                                                       |
 
 ### クリエイター（サイドメニューの「クリエイター管理」に「商品管理」「注文管理」）
 
-| URL                                         | 内容                                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `/creator/products`                         | 商品の一覧・作成・編集・削除。名前、説明、価格、在庫、画像（並べ替え）、公開／非公開。口座の登録が済んでいなければ、公開できない理由と「収益」ページへのリンク |
-| `/creator/shop`                             | ショップの設定。送料、ストアからのお知らせ、連絡先のメールアドレス                         |
+| URL                                          | 内容                                                                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/creator/products`                          | 商品の一覧・作成・編集・削除。名前、説明、価格、在庫、画像（並べ替え）、公開／非公開。口座の登録が済んでいなければ、公開できない理由と「収益」ページへのリンク                       |
+| `/creator/shop`                              | ショップの設定。送料、ストアからのお知らせ、連絡先のメールアドレス                                                                                                                   |
 | `/creator/orders`、`/creator/orders/{order}` | 注文の一覧（状態で絞り込み）と詳細。「発送済みにする」（お問い合わせ番号は任意）、発送前の「取り消して返金」（確認ダイアログ付き）。`pending` と `canceled` は既定では一覧に出さない |
-| `/creator/earnings`                         | 「ショップの売上」を足す                                                                   |
+| `/creator/earnings`                          | 「ショップの売上」を足す                                                                                                                                                             |
 
 ### 運営
 
@@ -255,16 +255,16 @@ pending（支払い待ち） ─(決済完了)→ paid（支払い済み） ─(
 
 ## 8. エラー時の扱い
 
-| 状況                                             | 扱い                                                                                 |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| クリエイターが活動を終了した（`closed_at`）      | ショップのタブと商品ページは非公開。新しい購入はできない。`paid` の注文は発送・取り消しができる |
-| クリエイターの口座が使えなくなった               | 商品は表示するが「現在購入できません」。購入手続きは始められない                     |
-| 運営がユーザーを停止した                         | 購入者なら購入できない。クリエイターなら活動終了と同じ扱い                           |
-| 手続きの途中で商品が非公開になった・価格が変わった | Checkout は注文に保存した金額のまま進む。確保した在庫と注文はそのまま               |
-| 商品の削除                                       | 論理削除（`deleted_at`）。注文の明細はコピーなので表示は変わらない                   |
-| Webhook の重複・順番の入れ替わり                 | 既存の `stripe_events` で重複を弾き、状態は前にしか進めない                          |
-| 在庫が足りない                                   | 購入手続きの開始時にロックして確かめ、足りなければカートに戻して「在庫が足りません」 |
-| 商品画像のアップロード失敗                       | 既存の投稿ファイルと同じ扱い（孤立したファイルは既存の `PruneOrphanFiles` で消す。対象に商品画像を足す） |
+| 状況                                               | 扱い                                                                                                     |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| クリエイターが活動を終了した（`closed_at`）        | ショップのタブと商品ページは非公開。新しい購入はできない。`paid` の注文は発送・取り消しができる          |
+| クリエイターの口座が使えなくなった                 | 商品は表示するが「現在購入できません」。購入手続きは始められない                                         |
+| 運営がユーザーを停止した                           | 購入者なら購入できない。クリエイターなら活動終了と同じ扱い                                               |
+| 手続きの途中で商品が非公開になった・価格が変わった | Checkout は注文に保存した金額のまま進む。確保した在庫と注文はそのまま                                    |
+| 商品の削除                                         | 論理削除（`deleted_at`）。注文の明細はコピーなので表示は変わらない                                       |
+| Webhook の重複・順番の入れ替わり                   | 既存の `stripe_events` で重複を弾き、状態は前にしか進めない                                              |
+| 在庫が足りない                                     | 購入手続きの開始時にロックして確かめ、足りなければカートに戻して「在庫が足りません」                     |
+| 商品画像のアップロード失敗                         | 既存の投稿ファイルと同じ扱い（孤立したファイルは既存の `PruneOrphanFiles` で消す。対象に商品画像を足す） |
 
 **連打と乱用への対策**: カートの操作は `throttle:60,1`、購入手続きの開始は `throttle:10,1`、完了画面は既存の支援と同じく専用の枠。
 
