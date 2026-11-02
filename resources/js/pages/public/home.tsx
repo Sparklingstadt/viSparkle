@@ -89,7 +89,7 @@ export default function Home({
                     <h2 className="text-lg font-semibold">新着クリエイター</h2>
                     {creators.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                            まだクリエイターがいません。
+                            支援を受け付けているクリエイターはまだいません。
                         </p>
                     ) : (
                         <div className="flex flex-wrap gap-4">
