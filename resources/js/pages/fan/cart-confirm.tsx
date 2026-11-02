@@ -181,6 +181,10 @@ export default function CartConfirm({
                         </p>
                     </section>
                 )}
+                {/* The creator stopped accepting support after this page was opened: the section is gone, keep the reason. */}
+                {support === null && supportError && (
+                    <InputError message={supportError} />
+                )}
 
                 <dl className="divide-y rounded-xl border text-sm">
                     {rows.map(([label, value]) => (
