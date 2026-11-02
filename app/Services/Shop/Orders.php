@@ -8,6 +8,7 @@ use App\Billing\Data\CheckoutSessionData;
 use App\Billing\PaymentGateway;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Events\Shop\OrderPaid;
 use App\Events\Shop\OrderRefunded;
 use App\Events\Shop\OrderShipped;
@@ -15,6 +16,7 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -29,11 +31,16 @@ use LogicException;
  */
 class Orders
 {
-    public function __construct(private readonly PaymentGateway $gateway) {}
+    public function __construct(
+        private readonly PaymentGateway $gateway,
+        private readonly DigitalAccess $access,
+    ) {}
 
     /**
-     * Take the cart's quantities out of stock and create the pending order with copies of the names and prices.
+     * Take the cart's quantities out of stock and create the pending order with copies of the names, kinds and prices.
      * Each decrement is conditional on enough stock of a variant of a listed product of this creator, so stock never goes negative.
+     * A digital work takes no stock: it must be a listed work of this creator with a file, one of it, not bought by the
+     * buyer already. Shipping is charged only when the order holds goods.
      *
      * @param  Collection<int, CartItem>  $cartItems
      *
@@ -51,36 +58,44 @@ class Orders
             // A fixed order of row locks keeps two buyers of the same products from deadlocking.
             foreach ($cartItems->sortBy('product_variant_id') as $cartItem) {
                 $quantity = $cartItem->quantity;
+                $variant = ProductVariant::query()->with('product')->find($cartItem->product_variant_id);
 
-                $taken = $quantity < 1 ? 0 : ProductVariant::query()
-                    ->whereKey($cartItem->product_variant_id)
-                    ->whereHas('product', fn ($product) => $product->withoutTrashed()->where('creator_id', $creator->id)->listed())
-                    ->where('stock', '>=', $quantity)
-                    ->decrement('stock', $quantity);
+                if ($variant?->product->isDigital()) {
+                    $this->checkWork($buyer, $creator, $variant, $quantity);
+                } else {
+                    $taken = $quantity < 1 ? 0 : ProductVariant::query()
+                        ->whereKey($cartItem->product_variant_id)
+                        ->whereHas('product', fn ($product) => $product->withoutTrashed()->where('creator_id', $creator->id)->listed())
+                        ->where('stock', '>=', $quantity)
+                        ->decrement('stock', $quantity);
 
-                if ($taken === 0) {
-                    throw ValidationException::withMessages(['cart' => '在庫が足りません']);
+                    if ($taken === 0) {
+                        throw ValidationException::withMessages(['cart' => '在庫が足りません']);
+                    }
                 }
 
-                $variant = ProductVariant::query()->with('product')->findOrFail($cartItem->product_variant_id);
+                $variant ??= ProductVariant::query()->with('product')->findOrFail($cartItem->product_variant_id);
                 $lines[] = [
                     'product_id' => $variant->product_id,
                     'product_variant_id' => $variant->id,
                     'product_name' => $variant->label(),
+                    'product_kind' => $variant->product->kind,
                     'unit_price' => $variant->product->price,
                     'quantity' => $quantity,
                 ];
             }
 
             $subtotal = array_sum(array_map(fn (array $line) => $line['unit_price'] * $line['quantity'], $lines));
+            $hasGoods = collect($lines)->contains(fn (array $line) => $line['product_kind'] === ProductKind::Physical);
+            $shippingFee = $hasGoods ? $creator->shipping_fee : 0;
 
             $order = Order::query()->create([
                 'user_id' => $buyer->id,
                 'creator_id' => $creator->id,
                 'status' => OrderStatus::Pending,
                 'subtotal' => $subtotal,
-                'shipping_fee' => $creator->shipping_fee,
-                'total' => $subtotal + $creator->shipping_fee,
+                'shipping_fee' => $shippingFee,
+                'total' => $subtotal + $shippingFee,
                 'fee_percent' => (int) config('fanbox.billing.platform_fee_percent'),
             ]);
             $order->items()->createMany($lines);
@@ -168,16 +183,16 @@ class Orders
     }
 
     /**
-     * paid → shipped.
+     * paid → shipped. An order of digital works only has nothing to ship; paid is its last state.
      *
-     * @throws ValidationException (key `order`) when the order is not paid
+     * @throws ValidationException (key `order`) when the order is not paid or holds no goods
      */
     public function ship(Order $order, ?string $trackingNumber): Order
     {
         return DB::transaction(function () use ($order, $trackingNumber) {
             $order = $this->lock($order);
 
-            if ($order->status !== OrderStatus::Paid) {
+            if ($order->status !== OrderStatus::Paid || ($order->hasDigital() && ! $order->hasPhysical())) {
                 throw ValidationException::withMessages(['order' => 'この注文は発送できません。']);
             }
 
@@ -215,6 +230,11 @@ class Orders
 
             if (! $refundable) {
                 throw ValidationException::withMessages(['order' => 'この注文は返金できません。']);
+            }
+
+            // A downloaded file cannot be given back: only an admin refunds an order with a digital work (§6.4).
+            if ($by === OrderCancelReason::Creator && $order->hasDigital()) {
+                throw ValidationException::withMessages(['order' => 'デジタル作品を含む注文は取り消せません。']);
             }
 
             if ($order->stripe_payment_intent_id === null) {
@@ -284,15 +304,41 @@ class Orders
     }
 
     /**
-     * Inside a transaction, on the locked order: give each item's quantity back (also to a variant or product deleted since).
+     * Inside a transaction, on the locked order: give each item of goods its quantity back (also to a variant or product
+     * deleted since). Digital works hold no stock.
      */
     private function restoreStock(Order $order): void
     {
         $order->items()
             ->whereNotNull('product_variant_id')
+            ->where('product_kind', ProductKind::Physical)
             ->orderBy('product_variant_id')
             ->get()
             ->each(fn (OrderItem $item) => ProductVariant::withTrashed()->whereKey($item->product_variant_id)->increment('stock', $item->quantity));
+    }
+
+    /**
+     * Inside the reservation: the work is a listed one of this creator, with a file, one of it, and not bought already.
+     * The product row is locked so a concurrent unpublish or file removal waits for the order.
+     *
+     * @throws ValidationException (key `cart`)
+     */
+    private function checkWork(User $buyer, Creator $creator, ProductVariant $variant, int $quantity): void
+    {
+        $work = Product::query()
+            ->whereKey($variant->product_id)
+            ->where('creator_id', $creator->id)
+            ->listed()
+            ->lockForUpdate()
+            ->first();
+
+        if ($work !== null && $this->access->hasPurchased($buyer, $work)) {
+            throw ValidationException::withMessages(['cart' => '購入済みの作品です']);
+        }
+
+        if ($work === null || $quantity !== 1 || ! $work->files()->exists()) {
+            throw ValidationException::withMessages(['cart' => '現在購入できません']);
+        }
     }
 
     /**
