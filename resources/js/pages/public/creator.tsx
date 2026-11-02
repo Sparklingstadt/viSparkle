@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { CreatorHeader } from '@/components/creator-header';
+import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
 import {
@@ -18,6 +19,7 @@ export default function CreatorPage({
     viewerPlanId,
     viewerSupportId,
     viewerSupportCancelling,
+    viewerFollows,
     acceptsSupports,
     closed,
     reportReasons,
@@ -30,6 +32,7 @@ export default function CreatorPage({
     viewerPlanId: number | null;
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
+    viewerFollows: boolean;
     acceptsSupports: boolean;
     closed: boolean;
     reportReasons: ReportReasonOption[];
@@ -41,7 +44,14 @@ export default function CreatorPage({
             <div className="space-y-8">
                 <div className="space-y-1">
                     <CreatorHeader creator={creator} />
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-2">
+                        {/* A closed creator takes no new follows; current followers can still unfollow. */}
+                        {!isOwner && (!closed || viewerFollows) && (
+                            <FollowButton
+                                creatorSlug={creator.slug}
+                                following={viewerFollows}
+                            />
+                        )}
                         <ReportDialog
                             targetType="creator"
                             targetId={creator.id}
