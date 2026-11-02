@@ -27,3 +27,13 @@ it('lists active supporters and counts per plan', function () {
             ->where('supporters.data.0.plan_name', 'ベーシック')
             ->where('supporters.data.0.price', 500));
 });
+
+it('shows the follower count to the creator', function () {
+    $creator = Creator::factory()->create();
+    $creator->follow(User::factory()->create());
+    $creator->follow(User::factory()->create());
+    Creator::factory()->create()->follow(User::factory()->create());
+
+    $this->actingAs($creator->user)->get(route('creator.supporters.index'))
+        ->assertInertia(fn ($page) => $page->where('followerCount', 2));
+});

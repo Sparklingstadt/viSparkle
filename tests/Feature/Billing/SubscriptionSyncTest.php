@@ -384,3 +384,47 @@ it('never cancels an unstamped subscription whose user is missing', function () 
         ->and($this->gateway->cancelledNow())->toBe([]);
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });
+
+it('follows the creator when a new support becomes active', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+
+    app(SubscriptionSync::class)->sync($subscription->id);
+
+    expect($this->creator->isFollowedBy($this->fan))->toBeTrue();
+});
+
+it('does not follow again on later syncs after the fan unfollowed', function () {
+    $other = Plan::factory()->for($this->creator)->price(1000)->create();
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $sync = app(SubscriptionSync::class);
+    $sync->sync($subscription->id);
+    $this->creator->unfollow($this->fan);
+
+    $sync->apply($this->gateway->setCancelAtPeriodEnd($subscription->id, true));
+    $sync->apply($this->gateway->setCancelAtPeriodEnd($subscription->id, false));
+    $this->gateway->changeSubscriptionPrice($subscription->id, (string) $subscription->itemId, $this->gateway->ensurePrice($other)->priceId, false);
+    $sync->sync($subscription->id);
+
+    expect($this->creator->isFollowedBy($this->fan))->toBeFalse();
+});
+
+it('keeps the follow when the support ends', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $sync = app(SubscriptionSync::class);
+    $sync->sync($subscription->id);
+
+    $this->gateway->setSubscriptionStatus($subscription->id, 'canceled');
+    $sync->sync($subscription->id);
+
+    expect(Support::sole()->status)->toBe(SupportStatus::Ended)
+        ->and($this->creator->isFollowedBy($this->fan))->toBeTrue();
+});
+
+it('does not follow for a subscription first seen as ended', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
+    $this->gateway->setSubscriptionStatus($subscription->id, 'canceled');
+
+    app(SubscriptionSync::class)->sync($subscription->id);
+
+    expect($this->creator->isFollowedBy($this->fan))->toBeFalse();
+});
