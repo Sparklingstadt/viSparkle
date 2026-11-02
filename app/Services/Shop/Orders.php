@@ -208,7 +208,9 @@ class Orders
             $order = $this->lock($order);
             $from = $order->status;
 
-            $refundable = $from === OrderStatus::Paid || $from === OrderStatus::Shipped
+            // A creator may only cancel before shipping; once the goods are out, only an admin (or Stripe) refunds.
+            $refundable = $from === OrderStatus::Paid
+                || ($from === OrderStatus::Shipped && $by !== OrderCancelReason::Creator)
                 || ($allowCanceled && $from === OrderStatus::Canceled);
 
             if (! $refundable) {

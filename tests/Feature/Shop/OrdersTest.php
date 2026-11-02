@@ -201,6 +201,16 @@ it('refunds a shipped order without restoring stock', function () {
         ->and($product->refresh()->stock)->toBe(4);
 });
 
+it('refuses a creator refund of a shipped order', function () {
+    $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
+    $order = app(Orders::class)->ship(shopPaidOrder($product), null);
+
+    expect(fn () => app(Orders::class)->refund($order, OrderCancelReason::Creator))->toThrow(ValidationException::class);
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Shipped)
+        ->and($this->gateway->refundedPaymentIntents())->toBe([]);
+});
+
 it('refuses to refund a pending, canceled or refunded order', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
     $orders = app(Orders::class);
