@@ -30,6 +30,7 @@ class SupporterController extends Controller
         return Inertia::render('creator/supporters', [
             'plans' => $creator->plans()->withCount('activeSupports')->get()->map->toData()->values(),
             'supporters' => $supporters,
+            'followerCount' => $creator->follows()->count(),
         ]);
     }
 }

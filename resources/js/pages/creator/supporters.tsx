@@ -15,9 +15,11 @@ type Row = {
 export default function Supporters({
     plans,
     supporters,
+    followerCount,
 }: {
     plans: PlanData[];
     supporters: Paginated<Row>;
+    followerCount: number;
 }) {
     return (
         <>
@@ -25,6 +27,20 @@ export default function Supporters({
 
             <div className="space-y-6 p-4">
                 <Heading title="支援者" />
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border p-4">
+                        <p className="text-sm text-muted-foreground">
+                            フォロワー
+                            <span className="text-xs">
+                                （支援者を含みます）
+                            </span>
+                        </p>
+                        <p className="text-2xl font-bold">
+                            {followerCount} 人
+                        </p>
+                    </div>
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {plans.map((plan) => (
