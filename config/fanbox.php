@@ -13,6 +13,7 @@ return [
     'attachment_max_kb' => 102400,
     'attachments_per_post' => 20,
     'images_per_post' => 100,
+    'product_files_max' => 10,
     'image_max_edge' => 2560,
     'thumb_max_edge' => 640,
     // Decoding cost is width x height x 4 bytes; refuse anything larger before decoding.
