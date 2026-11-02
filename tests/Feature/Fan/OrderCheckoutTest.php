@@ -226,7 +226,7 @@ it('completes a paid session on return', function () {
     $this->gateway->completePaymentCheckout($sessionId);
 
     $this->actingAs($this->buyer)->get(route('orders.checkout.complete', ['session_id' => $sessionId]))
-        ->assertRedirect(route('cart.index'))
+        ->assertRedirect(route('orders.show', Order::sole()))
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => 'ご注文ありがとうございました']);
 
     $order = Order::sole();

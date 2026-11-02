@@ -125,3 +125,17 @@ export type CartGroup = {
     total: number;
     purchasable: boolean;
 };
+
+export type OrderStatusValue =
+    | 'pending'
+    | 'paid'
+    | 'shipped'
+    | 'canceled'
+    | 'refunded';
+
+export type OrderItemData = {
+    id: number;
+    product_name: string;
+    unit_price: number;
+    quantity: number;
+};

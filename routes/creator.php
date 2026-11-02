@@ -3,6 +3,7 @@
 use App\Http\Controllers\Creator\ClosureController;
 use App\Http\Controllers\Creator\CreatorRegistrationController;
 use App\Http\Controllers\Creator\EarningsController;
+use App\Http\Controllers\Creator\OrderController;
 use App\Http\Controllers\Creator\PlanController;
 use App\Http\Controllers\Creator\PostController;
 use App\Http\Controllers\Creator\PostFileController;
@@ -62,5 +63,16 @@ Route::middleware(['auth', 'verified'])->prefix('creator')->name('creator.')->gr
             ->name('products.images.store');
         Route::put('products/{product}/images', [ProductImageController::class, 'reorder'])->name('products.images.reorder');
         Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy'])->name('products.images.destroy');
+
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order')->name('orders.show');
+        Route::post('orders/{order}/ship', [OrderController::class, 'ship'])
+            ->whereNumber('order')
+            ->middleware('throttle:10,1')
+            ->name('orders.ship');
+        Route::post('orders/{order}/refund', [OrderController::class, 'refund'])
+            ->whereNumber('order')
+            ->middleware('throttle:10,1')
+            ->name('orders.refund');
     });
 });

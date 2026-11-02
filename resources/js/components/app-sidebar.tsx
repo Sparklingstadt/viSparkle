@@ -4,7 +4,9 @@ import {
     FileText,
     Heart,
     Newspaper,
+    ClipboardList,
     Package,
+    ReceiptText,
     ShoppingCart,
     Palette,
     Shield,
@@ -28,7 +30,9 @@ import {
 import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed } from '@/routes';
 import { index as cart } from '@/routes/cart';
+import { index as orders } from '@/routes/orders';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
+import { index as creatorOrders } from '@/routes/creator/orders';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
 import { index as creatorProducts } from '@/routes/creator/products';
@@ -53,6 +57,11 @@ const fanNavItems: NavItem[] = [
         href: cart(),
         icon: ShoppingCart,
     },
+    {
+        title: '注文履歴',
+        href: orders(),
+        icon: ReceiptText,
+    },
 ];
 
 const creatorNavItems: NavItem[] = [
@@ -75,6 +84,11 @@ const creatorNavItems: NavItem[] = [
         title: '商品管理',
         href: creatorProducts(),
         icon: Package,
+    },
+    {
+        title: '注文管理',
+        href: creatorOrders(),
+        icon: ClipboardList,
     },
     {
         title: '支援者',

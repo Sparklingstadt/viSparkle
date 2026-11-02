@@ -26,7 +26,7 @@ class OrderCheckoutController extends Controller
 
     /**
      * Where Stripe Checkout sends the buyer back to; the webhook may not have arrived yet, so sync here.
-     * The order's page comes with the order pages; until then the buyer lands on the cart.
+     * The buyer lands on the order's page, where its state shows (or the cart when Stripe could not be reached).
      */
     public function complete(Request $request): RedirectResponse
     {
@@ -48,6 +48,6 @@ class OrderCheckoutController extends Controller
             default => ['type' => 'error', 'message' => 'お支払いが完了していません。'],
         });
 
-        return to_route('cart.index');
+        return to_route('orders.show', $order);
     }
 }
