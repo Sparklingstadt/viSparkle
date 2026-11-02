@@ -184,7 +184,7 @@ it('recounts likes from the rows', function () {
     $post->like($this->fan);
     Post::whereKey($post->id)->toBase()->update(['like_count' => 7]);
 
-    $this->artisan('fanbox:recount-post-likes')->expectsOutput('Fixed 1 post(s).')->assertSuccessful();
+    $this->artisan('visparkle:recount-post-likes')->expectsOutput('Fixed 1 post(s).')->assertSuccessful();
 
     expect($post->fresh()->like_count)->toBe(1);
 });

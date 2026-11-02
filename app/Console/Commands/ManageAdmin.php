@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('fanbox:admin {email : Email of the member} {--revoke : Remove admin rights instead of granting them}')]
+#[Signature('visparkle:admin {email : Email of the member} {--revoke : Remove admin rights instead of granting them}')]
 #[Description('Grant or revoke admin rights for a member')]
 class ManageAdmin extends Command
 {

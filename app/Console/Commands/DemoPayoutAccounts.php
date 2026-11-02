@@ -21,7 +21,7 @@ use Illuminate\Console\Command;
  * to live keys: a test-mode account does not exist in live mode, and checkout against it would fail. It prints each
  * slug with its account ID first; the accounts stay in Stripe, so writing an ID back undoes the detach.
  */
-#[Signature('fanbox:demo-payout-accounts {--detach : Forget the payout accounts of the demo creators so they stop accepting supports}')]
+#[Signature('visparkle:demo-payout-accounts {--detach : Forget the payout accounts of the demo creators so they stop accepting supports}')]
 #[Description('Open Stripe test-mode payout accounts for the demo creators and print their onboarding links')]
 class DemoPayoutAccounts extends Command
 {

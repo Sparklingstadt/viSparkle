@@ -15,7 +15,7 @@ beforeEach(function () {
 });
 
 it('opens a payout account for the eight demo creators and prints their onboarding links', function () {
-    $this->artisan('fanbox:demo-payout-accounts')
+    $this->artisan('visparkle:demo-payout-accounts')
         ->expectsOutputToContain('sakura-illust: 登録手続きが必要です')
         ->expectsOutputToContain('支援可 0/8')
         ->assertExitCode(0);
@@ -26,10 +26,10 @@ it('opens a payout account for the eight demo creators and prints their onboardi
 
 it('reports the creators whose onboarding is finished', function () {
     // The fake gateway finishes onboarding as soon as a link is made.
-    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
+    $this->artisan('visparkle:demo-payout-accounts')->assertExitCode(0);
     $accounts = Creator::whereNotNull('stripe_account_id')->pluck('stripe_account_id', 'slug');
 
-    $this->artisan('fanbox:demo-payout-accounts')
+    $this->artisan('visparkle:demo-payout-accounts')
         ->expectsOutputToContain('sakura-illust: 支援可')
         ->expectsOutputToContain('支援可 8/8')
         ->assertExitCode(0);
@@ -42,7 +42,7 @@ it('reports the creators whose onboarding is finished', function () {
 it('refuses to run with live Stripe keys', function () {
     config(['fanbox.billing.stripe.secret' => 'sk_live_123']);
 
-    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(1);
+    $this->artisan('visparkle:demo-payout-accounts')->assertExitCode(1);
 
     expect(Creator::whereNotNull('stripe_account_id')->count())->toBe(0);
 });
@@ -50,7 +50,7 @@ it('refuses to run with live Stripe keys', function () {
 it('warns about demo creators that have not been seeded', function () {
     Creator::where('slug', 'aoi-music')->sole()->user->delete();
 
-    $this->artisan('fanbox:demo-payout-accounts')
+    $this->artisan('visparkle:demo-payout-accounts')
         ->expectsOutputToContain('aoi-music: クリエイターが見つかりません')
         ->expectsOutputToContain('支援可 0/8')
         ->assertExitCode(0);
@@ -63,7 +63,7 @@ it('stops when the payment service fails and keeps the accounts opened so far', 
     $broken = Creator::whereIn('slug', DemoCreatorsSeeder::acceptingSupports())->orderBy('id')->skip(1)->first();
     $broken->forceFill(['stripe_account_id' => 'acct_missing'])->save();
 
-    $this->artisan('fanbox:demo-payout-accounts')
+    $this->artisan('visparkle:demo-payout-accounts')
         ->expectsOutputToContain('決済サービスに接続できませんでした')
         ->doesntExpectOutputToContain('支援可 ')
         ->assertExitCode(1);
@@ -73,12 +73,12 @@ it('stops when the payment service fails and keeps the accounts opened so far', 
 });
 
 it('detaches the payout accounts, even with live Stripe keys', function () {
-    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
-    $this->artisan('fanbox:demo-payout-accounts')->assertExitCode(0);
+    $this->artisan('visparkle:demo-payout-accounts')->assertExitCode(0);
+    $this->artisan('visparkle:demo-payout-accounts')->assertExitCode(0);
     $sakuraAccount = Creator::where('slug', 'sakura-illust')->sole()->stripe_account_id;
     config(['fanbox.billing.stripe.secret' => 'sk_live_123']);
 
-    $this->artisan('fanbox:demo-payout-accounts', ['--detach' => true])
+    $this->artisan('visparkle:demo-payout-accounts', ['--detach' => true])
         ->expectsOutputToContain("sakura-illust: {$sakuraAccount}")
         ->expectsOutputToContain('入金口座を外しました（8人）')
         ->assertExitCode(0);

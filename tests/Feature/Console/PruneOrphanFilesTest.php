@@ -34,7 +34,7 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
     $cover = putFile('public', $plan->cover_path, 48);
     $oldAvatar = putFile('public', 'creators/9/avatar/old.jpg', 48);
 
-    $this->artisan('fanbox:prune-orphan-files')
+    $this->artisan('visparkle:prune-orphan-files')
         ->expectsOutputToContain('2')
         ->assertSuccessful();
 
@@ -49,7 +49,7 @@ it('keeps product images', function () {
     $kept = putFile('public', $image->path, 48);
     $orphan = putFile('public', 'creators/9/products/orphan.jpg', 48);
 
-    $this->artisan('fanbox:prune-orphan-files')->assertSuccessful();
+    $this->artisan('visparkle:prune-orphan-files')->assertSuccessful();
 
     Storage::disk('public')->assertExists($kept);
     Storage::disk('public')->assertMissing($orphan);
@@ -60,7 +60,7 @@ it('keeps product files and prunes orphans under products', function () {
     $kept = putFile('private', $file->path, 48);
     $orphan = putFile('private', 'creators/1/products/1/x.zip', 25);
 
-    $this->artisan('fanbox:prune-orphan-files')->assertSuccessful();
+    $this->artisan('visparkle:prune-orphan-files')->assertSuccessful();
 
     Storage::disk('private')->assertExists($kept);
     Storage::disk('private')->assertMissing($orphan);
@@ -69,14 +69,14 @@ it('keeps product files and prunes orphans under products', function () {
 it('only reports in dry-run mode', function () {
     $orphan = putFile('private', 'creators/1/posts/1/orphan.jpg', 48);
 
-    $this->artisan('fanbox:prune-orphan-files', ['--dry-run' => true])->assertSuccessful();
+    $this->artisan('visparkle:prune-orphan-files', ['--dry-run' => true])->assertSuccessful();
 
     Storage::disk('private')->assertExists($orphan);
 });
 
 it('is scheduled daily', function () {
     $events = collect(app(Schedule::class)->events())
-        ->filter(fn ($event) => str_contains($event->command ?? '', 'fanbox:prune-orphan-files'));
+        ->filter(fn ($event) => str_contains($event->command ?? '', 'visparkle:prune-orphan-files'));
 
     expect($events)->toHaveCount(1)->and($events->first()->expression)->toBe('0 0 * * *');
 });
