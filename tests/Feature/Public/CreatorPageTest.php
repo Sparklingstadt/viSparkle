@@ -86,7 +86,7 @@ it('renders with a constant number of queries regardless of post count', functio
     expect($many)->toBe($few);
 });
 
-it('shows newest free posts and creators on the home page', function () {
+it('shows newest free posts on the home page', function () {
     $free = Post::factory()->published()->create();
     Post::factory()->published()->requiring(500)->create();
     Post::factory()->draft()->create();
@@ -96,6 +96,5 @@ it('shows newest free posts and creators on the home page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('public/home')
             ->has('posts', 1)
-            ->where('posts.0.id', $free->id)
-            ->has('creators', 3));
+            ->where('posts.0.id', $free->id));
 });

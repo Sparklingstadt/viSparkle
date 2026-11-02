@@ -53,6 +53,20 @@ class Creator extends Model
     }
 
     /**
+     * Open creators a fan can start supporting now: payouts are set up (canAcceptSupports) and a plan is accepting.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function supportable(Builder $query): void
+    {
+        $query->open()
+            ->whereNotNull('stripe_account_id')
+            ->where('payouts_enabled', true)
+            ->whereHas('plans', fn ($q) => $q->where('is_accepting', true));
+    }
+
+    /**
      * Open creators ranked by fans who started (and still keep) a support in the last 7 days.
      * One fan holds at most one active support per creator, so counting supports counts fans.
      *
