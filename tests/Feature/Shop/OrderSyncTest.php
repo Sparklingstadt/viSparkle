@@ -27,7 +27,7 @@ beforeEach(function () {
  */
 function syncReservedOrder(int $quantity = 2): array
 {
-    $cart = collect([CartItem::query()->create(['user_id' => test()->buyer->id, 'product_id' => test()->product->id, 'quantity' => $quantity])]);
+    $cart = collect([CartItem::query()->create(['user_id' => test()->buyer->id, 'product_variant_id' => test()->product->variants()->value('id'), 'quantity' => $quantity])]);
     $order = app(Orders::class)->reserve(test()->buyer, test()->creator, $cart);
 
     return [$order, fakeOrderCheckout(test()->gateway, $order)];
@@ -36,7 +36,7 @@ function syncReservedOrder(int $quantity = 2): array
 it("marks a paid session's order as paid with shipping details", function () {
     Event::fake([OrderPaid::class]);
     $this->travelTo(now()->startOfSecond());
-    $otherCreatorsItem = CartItem::query()->create(['user_id' => $this->buyer->id, 'product_id' => Product::factory()->create()->id, 'quantity' => 1]);
+    $otherCreatorsItem = CartItem::query()->create(['user_id' => $this->buyer->id, 'product_variant_id' => Product::factory()->create()->variants()->value('id'), 'quantity' => 1]);
     [$order, $sessionId] = syncReservedOrder();
     $this->gateway->completePaymentCheckout($sessionId);
     $paymentIntentId = $this->gateway->retrieveCheckoutSession($sessionId)->paymentIntentId;
@@ -127,7 +127,7 @@ it('syncs the same session twice without double effects', function () {
     $sync->syncSession($sessionId);
     $paidAt = $order->refresh()->paid_at;
     $this->travel(5)->minutes();
-    CartItem::query()->create(['user_id' => $this->buyer->id, 'product_id' => $this->product->id, 'quantity' => 1]);
+    CartItem::query()->create(['user_id' => $this->buyer->id, 'product_variant_id' => $this->product->variants()->value('id'), 'quantity' => 1]);
     $sync->syncSession($sessionId);
 
     $order->refresh();

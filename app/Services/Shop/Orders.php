@@ -15,7 +15,7 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +33,7 @@ class Orders
 
     /**
      * Take the cart's quantities out of stock and create the pending order with copies of the names and prices.
-     * Each decrement is conditional on enough stock of a listed product of this creator, so stock never goes negative.
+     * Each decrement is conditional on enough stock of a variant of a listed product of this creator, so stock never goes negative.
      *
      * @param  Collection<int, CartItem>  $cartItems
      *
@@ -49,13 +49,12 @@ class Orders
             $lines = [];
 
             // A fixed order of row locks keeps two buyers of the same products from deadlocking.
-            foreach ($cartItems->sortBy('product_id') as $cartItem) {
+            foreach ($cartItems->sortBy('product_variant_id') as $cartItem) {
                 $quantity = $cartItem->quantity;
 
-                $taken = $quantity < 1 ? 0 : Product::query()
-                    ->whereKey($cartItem->product_id)
-                    ->where('creator_id', $creator->id)
-                    ->listed()
+                $taken = $quantity < 1 ? 0 : ProductVariant::query()
+                    ->whereKey($cartItem->product_variant_id)
+                    ->whereHas('product', fn ($product) => $product->withoutTrashed()->where('creator_id', $creator->id)->listed())
                     ->where('stock', '>=', $quantity)
                     ->decrement('stock', $quantity);
 
@@ -63,11 +62,12 @@ class Orders
                     throw ValidationException::withMessages(['cart' => '在庫が足りません']);
                 }
 
-                $product = Product::query()->findOrFail($cartItem->product_id);
+                $variant = ProductVariant::query()->with('product')->findOrFail($cartItem->product_variant_id);
                 $lines[] = [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'unit_price' => $product->price,
+                    'product_id' => $variant->product_id,
+                    'product_variant_id' => $variant->id,
+                    'product_name' => $variant->label(),
+                    'unit_price' => $variant->product->price,
                     'quantity' => $quantity,
                 ];
             }
@@ -112,7 +112,7 @@ class Orders
             if ($order->user_id !== null) {
                 CartItem::query()
                     ->where('user_id', $order->user_id)
-                    ->whereIn('product_id', $order->items()->whereNotNull('product_id')->pluck('product_id'))
+                    ->whereIn('product_variant_id', $order->items()->whereNotNull('product_variant_id')->pluck('product_variant_id'))
                     ->delete();
             }
 
@@ -284,15 +284,15 @@ class Orders
     }
 
     /**
-     * Inside a transaction, on the locked order: give each item's quantity back (also to a product deleted since).
+     * Inside a transaction, on the locked order: give each item's quantity back (also to a variant or product deleted since).
      */
     private function restoreStock(Order $order): void
     {
         $order->items()
-            ->whereNotNull('product_id')
-            ->orderBy('product_id')
+            ->whereNotNull('product_variant_id')
+            ->orderBy('product_variant_id')
             ->get()
-            ->each(fn (OrderItem $item) => Product::withTrashed()->whereKey($item->product_id)->increment('stock', $item->quantity));
+            ->each(fn (OrderItem $item) => ProductVariant::withTrashed()->whereKey($item->product_variant_id)->increment('stock', $item->quantity));
     }
 
     /**

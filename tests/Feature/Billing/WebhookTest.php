@@ -276,7 +276,7 @@ function webhookOrder(FakeGateway $gateway): array
     $creator = Creator::factory()->payable()->create(['shipping_fee' => 500]);
     $buyer = User::factory()->create();
     $product = Product::factory()->for($creator)->create(['price' => 1200, 'stock' => 5]);
-    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_id' => $product->id, 'quantity' => 2])]);
+    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_variant_id' => $product->variants()->value('id'), 'quantity' => 2])]);
     $order = app(Orders::class)->reserve($buyer, $creator, $cart);
 
     return [$order, $product, fakeOrderCheckout($gateway, $order)];

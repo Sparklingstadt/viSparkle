@@ -6,6 +6,7 @@ use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +20,6 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property int $price
- * @property int $stock
  * @property bool $is_published
  * @property int $sort_order
  * @property Carbon|null $hidden_at
@@ -27,8 +27,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read int $stock the total of the variants' stock
  */
-#[Fillable(['name', 'description', 'price', 'stock', 'is_published', 'sort_order'])]
+#[Fillable(['name', 'description', 'price', 'is_published', 'sort_order'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -40,7 +41,6 @@ class Product extends Model
     {
         return [
             'price' => 'integer',
-            'stock' => 'integer',
             'is_published' => 'boolean',
             'sort_order' => 'integer',
             'hidden_at' => 'datetime',
@@ -59,6 +59,21 @@ class Product extends Model
         return $this->is_published && $this->hidden_at === null && ! $this->trashed();
     }
 
+    /**
+     * The total stock of the variants, for lists that show a product as sold out.
+     *
+     * @return Attribute<int, never>
+     */
+    protected function stock(): Attribute
+    {
+        return Attribute::get(fn () => (int) $this->variants->sum('stock'));
+    }
+
+    public function hasKinds(): bool
+    {
+        return $this->variants->count() > 1;
+    }
+
     public function coverUrl(): ?string
     {
         return $this->images->first()?->url();
@@ -68,6 +83,12 @@ class Product extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(Creator::class);
+    }
+
+    /** @return HasMany<ProductVariant, $this> */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
     }
 
     /** @return HasMany<ProductImage, $this> */

@@ -11,9 +11,9 @@ it('keeps one cart row per user and product', function () {
     $user = User::factory()->create();
     $product = Product::factory()->create();
 
-    CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 1]);
+    CartItem::create(['user_id' => $user->id, 'product_variant_id' => $product->variants()->value('id'), 'quantity' => 1]);
 
-    expect(fn () => CartItem::create(['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 2]))
+    expect(fn () => CartItem::create(['user_id' => $user->id, 'product_variant_id' => $product->variants()->value('id'), 'quantity' => 2]))
         ->toThrow(UniqueConstraintViolationException::class);
 });
 

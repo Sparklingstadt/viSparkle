@@ -21,7 +21,7 @@ beforeEach(function () {
 function adminPaidOrder(Product $product): Order
 {
     $orders = app(Orders::class);
-    $cart = collect([CartItem::query()->create(['user_id' => test()->buyer->id, 'product_id' => $product->id, 'quantity' => 1])]);
+    $cart = collect([CartItem::query()->create(['user_id' => test()->buyer->id, 'product_variant_id' => $product->variants()->value('id'), 'quantity' => 1])]);
     $order = $orders->reserve(test()->buyer, test()->creator, $cart);
     $sessionId = fakeOrderCheckout(test()->gateway, $order);
     test()->gateway->completePaymentCheckout($sessionId);

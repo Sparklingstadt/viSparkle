@@ -11,13 +11,14 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $order_id
  * @property int|null $product_id
+ * @property int|null $product_variant_id
  * @property string $product_name
  * @property int $unit_price
  * @property int $quantity
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['product_id', 'product_name', 'unit_price', 'quantity'])]
+#[Fillable(['product_id', 'product_variant_id', 'product_name', 'unit_price', 'quantity'])]
 class OrderItem extends Model
 {
     protected function casts(): array
