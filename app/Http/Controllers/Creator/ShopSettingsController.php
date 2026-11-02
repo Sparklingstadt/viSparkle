@@ -23,6 +23,7 @@ class ShopSettingsController extends Controller
                 'accepts_support' => $creator->accepts_support,
             ],
             'support_fee_percent' => (int) config('fanbox.billing.support_fee_percent'),
+            'support_enabled' => (bool) config('fanbox.billing.support_enabled'),
         ]);
     }
 
@@ -32,7 +33,8 @@ class ShopSettingsController extends Controller
             'shipping_fee' => $request->validated('shipping_fee'),
             'shop_notice' => $request->validated('shop_notice') ?: null,
             'shop_contact_email' => $request->validated('shop_contact_email') ?: null,
-            'accepts_support' => $request->boolean('accepts_support'),
+            // While support is off for the service the form has no checkbox, so keep the saved choice.
+            ...(config('fanbox.billing.support_enabled') ? ['accepts_support' => $request->boolean('accepts_support')] : []),
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'ショップ設定を保存しました。']);
