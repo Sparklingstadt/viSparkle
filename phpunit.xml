@@ -29,6 +29,7 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="BILLING_DRIVER" value="fake"/>
+        <env name="BILLING_SUPPORT_ENABLED" value="true"/>
         <env name="STRIPE_SECRET" value=""/>
         <env name="STRIPE_WEBHOOK_SECRET" value=""/>
         <env name="STRIPE_CONNECT_WEBHOOK_SECRET" value=""/>

@@ -31,7 +31,7 @@ class StartOrderCheckoutRequest extends FormRequest
     }
 
     /**
-     * A creator may stop accepting support after the buyer opened the confirm page.
+     * Support may be turned off for the whole service, or by the creator after the buyer opened the confirm page.
      *
      * @return array<int, callable>
      */
@@ -40,8 +40,13 @@ class StartOrderCheckoutRequest extends FormRequest
         return [function (Validator $validator) {
             $creator = $this->route('creator');
 
-            if (! $validator->errors()->has('support_amount') && $this->supportAmount() > 0
-                && $creator instanceof Creator && ! $creator->accepts_support) {
+            if ($validator->errors()->has('support_amount') || $this->supportAmount() === 0) {
+                return;
+            }
+
+            if (! config('fanbox.billing.support_enabled')) {
+                $validator->errors()->add('support_amount', '現在、応援は受け付けていません');
+            } elseif ($creator instanceof Creator && ! $creator->accepts_support) {
                 $validator->errors()->add('support_amount', 'このクリエイターは現在応援を受け付けていません');
             }
         }];

@@ -18,7 +18,21 @@ it('shows the shop settings', function () {
             ->where('shop.shipping_fee', 500)
             ->where('shop.shop_notice', 'お知らせ')
             ->where('shop.accepts_support', true)
-            ->where('support_fee_percent', 5));
+            ->where('support_fee_percent', 5)
+            ->where('support_enabled', true));
+});
+
+it('hides the support setting and keeps its value while support is turned off for the service', function () {
+    config(['fanbox.billing.support_enabled' => false]);
+
+    $this->get(route('creator.shop.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('support_enabled', false));
+
+    // The form has no checkbox now, so nothing is sent; the saved choice must survive.
+    $this->put(route('creator.shop.update'), ['shipping_fee' => 0])->assertSessionHasNoErrors();
+
+    expect($this->creator->fresh()->accepts_support)->toBeTrue();
 });
 
 it('turns support off and on', function () {

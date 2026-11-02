@@ -206,6 +206,25 @@ it('accepts the bounds of the support', function (int $amount) {
     expect(Order::sole()->support_amount)->toBe($amount);
 })->with([100, 50000]);
 
+it('hides the support and refuses it while support is turned off for the service', function () {
+    config(['fanbox.billing.support_enabled' => false]);
+    app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('support', null));
+
+    $this->actingAs($this->buyer)->from(route('cart.confirm', $this->creator))
+        ->post(route('cart.checkout', $this->creator), ['support_amount' => 300])
+        ->assertRedirect(route('cart.confirm', $this->creator))
+        ->assertSessionHasErrors(['support_amount' => '現在、応援は受け付けていません']);
+    expect(Order::count())->toBe(0);
+
+    beginOrderCheckout($this->buyer, $this->creator);
+
+    expect(Order::sole()->support_amount)->toBe(0);
+});
+
 it('refuses support when the creator does not accept it, but still sells', function () {
     $this->creator->update(['accepts_support' => false]);
     app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
