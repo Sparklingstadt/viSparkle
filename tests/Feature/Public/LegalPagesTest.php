@@ -117,3 +117,16 @@ it('keeps the goods sales terms in the tokushoho page copy', function () {
         ->toContain('返品・交換（グッズ）')
         ->toContain('お客様都合による返品・交換は受け付けません');
 });
+
+it('describes digital sales on the tokushoho page', function () {
+    legalConfig();
+
+    expect(file_get_contents(resource_path('js/pages/legal/tokushoho.tsx')))
+        ->toContain('引き渡し時期（デジタル作品）')
+        ->toContain('返品・キャンセル（デジタル作品）')
+        ->toContain('動作環境（デジタル作品）')
+        ->toContain('ダウンロードできる期間（デジタル作品）')
+        ->toContain('作品が公開されているあいだ')
+        ->toContain('デジタル作品に送料はかかりません')
+        ->toContain('通信料は、お客様のご負担');
+});

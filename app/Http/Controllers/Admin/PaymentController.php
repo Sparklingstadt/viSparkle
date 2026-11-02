@@ -46,7 +46,7 @@ class PaymentController extends Controller
         ]);
 
         $orders = Order::query()
-            ->with(['creator', 'user'])
+            ->with(['creator', 'user', 'items'])
             ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])
             ->orderByDesc('paid_at')
             ->orderByDesc('id')
@@ -59,6 +59,8 @@ class PaymentController extends Controller
             'creator' => $order->creator === null ? null : ['name' => $order->creator->display_name, 'slug' => $order->creator->slug],
             'buyer' => $order->user === null ? null : ['name' => $order->user->name, 'email' => $order->user->email],
             'total' => $order->total,
+            'has_digital' => $order->hasDigital(),
+            'has_physical' => $order->hasPhysical(),
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'refundable' => in_array($order->status, [OrderStatus::Paid, OrderStatus::Shipped], true),

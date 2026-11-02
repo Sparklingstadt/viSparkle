@@ -39,6 +39,8 @@ type OrderRow = {
     creator: { name: string; slug: string } | null;
     buyer: { name: string; email: string } | null;
     total: number;
+    has_digital: boolean;
+    has_physical: boolean;
     status: string;
     status_label: string;
     refundable: boolean;
@@ -227,6 +229,16 @@ export default function Payments({
                                             >
                                                 {order.status_label}
                                             </Badge>
+                                            {order.has_physical && (
+                                                <Badge variant="outline">
+                                                    グッズ
+                                                </Badge>
+                                            )}
+                                            {order.has_digital && (
+                                                <Badge variant="outline">
+                                                    デジタル
+                                                </Badge>
+                                            )}
                                             <span className="text-muted-foreground">
                                                 {formatDate(order.paid_at)}
                                             </span>
