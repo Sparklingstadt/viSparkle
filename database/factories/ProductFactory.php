@@ -23,6 +23,7 @@ class ProductFactory extends Factory
     {
         return [
             'creator_id' => Creator::factory(),
+            'kind' => ProductKind::Physical,
             'name' => fake()->words(3, true),
             'description' => fake()->realText(120),
             'price' => 1500,

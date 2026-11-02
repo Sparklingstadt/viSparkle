@@ -45,6 +45,28 @@ class OrderFactory extends Factory
         ]);
     }
 
+    public function pending(): static
+    {
+        return $this->state(fn () => ['status' => OrderStatus::Pending]);
+    }
+
+    public function canceled(): static
+    {
+        return $this->state(fn () => [
+            'status' => OrderStatus::Canceled,
+            'canceled_at' => now(),
+        ]);
+    }
+
+    public function refunded(): static
+    {
+        return $this->paid()->state(fn (array $attributes) => [
+            'status' => OrderStatus::Refunded,
+            'refunded_at' => now(),
+            'refunded_amount' => $attributes['total'] ?? 1500,
+        ]);
+    }
+
     public function withItem(Product $product, int $quantity = 1): static
     {
         return $this->afterCreating(function (Order $order) use ($product, $quantity) {
@@ -53,6 +75,7 @@ class OrderFactory extends Factory
                 'product_id' => $product->id,
                 'product_variant_id' => $variant->id,
                 'product_name' => $variant->label(),
+                'product_kind' => $product->kind,
                 'unit_price' => $product->price,
                 'quantity' => $quantity,
             ]);
