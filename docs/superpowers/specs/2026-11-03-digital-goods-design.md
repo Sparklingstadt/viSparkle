@@ -8,7 +8,7 @@
 
 candy-rain-stores の統合の2段階目。1段階目のショップ（カート・注文・Stripe Checkout の destination charge・Webhook の同期・返金）の上に、**ファイルとダウンロードの権限**を足し、クリエイターがグッズと並べてデジタル作品（画像集・PDF・音声・ZIP など）を売れるようにする。
 
-この設計書のとおりに作り終えたら、candy-rain-stores のリポジトリをアーカイブする。
+この設計書のとおりに作り終えても、candy-rain-stores のリポジトリはアーカイブしない。
 
 ### 決まっていること（ユーザーの回答）
 
@@ -207,4 +207,4 @@ candy-rain-stores の統合の2段階目。1段階目のショップ（カート
 
 - デモデータ（`--seed`）に、デモクリエイターのデジタル作品を1件（小さなファイル付き）足す
 - Stripe の Webhook に足すイベントはない
-- 作り終えたら candy-rain-stores のリポジトリをアーカイブする（ユーザーが GitHub で行う）
+- candy-rain-stores のリポジトリはアーカイブしない
