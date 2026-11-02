@@ -4,6 +4,7 @@ use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\PostFile;
 use App\Models\Product;
+use App\Models\ProductFile;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Storage;
 
@@ -52,6 +53,17 @@ it('keeps product images', function () {
 
     Storage::disk('public')->assertExists($kept);
     Storage::disk('public')->assertMissing($orphan);
+});
+
+it('keeps product files and prunes orphans under products', function () {
+    $file = ProductFile::factory()->create(['path' => 'creators/1/products/1/kept.zip']);
+    $kept = putFile('private', $file->path, 48);
+    $orphan = putFile('private', 'creators/1/products/1/x.zip', 25);
+
+    $this->artisan('fanbox:prune-orphan-files')->assertSuccessful();
+
+    Storage::disk('private')->assertExists($kept);
+    Storage::disk('private')->assertMissing($orphan);
 });
 
 it('only reports in dry-run mode', function () {

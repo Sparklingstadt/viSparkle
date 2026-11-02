@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\PostFile;
+use App\Models\ProductFile;
 use App\Models\ProductImage;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -22,7 +23,8 @@ class PruneOrphanFiles extends Command
     {
         $deleted = $this->prune('private', fn (array $paths) => PostFile::query()
             ->whereIn('path', $paths)->pluck('path')
-            ->merge(PostFile::query()->whereIn('thumb_path', $paths)->pluck('thumb_path')));
+            ->merge(PostFile::query()->whereIn('thumb_path', $paths)->pluck('thumb_path'))
+            ->merge(ProductFile::query()->whereIn('path', $paths)->pluck('path')));
 
         $deleted += $this->prune('public', fn (array $paths) => Creator::query()
             ->whereIn('avatar_path', $paths)->pluck('avatar_path')

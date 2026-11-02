@@ -22,7 +22,10 @@ use Throwable;
  */
 class PostFileStorer
 {
-    public function __construct(private readonly ImageSanitizer $images) {}
+    public function __construct(
+        private readonly ImageSanitizer $images,
+        private readonly PrivateFileWriter $writer,
+    ) {}
 
     public function store(Post $post, UploadedFile $upload, PostFileKind $kind): PostFile
     {
@@ -33,7 +36,7 @@ class PostFileStorer
         try {
             $attributes = $kind === PostFileKind::Image
                 ? $this->storeImage($disk, $base, $upload, $written)
-                : $this->storeAttachment($disk, $base, $upload, $written);
+                : $this->storeAttachment($base, $upload, $written);
 
             return DB::transaction(fn () => $post->files()->create([
                 ...$attributes,
@@ -97,34 +100,12 @@ class PostFileStorer
      * @param  list<string>  $written
      * @return array<string, mixed>
      */
-    private function storeAttachment(Filesystem $disk, string $base, UploadedFile $upload, array &$written): array
+    private function storeAttachment(string $base, UploadedFile $upload, array &$written): array
     {
-        $extension = Str::lower($upload->getClientOriginalExtension());
-        $extension = preg_match('/^[a-z0-9]{1,10}$/', $extension) === 1 ? $extension : 'bin';
-        $path = "{$base}.{$extension}";
+        $attributes = $this->writer->writeUpload($base, $upload);
+        $written[] = $attributes['path'];
 
-        $stream = fopen($upload->getRealPath(), 'r');
-
-        if ($stream === false) {
-            throw new RuntimeException("Failed to open the uploaded file for [{$path}].");
-        }
-
-        try {
-            $this->put($disk, $path, $stream, $written);
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }
-
-        return [
-            'path' => $path,
-            'thumb_path' => null,
-            'mime' => $upload->getMimeType() ?: 'application/octet-stream',
-            'size' => (int) $upload->getSize(),
-            'width' => null,
-            'height' => null,
-        ];
+        return [...$attributes, 'thumb_path' => null, 'width' => null, 'height' => null];
     }
 
     /**
