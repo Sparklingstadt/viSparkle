@@ -37,6 +37,15 @@ class OrderFactory extends Factory
         ]);
     }
 
+    public function withSupport(int $amount = 500): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'support_amount' => $amount,
+            'support_fee_percent' => (int) config('fanbox.billing.support_fee_percent'),
+            'total' => $attributes['subtotal'] + $attributes['shipping_fee'] + $amount,
+        ]);
+    }
+
     public function shipped(): static
     {
         return $this->paid()->state(fn () => [
