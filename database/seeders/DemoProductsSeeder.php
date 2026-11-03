@@ -18,8 +18,11 @@ use Random\Randomizer;
  * buying and downloading work out of the box. The chances and stock come from a random engine seeded by the slug, so a creator gets the
  * same goods on every run.
  *
+ * Every product gets a picture drawn by DemoProductPainter: the shape of the goods with the creator's motif and
+ * colours. Products without a picture get one on any run, so goods seeded before the pictures came get theirs too.
+ *
  * Rows are written directly, so they are published even for a creator who cannot sell yet. Uses no model factories,
- * so it also runs on production. Safe to re-run: a creator who has products already is left alone.
+ * so it also runs on production. Safe to re-run: a creator who has products already gets no new ones.
  */
 class DemoProductsSeeder extends Seeder
 {
@@ -30,12 +33,36 @@ class DemoProductsSeeder extends Seeder
      */
     private const OPTIONAL_CHANCE = 50;
 
+    /**
+     * Pictures drawn in this process, by slug, product name and number of kinds.
+     *
+     * @var array<string, string>
+     */
+    private static array $pictures = [];
+
     public function run(): void
     {
         $slugs = ['demo-creator', ...DemoCreatorsSeeder::slugs()];
 
         foreach (Creator::whereIn('slug', $slugs)->whereDoesntHave('products', fn ($query) => $query->withTrashed())->get() as $creator) {
             $this->stock($creator);
+        }
+
+        foreach (Creator::whereIn('slug', $slugs)->get() as $creator) {
+            $this->paintImages($creator);
+        }
+    }
+
+    private function paintImages(Creator $creator): void
+    {
+        $painter = new DemoProductPainter($creator->slug, DemoCreatorsSeeder::palette($creator->slug));
+
+        foreach ($creator->products()->whereDoesntHave('images')->withCount('variants')->get() as $product) {
+            $path = "creators/{$creator->id}/products/demo-{$product->id}.png";
+            // The same goods always get the same picture, so a process that seeds again (the tests) draws it once.
+            $picture = self::$pictures["{$creator->slug}/{$product->name}/{$product->variants_count}"] ??= $painter->paint($product->name, $product->variants_count);
+            Storage::disk('public')->put($path, $picture);
+            $product->images()->create(['path' => $path, 'sort_order' => 0]);
         }
     }
 

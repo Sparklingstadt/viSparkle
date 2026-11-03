@@ -178,3 +178,36 @@ it('seeds a digital work with a file on the private disk for every demo creator'
         Storage::disk('private')->assertExists($file->path);
     }
 });
+
+it('draws a picture of its own for every demo product, once', function () {
+    Storage::fake('public');
+    fakeBilling();
+    $this->seed();
+
+    $products = Product::with('images')->get();
+    $pictures = $products->map(fn (Product $product) => Storage::disk('public')->get($product->images->sole()->path));
+
+    expect($products)->not->toBeEmpty()
+        ->and($pictures->unique())->toHaveCount($products->count())
+        ->and(getimagesizefromstring((string) $pictures->first()))->toMatchArray([0 => 800, 1 => 800, 'mime' => 'image/png']);
+
+    $this->seed(DemoProductsSeeder::class);
+
+    expect(Product::has('images', '>', 1)->exists())->toBeFalse();
+});
+
+it('draws pictures for demo goods that were seeded without them', function () {
+    Storage::fake('public');
+    fakeBilling();
+    $this->seed();
+
+    $product = Product::whereHas('creator', fn ($query) => $query->where('slug', 'kuroneko-manga'))->where('name', 'Tシャツ')->first()
+        ?? Product::whereHas('creator', fn ($query) => $query->where('slug', 'kuroneko-manga'))->firstOrFail();
+    $product->images()->delete();
+
+    $this->seed(DemoProductsSeeder::class);
+
+    $path = $product->images()->sole()->path;
+    expect($path)->toBe("creators/{$product->creator_id}/products/demo-{$product->id}.png");
+    Storage::disk('public')->assertExists($path);
+});

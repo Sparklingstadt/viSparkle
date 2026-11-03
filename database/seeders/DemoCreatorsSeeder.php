@@ -179,6 +179,16 @@ class DemoCreatorsSeeder extends Seeder
     }
 
     /**
+     * The main and accent colours of a demo creator (the avatar, the header and the pictures of their goods).
+     *
+     * @return array{string, string}
+     */
+    public static function palette(string $slug): array
+    {
+        return self::PALETTES[$slug];
+    }
+
+    /**
      * Slugs of all demo creators.
      *
      * @return list<string>
