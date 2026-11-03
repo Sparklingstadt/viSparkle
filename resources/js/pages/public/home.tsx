@@ -1,13 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
 import { PostCard } from '@/components/post-card';
+import { ProductCarousel } from '@/components/product-carousel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show } from '@/routes/creators';
-import { show as showProduct } from '@/routes/shop/products';
 import type { CreatorSummary, PostSummary, ShopProductSummary } from '@/types';
 
 type PostSort = 'new' | 'popular';
@@ -88,54 +86,16 @@ export default function Home({
                     </section>
                 )}
 
-                <section className="space-y-4">
-                    <h2 className="text-lg font-semibold">新着商品</h2>
-                    {products.length === 0 ? (
+                {products.length === 0 ? (
+                    <section className="space-y-4">
+                        <h2 className="text-lg font-semibold">新着商品</h2>
                         <p className="text-sm text-muted-foreground">
                             出品されている商品はまだありません。
                         </p>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                            {products.map((product) => (
-                                <Link
-                                    key={product.id}
-                                    href={showProduct({
-                                        creator: product.creator.slug,
-                                        product: product.id,
-                                    })}
-                                    className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
-                                >
-                                    <div className="aspect-square bg-muted">
-                                        {product.cover_url && (
-                                            <img
-                                                src={product.cover_url}
-                                                alt=""
-                                                loading="lazy"
-                                                className="size-full object-cover"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1 p-3">
-                                        <p className="line-clamp-2 font-medium">
-                                            {product.name}
-                                        </p>
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {product.creator.display_name}
-                                        </p>
-                                        <p className="flex items-center gap-2 text-sm">
-                                            {formatYen(product.price)}
-                                            {product.sold_out && (
-                                                <Badge variant="secondary">
-                                                    売り切れ
-                                                </Badge>
-                                            )}
-                                        </p>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </section>
+                    </section>
+                ) : (
+                    <ProductCarousel title="新着商品" products={products} />
+                )}
 
                 <section className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">

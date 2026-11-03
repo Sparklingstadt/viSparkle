@@ -36,8 +36,13 @@ it('hides products of closed creators and suspended owners', function () {
     $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('products', 0));
 });
 
-it('shows at most 12 products', function () {
-    Product::factory()->count(13)->create();
+it('shows only the 12 newest products', function () {
+    $oldest = Product::factory()->create();
+    $products = Product::factory()->count(12)->create();
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('products', 12));
+    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
+        ->has('products', 12)
+        ->where('products.0.id', $products->last()->id)
+        ->where('products.11.id', $products->first()->id)
+        ->where('products', fn ($shown) => collect($shown)->pluck('id')->doesntContain($oldest->id)));
 });
