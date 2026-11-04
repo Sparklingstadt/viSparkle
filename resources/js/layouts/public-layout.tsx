@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
 import { AppearanceMenu } from '@/components/appearance-menu';
 import { SiteFooter } from '@/components/site-footer';
+import { SiteSearch } from '@/components/site-search';
 import { Button } from '@/components/ui/button';
 import { feed, home, login, register } from '@/routes';
 
@@ -15,10 +16,11 @@ export default function PublicLayout({
     return (
         <div className="flex min-h-screen flex-col bg-background">
             <header className="border-b">
-                <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:h-14 sm:flex-nowrap sm:py-0">
                     <Link href={home()} className="flex items-center gap-2">
                         <AppLogo />
                     </Link>
+                    <SiteSearch className="order-last w-full sm:order-none sm:w-auto sm:max-w-md sm:flex-1" />
                     <nav className="flex items-center gap-2">
                         <AppearanceMenu />
                         {auth.user ? (

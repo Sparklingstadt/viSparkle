@@ -7,10 +7,12 @@ use App\Http\Controllers\Public\LegalController;
 use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
 use App\Http\Controllers\Public\ProductPageController;
+use App\Http\Controllers\Public\SearchController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::get('search', SearchController::class)->middleware('throttle:60,1,search')->name('search');
 
 Route::controller(LegalController::class)->prefix('legal')->name('legal.')->group(function () {
     Route::get('tokushoho', 'tokushoho')->name('tokushoho');
