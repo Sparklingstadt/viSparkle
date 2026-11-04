@@ -40,8 +40,8 @@ export function ProductCarousel({
                                 />
                             )}
                         </div>
-                        <div className="space-y-1 p-3">
-                            <p className="line-clamp-2 text-sm font-medium">
+                        <div className="space-y-0.5 p-2">
+                            <p className="truncate text-sm font-medium">
                                 {product.name}
                             </p>
                             <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -73,7 +73,7 @@ export function ProductCarousel({
                     </Link>
                     <ProductLikeButton
                         product={product}
-                        className="absolute right-1.5 bottom-1.5"
+                        className="absolute right-1 bottom-1.5 h-6"
                     />
                 </li>
             ))}
