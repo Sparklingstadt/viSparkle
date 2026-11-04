@@ -5,18 +5,22 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes/admin';
 import { index as categories } from '@/routes/admin/categories';
+import { index as postCategories } from '@/routes/admin/post-categories';
 import { index as payments } from '@/routes/admin/payments';
 import { index as reports } from '@/routes/admin/reports';
 import { index as users } from '@/routes/admin/users';
 import type { NavItem } from '@/types';
 
 // Add new admin sections here; every page under pages/admin/ gets this nav.
-const adminNavItems: (NavItem & { exact?: boolean })[] = [
+const adminNavItems: (NavItem & {
+    exact?: boolean;
+    also?: NavItem['href'][];
+})[] = [
     { title: 'ダッシュボード', href: dashboard(), exact: true },
     { title: '通報', href: reports() },
     { title: '支払い', href: payments() },
     { title: '会員', href: users() },
-    { title: 'カテゴリ', href: categories() },
+    { title: 'カテゴリ', href: categories(), also: [postCategories()] },
 ];
 
 export default function AdminLayout({ children }: PropsWithChildren) {
@@ -28,7 +32,9 @@ export default function AdminLayout({ children }: PropsWithChildren) {
                 {adminNavItems.map((item) => {
                     const active = item.exact
                         ? isCurrentUrl(item.href)
-                        : isCurrentOrParentUrl(item.href);
+                        : [item.href, ...(item.also ?? [])].some((href) =>
+                              isCurrentOrParentUrl(href),
+                          );
 
                     return (
                         <Button
