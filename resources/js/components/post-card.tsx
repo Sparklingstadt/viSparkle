@@ -46,24 +46,25 @@ export function PostCard({
             </div>
             <div className="space-y-1 p-3">
                 <p className="line-clamp-2 font-medium">{post.title}</p>
-                <p className="text-xs text-muted-foreground">
-                    {showCreator && (
-                        <>
-                            <Avatar className="mr-1 inline-flex size-4 align-[-3px]">
-                                {post.creator.avatar_url && (
-                                    <AvatarImage
-                                        src={post.creator.avatar_url}
-                                        alt=""
-                                    />
-                                )}
-                                <AvatarFallback className="text-[10px]">
-                                    {post.creator.display_name.slice(0, 1)}
-                                </AvatarFallback>
-                            </Avatar>
+                {showCreator && (
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Avatar className="size-4 shrink-0">
+                            {post.creator.avatar_url && (
+                                <AvatarImage
+                                    src={post.creator.avatar_url}
+                                    alt=""
+                                />
+                            )}
+                            <AvatarFallback className="text-[10px]">
+                                {post.creator.display_name.slice(0, 1)}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">
                             {post.creator.display_name}
-                            {' · '}
-                        </>
-                    )}
+                        </span>
+                    </p>
+                )}
+                <p className="text-xs text-muted-foreground">
                     {formatDate(post.published_at)}
                     {!post.locked && post.required_price > 0 && (
                         <> · {formatYen(post.required_price)}〜</>
