@@ -22,7 +22,8 @@ it('presigns against the browser-facing endpoint when configured', function () {
 
     expect($url)->toStartWith('http://localhost:9000/fanbox-private/a/b.jpg?')
         ->toContain('X-Amz-Signature=')
-        ->toContain('X-Amz-Expires=300');
+        // The SDK takes the expiry (whole seconds) less the clock at signing, so a second ticking over in between gives 299.
+        ->toMatch('/X-Amz-Expires=(299|300)(&|$)/');
 });
 
 it('presigns against the regular endpoint otherwise', function () {

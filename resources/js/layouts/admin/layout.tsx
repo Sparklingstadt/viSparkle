@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes/admin';
+import { index as categories } from '@/routes/admin/categories';
 import { index as payments } from '@/routes/admin/payments';
 import { index as reports } from '@/routes/admin/reports';
 import { index as users } from '@/routes/admin/users';
@@ -15,6 +16,7 @@ const adminNavItems: (NavItem & { exact?: boolean })[] = [
     { title: '通報', href: reports() },
     { title: '支払い', href: payments() },
     { title: '会員', href: users() },
+    { title: 'カテゴリ', href: categories() },
 ];
 
 export default function AdminLayout({ children }: PropsWithChildren) {

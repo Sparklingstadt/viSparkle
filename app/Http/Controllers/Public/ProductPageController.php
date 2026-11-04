@@ -23,7 +23,7 @@ class ProductPageController extends Controller
         abort_unless($creator->isShopVisible(), 404);
 
         // Not route-bound: a soft-deleted product is as good as missing, and so is another creator's.
-        $product = Product::query()->listed()->where('creator_id', $creator->id)->with(['images', 'variants', 'files'])->findOrFail($product);
+        $product = Product::query()->listed()->where('creator_id', $creator->id)->with(['images', 'variants', 'files', 'category'])->findOrFail($product);
         $viewer = $request->user();
         $digital = $product->isDigital();
 
@@ -33,6 +33,7 @@ class ProductPageController extends Controller
                 'id' => $product->id,
                 'kind' => $product->kind->value,
                 'name' => $product->name,
+                'category' => $product->publicCategory()?->toSummary(),
                 'description' => $product->description,
                 'price' => $product->price,
                 'stock' => $product->stock,

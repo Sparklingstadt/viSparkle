@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { CategoryLinks } from '@/components/category-links';
 import { Carousel } from '@/components/carousel';
 import { PostCard } from '@/components/post-card';
 import { ProductCarousel } from '@/components/product-carousel';
@@ -7,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
+import { show as showCategory } from '@/routes/categories';
 import { show } from '@/routes/creators';
-import type { CreatorSummary, PostSummary } from '@/types';
+import type { CategorySummary, CreatorSummary, PostSummary } from '@/types';
 
 type PostSort = 'new' | 'popular';
 
@@ -22,12 +24,14 @@ export default function Home({
     products,
     recommendedProducts,
     popularCreators,
+    categories,
     sort,
 }: {
     posts: PostSummary[];
     products: LikeableProduct[];
     recommendedProducts: LikeableProduct[];
     popularCreators: CreatorSummary[];
+    categories: CategorySummary[];
     sort: PostSort;
 }) {
     return (
@@ -85,6 +89,13 @@ export default function Home({
                             </li>
                         ))}
                     </Carousel>
+                )}
+
+                {categories.length > 0 && (
+                    <CategoryLinks
+                        categories={categories}
+                        href={(slug) => showCategory(slug!).url}
+                    />
                 )}
 
                 {recommendedProducts.length > 0 && (

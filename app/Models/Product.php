@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * @property int $id
  * @property int $creator_id
+ * @property int|null $product_category_id
  * @property ProductKind $kind
  * @property string $name
  * @property string|null $description
@@ -34,7 +35,7 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $updated_at
  * @property-read int $stock the total of the variants' stock
  */
-#[Fillable(['name', 'description', 'price', 'is_published', 'sort_order'])]
+#[Fillable(['name', 'description', 'price', 'is_published', 'sort_order', 'product_category_id'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -59,6 +60,13 @@ class Product extends Model
     protected function listed(Builder $query): void
     {
         $query->where('is_published', true)->whereNull('hidden_at');
+    }
+
+    /** @param  Builder<self>  $query */
+    #[Scope]
+    protected function inCategory(Builder $query, ProductCategory $category): void
+    {
+        $query->where('product_category_id', $category->id);
     }
 
     /**
@@ -169,6 +177,22 @@ class Product extends Model
             'cover_url' => $this->coverUrl(),
             'like_count' => $this->like_count,
         ];
+    }
+
+    /** @return BelongsTo<ProductCategory, $this> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    }
+
+    /**
+     * The category, unless it is archived or unset: archived categories are not shown publicly.
+     */
+    public function publicCategory(): ?ProductCategory
+    {
+        $category = $this->category;
+
+        return $category !== null && ! $category->isArchived() ? $category : null;
     }
 
     /** @return HasMany<ProductLike, $this> */

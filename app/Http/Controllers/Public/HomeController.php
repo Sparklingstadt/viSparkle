@@ -7,6 +7,7 @@ use App\Models\Creator;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductLike;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
@@ -60,6 +61,7 @@ class HomeController extends Controller
             'products' => $products->map($carouselItem),
             'recommendedProducts' => $recommendedProducts->map($carouselItem),
             'popularCreators' => $popularCreators,
+            'categories' => ProductCategory::activeSummaries(),
             'sort' => $sort,
         ]);
     }

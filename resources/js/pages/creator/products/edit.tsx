@@ -51,6 +51,7 @@ type EditableProduct = {
     name: string;
     description: string | null;
     price: number;
+    category_id: number | null;
     variants: EditableVariant[];
     is_published: boolean;
     hidden: boolean;
@@ -58,6 +59,8 @@ type EditableProduct = {
     images: ProductImage[];
     files: WorkFile[];
 };
+
+type CategoryOption = { id: number; name: string; archived: boolean };
 
 type VariantRow = { key: number; variant: EditableVariant | null };
 
@@ -421,11 +424,13 @@ function ImagesSection({ product }: { product: EditableProduct }) {
 
 export default function ProductEdit({
     product,
+    categories,
     can_publish: canPublish,
     files_max: filesMax,
     file_max_kb: fileMaxKb,
 }: {
     product: EditableProduct | null;
+    categories: CategoryOption[];
     can_publish: boolean;
     files_max: number;
     file_max_kb: number;
@@ -549,6 +554,36 @@ export default function ProductEdit({
                                 />
                                 <InputError message={errors.price} />
                             </div>
+                            {categories.length > 0 && (
+                                <div className="grid max-w-xs gap-2">
+                                    <Label htmlFor="product_category_id">
+                                        カテゴリ
+                                    </Label>
+                                    <select
+                                        id="product_category_id"
+                                        name="product_category_id"
+                                        defaultValue={
+                                            product?.category_id ?? ''
+                                        }
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                                    >
+                                        <option value="">未設定</option>
+                                        {categories.map((category) => (
+                                            <option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
+                                                {category.name}
+                                                {category.archived &&
+                                                    '（受付終了）'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError
+                                        message={errors.product_category_id}
+                                    />
+                                </div>
+                            )}
                             {!digital && (
                                 <VariantsField
                                     variants={product?.variants ?? []}

@@ -1,22 +1,44 @@
 import { Head, Link } from '@inertiajs/react';
+import { CategoryLinks } from '@/components/category-links';
 import { PostCard } from '@/components/post-card';
 import { ProductCard } from '@/components/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { search } from '@/routes';
 import { show } from '@/routes/creators';
-import type { CreatorSummary, PostSummary, ShopProductSummary } from '@/types';
+import type {
+    CategorySummary,
+    CreatorSummary,
+    PostSummary,
+    ShopProductSummary,
+} from '@/types';
 
 export default function Search({
     q,
+    type,
+    category,
+    categories,
     creators,
     products,
     posts,
 }: {
     q: string;
+    type: string;
+    category: string | null;
+    categories: CategorySummary[];
     creators: CreatorSummary[];
     products: (ShopProductSummary & { creator: CreatorSummary })[];
     posts: PostSummary[];
 }) {
+    const showProducts =
+        q !== '' &&
+        (type === 'all' || type === 'products') &&
+        categories.length > 0;
+    const showProductsSection =
+        q !== '' &&
+        (type === 'all' || type === 'products') &&
+        (products.length > 0 || category !== null);
     const found = creators.length + products.length + posts.length > 0;
+    const filtered = category !== null;
 
     return (
         <>
@@ -33,7 +55,7 @@ export default function Search({
                     </h1>
                 )}
 
-                {q !== '' && !found && (
+                {q !== '' && !found && !filtered && (
                     <p className="text-sm text-muted-foreground">
                         見つかりませんでした。
                     </p>
@@ -74,17 +96,39 @@ export default function Search({
                     </section>
                 )}
 
-                {products.length > 0 && (
+                {showProductsSection && (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">商品</h2>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {products.map((product) => (
-                                <ProductCard
-                                    key={product.id}
-                                    product={product}
-                                />
-                            ))}
-                        </div>
+                        {showProducts && (
+                            <CategoryLinks
+                                categories={categories}
+                                current={category}
+                                allLabel="すべて"
+                                href={(slug) =>
+                                    search({
+                                        query: {
+                                            q,
+                                            type,
+                                            ...(slug ? { category: slug } : {}),
+                                        },
+                                    }).url
+                                }
+                            />
+                        )}
+                        {products.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                このカテゴリの商品は見つかりませんでした。
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {products.map((product) => (
+                                    <ProductCard
+                                        key={product.id}
+                                        product={product}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </section>
                 )}
 

@@ -167,6 +167,7 @@ class DemoCreatorsSeeder extends Seeder
         }
 
         $this->call(DemoProductsSeeder::class);
+        $this->call(DemoCategoriesSeeder::class);
     }
 
     /**

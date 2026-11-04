@@ -39,4 +39,9 @@ class StoreProductRequest extends FormRequest
     {
         return $this->input('kind') === ProductKind::Digital->value;
     }
+
+    protected function currentCategoryId(): ?int
+    {
+        return null;
+    }
 }
