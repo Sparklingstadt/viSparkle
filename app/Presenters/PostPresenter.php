@@ -16,7 +16,6 @@ use App\Services\PostFileUrls;
  * are absent rather than empty. Expects `creator` and `cover` eager loaded.
  *
  * $likedIds is the set of post ids the viewer liked (PostLike::idsLikedBy), fetched once per page.
- * The like count is null for viewers who may not see it, so it never reaches the page JSON.
  */
 class PostPresenter
 {
@@ -36,7 +35,7 @@ class PostPresenter
             'published_at' => $post->published_at,
             'cover_thumb_url' => $post->cover === null ? null : $this->urls->thumbUrl($post->cover),
             'locked' => ! $entitlement->canView($post),
-            'like_count' => $entitlement->canSeeLikeCount($post) ? $post->like_count : null,
+            'like_count' => $post->like_count,
             'liked' => isset($likedIds[$post->id]),
             'can_like' => $entitlement->canLike($post),
             'creator' => $post->creator->toSummary(),

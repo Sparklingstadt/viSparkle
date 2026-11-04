@@ -14,10 +14,8 @@ export function LikeButton({ post }: { post: PostSummary }) {
 
     const liked = pending ?? post.liked;
     const count =
-        post.like_count === null
-            ? null
-            : post.like_count +
-              (pending === null ? 0 : Number(pending) - Number(post.liked));
+        post.like_count +
+        (pending === null ? 0 : Number(pending) - Number(post.liked));
     // An old like can still be taken back after the support ended.
     const disabled = pending !== null || (!post.can_like && !post.liked);
 
@@ -56,7 +54,7 @@ export function LikeButton({ post }: { post: PostSummary }) {
                 data-test="like-button"
             >
                 <Heart className={liked ? 'fill-current text-rose-500' : ''} />
-                {count !== null && <span>{count}</span>}
+                <span>{count}</span>
             </Button>
             {post.locked && !post.liked && (
                 <span className="text-xs text-muted-foreground">

@@ -86,14 +86,6 @@ final class Entitlement
         return ! $this->isAuthorOf($post) && $this->canView($post);
     }
 
-    /**
-     * The author and anyone actively supporting the creator, on any plan (even one that leaves this post locked).
-     */
-    public function canSeeLikeCount(Post $post): bool
-    {
-        return $this->isAuthorOf($post) || $this->supportPriceFor($post->creator_id) !== null;
-    }
-
     public function isAuthorOf(Post $post): bool
     {
         return $this->viewerCreatorId !== null && $post->creator_id === $this->viewerCreatorId;

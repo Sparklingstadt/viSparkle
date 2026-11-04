@@ -103,7 +103,7 @@ it('404s hidden posts, drafts and the wrong creator', function () {
     $this->actingAs($this->fan)->post(route('posts.like.store', [$other, $post]))->assertNotFound();
 });
 
-it('shows the count only to the author and supporters, on any plan', function () {
+it('shows the count to everyone', function () {
     $cheap = Plan::factory()->for($this->creator)->price(100)->create();
     $supporter = User::factory()->create();
     Support::factory()->forPlan($cheap)->create(['user_id' => $supporter->id]);
@@ -121,13 +121,13 @@ it('shows the count only to the author and supporters, on any plan', function ()
 
     foreach ([$this->fan, $former] as $viewer) {
         $this->actingAs($viewer)->get($url)
-            ->assertInertia(fn (Assert $page) => $page->where('post.like_count', null));
+            ->assertInertia(fn (Assert $page) => $page->where('post.like_count', 1));
     }
     auth()->logout();
-    $this->get($url)->assertInertia(fn (Assert $page) => $page->where('post.like_count', null));
+    $this->get($url)->assertInertia(fn (Assert $page) => $page->where('post.like_count', 1));
 });
 
-it('tells the viewer whether they liked a post without revealing the count', function () {
+it('tells the viewer whether they liked a post', function () {
     $post = Post::factory()->for($this->creator)->published()->create();
     $post->like($this->fan);
 
@@ -135,7 +135,7 @@ it('tells the viewer whether they liked a post without revealing the count', fun
         ->assertInertia(fn (Assert $page) => $page
             ->where('post.liked', true)
             ->where('post.can_like', true)
-            ->where('post.like_count', null));
+            ->where('post.like_count', 1));
 });
 
 it('marks liked posts in lists with one query', function () {
