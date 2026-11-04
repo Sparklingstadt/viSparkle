@@ -3,7 +3,9 @@ import AppLogo from '@/components/app-logo';
 import { AppearanceMenu } from '@/components/appearance-menu';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteSearch } from '@/components/site-search';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { useInitials } from '@/hooks/use-initials';
 import { feed, home, login, register } from '@/routes';
 
 export default function PublicLayout({
@@ -12,6 +14,7 @@ export default function PublicLayout({
     children: React.ReactNode;
 }) {
     const { auth } = usePage().props;
+    const getInitials = useInitials();
 
     return (
         <div className="flex min-h-screen flex-col bg-background">
@@ -24,9 +27,28 @@ export default function PublicLayout({
                     <nav className="flex items-center gap-2">
                         <AppearanceMenu />
                         {auth.user ? (
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={feed()}>マイページ</Link>
-                            </Button>
+                            <Link
+                                href={feed()}
+                                aria-label={`マイページ（${auth.user.name}）`}
+                                className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted"
+                            >
+                                <Avatar className="size-7">
+                                    <AvatarImage
+                                        src={
+                                            auth.user.avatar ??
+                                            auth.creator?.avatar_url ??
+                                            undefined
+                                        }
+                                        alt=""
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                        {getInitials(auth.user.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="max-w-32 truncate text-sm font-medium">
+                                    {auth.user.name}
+                                </span>
+                            </Link>
                         ) : (
                             <>
                                 <Button asChild variant="ghost" size="sm">
