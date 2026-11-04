@@ -41,10 +41,10 @@ export function ProductCarousel({
                             )}
                         </div>
                         <div className="space-y-1 p-3">
-                            <p className="line-clamp-2 font-medium">
+                            <p className="line-clamp-2 text-sm font-medium">
                                 {product.name}
                             </p>
-                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                                 <Avatar className="size-4 shrink-0">
                                     {product.creator.avatar_url && (
                                         <AvatarImage
