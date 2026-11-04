@@ -12,8 +12,11 @@ use Illuminate\Database\Seeder;
  * product is matched by its name: an exact name, or a prefix for the entries ending in "*" (アクリルスタンド* covers
  * every acrylic stand).
  *
- * Uses no model factories, so it also runs on production. Safe to re-run: the categories are updated by slug, and a
- * product that already has a category (set by hand, for one) is left alone.
+ * Uses no model factories, so it also runs on production. Insert-only and safe to re-run: a category that exists
+ * already, by slug or else by name, is used as it is (an admin's rename or reorder stays), and only a missing one is
+ * created, at the end of the list. Only the products of the demo creators (those DemoProductsSeeder stocks) are
+ * touched, and only while they have no category: a real creator's product with the same name, or a category set by
+ * hand, is left alone.
  */
 class DemoCategoriesSeeder extends Seeder
 {
@@ -31,14 +34,18 @@ class DemoCategoriesSeeder extends Seeder
 
     public function run(): void
     {
-        foreach (self::CATEGORIES as $index => $definition) {
-            $category = ProductCategory::updateOrCreate(
-                ['slug' => $definition['slug']],
-                ['name' => $definition['name'], 'sort_order' => $index],
-            );
+        foreach (self::CATEGORIES as $definition) {
+            $category = ProductCategory::where('slug', $definition['slug'])->first()
+                ?? ProductCategory::where('name', $definition['name'])->first()
+                ?? ProductCategory::create([
+                    'slug' => $definition['slug'],
+                    'name' => $definition['name'],
+                    'sort_order' => ProductCategory::nextSortOrder(),
+                ]);
 
             foreach ($definition['products'] as $name) {
-                $query = Product::whereNull('product_category_id');
+                $query = Product::whereNull('product_category_id')
+                    ->whereHas('creator', fn ($creators) => $creators->whereIn('slug', DemoProductsSeeder::creatorSlugs()));
 
                 if (str_ends_with($name, '*')) {
                     $query->where('name', 'like', substr($name, 0, -1).'%');

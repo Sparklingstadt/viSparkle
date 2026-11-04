@@ -30,14 +30,14 @@ class SearchController extends Controller
         $q = is_string($raw) ? mb_substr(Str::trim($raw), 0, self::MAX_KEYWORD_LENGTH) : '';
         $type = in_array($request->query('type'), self::TYPES, true) ? $request->query('type') : 'all';
         $slug = $request->query('category');
-        $category = is_string($slug) ? ProductCategory::active()->where('slug', $slug)->first() : null;
+        $category = $q !== '' && is_string($slug) ? ProductCategory::active()->where('slug', $slug)->first() : null;
         $wants = fn (string $kind): bool => $q !== '' && in_array($type, ['all', $kind], true);
 
         return Inertia::render('public/search', [
             'q' => $q,
             'type' => $type,
             'category' => $category?->slug,
-            'categories' => ProductCategory::activeSummaries(),
+            'categories' => $q !== '' ? ProductCategory::activeSummaries() : [],
             'creators' => $wants('creators') ? $this->creators($q) : [],
             'products' => $wants('products') ? $this->products($q, $category) : [],
             'posts' => $wants('posts') ? $this->posts($request, $presenter, $q) : [],

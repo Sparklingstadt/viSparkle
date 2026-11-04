@@ -157,3 +157,13 @@ it('ignores an unknown or archived category', function (mixed $value) {
     'archived' => fn () => ProductCategory::factory()->archived()->create()->slug,
     'array' => [['x']],
 ]);
+
+it('sends no categories and no filter without a keyword', function () {
+    ProductCategory::factory()->create(['slug' => 'sticker']);
+
+    $this->get(route('search', ['category' => 'sticker']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('category', null)
+            ->where('categories', []));
+});

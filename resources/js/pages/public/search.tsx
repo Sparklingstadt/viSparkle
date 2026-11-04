@@ -33,7 +33,12 @@ export default function Search({
         q !== '' &&
         (type === 'all' || type === 'products') &&
         categories.length > 0;
+    const showProductsSection =
+        q !== '' &&
+        (type === 'all' || type === 'products') &&
+        (products.length > 0 || category !== null);
     const found = creators.length + products.length + posts.length > 0;
+    const filtered = category !== null;
 
     return (
         <>
@@ -50,7 +55,7 @@ export default function Search({
                     </h1>
                 )}
 
-                {q !== '' && !found && (
+                {q !== '' && !found && !filtered && (
                     <p className="text-sm text-muted-foreground">
                         見つかりませんでした。
                     </p>
@@ -91,7 +96,7 @@ export default function Search({
                     </section>
                 )}
 
-                {(products.length > 0 || showProducts) && (
+                {showProductsSection && (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">商品</h2>
                         {showProducts && (
@@ -110,14 +115,20 @@ export default function Search({
                                 }
                             />
                         )}
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {products.map((product) => (
-                                <ProductCard
-                                    key={product.id}
-                                    product={product}
-                                />
-                            ))}
-                        </div>
+                        {products.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                このカテゴリの商品は見つかりませんでした。
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {products.map((product) => (
+                                    <ProductCard
+                                        key={product.id}
+                                        product={product}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </section>
                 )}
 

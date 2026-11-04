@@ -48,9 +48,19 @@ class DemoProductsSeeder extends Seeder
      */
     private static array $pictures = [];
 
+    /**
+     * The slugs of the creators that hold demo products.
+     *
+     * @return list<string>
+     */
+    public static function creatorSlugs(): array
+    {
+        return ['demo-creator', ...DemoCreatorsSeeder::slugs()];
+    }
+
     public function run(): void
     {
-        $slugs = ['demo-creator', ...DemoCreatorsSeeder::slugs()];
+        $slugs = self::creatorSlugs();
 
         foreach (Creator::whereIn('slug', $slugs)->whereDoesntHave('products', fn ($query) => $query->withTrashed())->get() as $creator) {
             $this->stock($creator);
