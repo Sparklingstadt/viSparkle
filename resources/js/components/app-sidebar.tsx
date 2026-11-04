@@ -11,6 +11,7 @@ import {
     Palette,
     Shield,
     Ticket,
+    ThumbsUp,
     Users,
     Wallet,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed, home } from '@/routes';
 import { register as creatorRegister } from '@/routes/creator';
 import { index as cart } from '@/routes/cart';
+import { index as likedProducts } from '@/routes/liked-products';
 import { index as orders } from '@/routes/orders';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
 import { index as creatorOrders } from '@/routes/creator/orders';
@@ -52,6 +54,11 @@ const fanNavItems: NavItem[] = [
         title: '支援中',
         href: supporting(),
         icon: Heart,
+    },
+    {
+        title: 'いいねした商品',
+        href: likedProducts(),
+        icon: ThumbsUp,
     },
     {
         title: 'カート',

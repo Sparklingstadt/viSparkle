@@ -7,6 +7,7 @@ use App\Http\Controllers\Fan\CheckoutCompleteController;
 use App\Http\Controllers\Fan\CheckoutConfirmController;
 use App\Http\Controllers\Fan\FeedController;
 use App\Http\Controllers\Fan\FollowController;
+use App\Http\Controllers\Fan\LikedProductController;
 use App\Http\Controllers\Fan\OrderCheckoutController;
 use App\Http\Controllers\Fan\OrderController;
 use App\Http\Controllers\Fan\OrderFileDownloadController;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('feed', FeedController::class)->name('feed');
     Route::get('supporting', SupportingController::class)->name('supporting.index');
+    Route::get('liked-products', LikedProductController::class)->name('liked-products.index');
 
     Route::get('/@{creator}/plans/{plan}/confirm', CheckoutConfirmController::class)->name('supports.confirm');
     Route::post('/@{creator}/plans/{plan}/support', [SupportController::class, 'store'])
