@@ -68,93 +68,96 @@ export function ProductCarousel({
 
     return (
         <section className="space-y-4" aria-roledescription="カルーセル">
-            <div className="flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">{title}</h2>
-                {(canScrollPrev || canScrollNext) && (
-                    <div className="flex gap-1">
-                        <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() => scrollByPage(-1)}
-                            disabled={!canScrollPrev}
-                        >
-                            <ChevronLeft />
-                            <span className="sr-only">前へ</span>
-                        </Button>
-                        <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() => scrollByPage(1)}
-                            disabled={!canScrollNext}
-                        >
-                            <ChevronRight />
-                            <span className="sr-only">次へ</span>
-                        </Button>
-                    </div>
-                )}
-            </div>
-            <ul
-                ref={trackRef}
-                className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2"
-            >
-                {products.map((product) => (
-                    <li
-                        key={product.id}
-                        className="w-40 shrink-0 snap-start sm:w-48"
+            <h2 className="text-lg font-semibold">{title}</h2>
+            <div className="relative">
+                {canScrollPrev && (
+                    <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => scrollByPage(-1)}
+                        className="absolute top-1/2 -left-3 z-10 -translate-y-1/2 rounded-full bg-background shadow-md"
                     >
-                        <Link
-                            href={showProduct({
-                                creator: product.creator.slug,
-                                product: product.id,
-                            })}
-                            className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+                        <ChevronLeft />
+                        <span className="sr-only">前へ</span>
+                    </Button>
+                )}
+                {canScrollNext && (
+                    <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => scrollByPage(1)}
+                        className="absolute top-1/2 -right-3 z-10 -translate-y-1/2 rounded-full bg-background shadow-md"
+                    >
+                        <ChevronRight />
+                        <span className="sr-only">次へ</span>
+                    </Button>
+                )}
+                <ul
+                    ref={trackRef}
+                    className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2"
+                >
+                    {products.map((product) => (
+                        <li
+                            key={product.id}
+                            className="w-40 shrink-0 snap-start sm:w-48"
                         >
-                            <div className="aspect-square bg-muted">
-                                {product.cover_url && (
-                                    <img
-                                        src={product.cover_url}
-                                        alt=""
-                                        loading="lazy"
-                                        className="size-full object-cover"
-                                    />
-                                )}
-                            </div>
-                            <div className="space-y-1 p-3">
-                                <p className="line-clamp-2 font-medium">
-                                    {product.name}
-                                </p>
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Avatar className="size-4 shrink-0">
-                                        {product.creator.avatar_url && (
-                                            <AvatarImage
-                                                src={product.creator.avatar_url}
-                                                alt=""
-                                            />
-                                        )}
-                                        <AvatarFallback className="text-[10px]">
-                                            {product.creator.display_name.slice(
-                                                0,
-                                                1,
-                                            )}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className="truncate">
-                                        {product.creator.display_name}
-                                    </span>
-                                </p>
-                                <p className="flex items-center gap-2 text-sm">
-                                    {formatYen(product.price)}
-                                    {product.sold_out && (
-                                        <Badge variant="secondary">
-                                            売り切れ
-                                        </Badge>
+                            <Link
+                                href={showProduct({
+                                    creator: product.creator.slug,
+                                    product: product.id,
+                                })}
+                                className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+                            >
+                                <div className="aspect-square bg-muted">
+                                    {product.cover_url && (
+                                        <img
+                                            src={product.cover_url}
+                                            alt=""
+                                            loading="lazy"
+                                            className="size-full object-cover"
+                                        />
                                     )}
-                                </p>
-                            </div>
-                        </Link>
-                    </li>
-                ))}
-            </ul>
+                                </div>
+                                <div className="space-y-1 p-3">
+                                    <p className="line-clamp-2 font-medium">
+                                        {product.name}
+                                    </p>
+                                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <Avatar className="size-4 shrink-0">
+                                            {product.creator.avatar_url && (
+                                                <AvatarImage
+                                                    src={
+                                                        product.creator
+                                                            .avatar_url
+                                                    }
+                                                    alt=""
+                                                />
+                                            )}
+                                            <AvatarFallback className="text-[10px]">
+                                                {product.creator.display_name.slice(
+                                                    0,
+                                                    1,
+                                                )}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="truncate">
+                                            {product.creator.display_name}
+                                        </span>
+                                    </p>
+                                    <p className="flex items-center gap-2 text-sm">
+                                        {formatYen(product.price)}
+                                        {product.sold_out && (
+                                            <Badge variant="secondary">
+                                                売り切れ
+                                            </Badge>
+                                        )}
+                                    </p>
+                                </div>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </section>
     );
 }
