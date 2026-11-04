@@ -21,7 +21,7 @@ export default function PublicLayout({
                     <Link href={home()} className="flex items-center gap-2">
                         <AppLogo />
                     </Link>
-                    <SiteSearch className="order-last w-full sm:order-none sm:w-auto sm:max-w-md sm:flex-1" />
+                    <SiteSearch className="order-last w-full sm:order-none sm:w-auto sm:max-w-lg sm:flex-1" />
                     <nav className="flex items-center gap-2">
                         <AppearanceMenu />
                         {auth.user ? (

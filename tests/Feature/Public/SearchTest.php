@@ -32,6 +32,31 @@ it('finds creators, products and free posts by keyword', function () {
             ->has('posts', 2));
 });
 
+it('searches only the chosen kind', function (string $type, int $creators, int $products, int $posts) {
+    Creator::factory()->create(['display_name' => '星空']);
+    Product::factory()->create(['name' => '星空']);
+    Post::factory()->published()->create(['title' => '星空']);
+
+    $this->get(route('search', ['q' => '星空', 'type' => $type]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('type', $type)
+            ->has('creators', $creators)
+            ->has('products', $products)
+            ->has('posts', $posts));
+})->with([
+    'all' => ['all', 1, 1, 1],
+    'creators' => ['creators', 1, 0, 0],
+    'products' => ['products', 0, 1, 0],
+    'posts' => ['posts', 0, 0, 1],
+]);
+
+it('searches everything for an unknown kind', function (mixed $type) {
+    Product::factory()->create(['name' => '星空']);
+
+    $this->get(route('search', ['q' => '星空', 'type' => $type]))
+        ->assertInertia(fn (Assert $page) => $page->where('type', 'all')->has('products', 1));
+})->with(['bogus' => 'bogus', 'not a string' => [['products']]]);
+
 it('leaves out what the public pages do not show', function () {
     $suspended = Creator::factory()->for(User::factory()->suspended())->create(['display_name' => '星空A']);
     $closed = Creator::factory()->closed()->create(['display_name' => '星空B']);

@@ -21,30 +21,59 @@ class SearchController extends Controller
 
     private const MAX_KEYWORD_LENGTH = 100;
 
+    private const TYPES = ['all', 'creators', 'products', 'posts'];
+
     public function __invoke(Request $request, PostPresenter $presenter): Response
     {
         $raw = $request->query('q');
         $q = is_string($raw) ? mb_substr(Str::trim($raw), 0, self::MAX_KEYWORD_LENGTH) : '';
+        $type = in_array($request->query('type'), self::TYPES, true) ? $request->query('type') : 'all';
+        $wants = fn (string $kind): bool => $q !== '' && in_array($type, ['all', $kind], true);
 
-        if ($q === '') {
-            return Inertia::render('public/search', ['q' => '', 'creators' => [], 'products' => [], 'posts' => []]);
-        }
+        return Inertia::render('public/search', [
+            'q' => $q,
+            'type' => $type,
+            'creators' => $wants('creators') ? $this->creators($q) : [],
+            'products' => $wants('products') ? $this->products($q) : [],
+            'posts' => $wants('posts') ? $this->posts($request, $presenter, $q) : [],
+        ]);
+    }
 
-        $creators = $this->matching(Creator::open(), ['display_name', 'bio'], $q)
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function creators(string $q): array
+    {
+        return $this->matching(Creator::open(), ['display_name', 'bio'], $q)
             ->latest('id')
             ->limit(self::MAX_RESULTS)
             ->get()
-            ->map->toSummary();
+            ->map->toSummary()
+            ->all();
+    }
 
-        $products = $this->matching(Product::listed(), ['name', 'description'], $q)
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function products(string $q): array
+    {
+        return $this->matching(Product::listed(), ['name', 'description'], $q)
             ->whereHas('creator', fn ($query) => $query->open())
             ->with(['creator', 'images', 'variants'])
             ->latest('id')
             ->limit(self::MAX_RESULTS)
             ->get()
-            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
+            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()])
+            ->all();
+    }
 
-        // Free posts only, as on the home page: a paid post's title stays out of a public listing here.
+    /**
+     * Free posts only, as on the home page: a paid post's title stays out of a public listing here.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function posts(Request $request, PostPresenter $presenter, string $q): array
+    {
         $posts = $this->matching(Post::published()->visible(), ['title', 'excerpt'], $q)
             ->where('required_price', 0)
             ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
@@ -54,12 +83,7 @@ class SearchController extends Controller
         $entitlement = Entitlement::for($request->user());
         $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
 
-        return Inertia::render('public/search', [
-            'q' => $q,
-            'creators' => $creators,
-            'products' => $products,
-            'posts' => $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked)),
-        ]);
+        return $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked))->all();
     }
 
     /**
