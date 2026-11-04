@@ -47,7 +47,7 @@ class HomeController extends Controller
             ->limit(12)
             ->get()
             ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
-        $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
+        $popularCreators = Creator::weeklyPopular()->limit(25)->get()->map->toSummary();
 
         return Inertia::render('public/home', [
             'posts' => $posts,

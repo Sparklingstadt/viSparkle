@@ -62,8 +62,8 @@ it('hides closed creators and suspended owners', function () {
     $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('popularCreators', 0));
 });
 
-it('shows at most 10 creators', function () {
-    Creator::factory()->count(11)->create()->each(fn (Creator $creator) => supportCreator($creator));
+it('shows at most 25 creators', function () {
+    Creator::factory()->count(26)->create()->each(fn (Creator $creator) => supportCreator($creator));
 
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('popularCreators', 10));
+    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('popularCreators', 25));
 });
