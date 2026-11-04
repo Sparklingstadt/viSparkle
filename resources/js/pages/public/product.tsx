@@ -13,9 +13,10 @@ import { formatBytes, formatYen } from '@/lib/format';
 import { login } from '@/routes';
 import { index as cartIndex } from '@/routes/cart';
 import { store as storeCartItem } from '@/routes/cart/items';
+import { show as showCategory } from '@/routes/categories';
 import { show } from '@/routes/creators';
 import { show as showOrder } from '@/routes/orders';
-import type { CreatorSummary, ProductKind } from '@/types';
+import type { CategorySummary, CreatorSummary, ProductKind } from '@/types';
 
 export default function ProductPage({
     creator,
@@ -32,6 +33,7 @@ export default function ProductPage({
         id: number;
         kind: ProductKind;
         name: string;
+        category: CategorySummary | null;
         description: string | null;
         price: number;
         stock: number;
@@ -137,9 +139,22 @@ export default function ProductPage({
 
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            {digital && (
-                                <Badge variant="outline">デジタル</Badge>
-                            )}
+                            <div className="flex flex-wrap gap-1">
+                                {digital && (
+                                    <Badge variant="outline">デジタル</Badge>
+                                )}
+                                {product.category && (
+                                    <Badge variant="secondary" asChild>
+                                        <Link
+                                            href={showCategory(
+                                                product.category.slug,
+                                            )}
+                                        >
+                                            {product.category.name}
+                                        </Link>
+                                    </Badge>
+                                )}
+                            </div>
                             <h1 className="text-2xl font-bold">
                                 {product.name}
                             </h1>

@@ -108,6 +108,12 @@ export type ShopProductSummary = {
     like_count: number;
 };
 
+export type CategorySummary = {
+    id: number;
+    name: string;
+    slug: string;
+};
+
 export type ProductKind = 'physical' | 'digital';
 
 export type CartLine = {
