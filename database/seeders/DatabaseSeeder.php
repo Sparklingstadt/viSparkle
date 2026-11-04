@@ -59,5 +59,6 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(DemoCreatorsSeeder::class);
+        $this->call(DemoPostLikesSeeder::class);
     }
 }
