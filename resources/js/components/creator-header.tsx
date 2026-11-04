@@ -6,9 +6,11 @@ import type { CreatorProfile } from '@/types';
 export function CreatorHeader({
     creator,
     compact = false,
+    action,
 }: {
     creator: CreatorProfile;
     compact?: boolean;
+    action?: React.ReactNode;
 }) {
     return (
         <div className="overflow-hidden rounded-xl border">
@@ -32,7 +34,7 @@ export function CreatorHeader({
                         {creator.display_name.slice(0, 1)}
                     </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <Link
                         href={show(creator.slug)}
                         className="text-xl font-bold hover:underline"
@@ -43,6 +45,7 @@ export function CreatorHeader({
                         @{creator.slug}
                     </p>
                 </div>
+                {action && <div className="shrink-0">{action}</div>}
             </div>
             {!compact && creator.bio && (
                 <p className="px-4 pb-4 text-sm whitespace-pre-wrap">

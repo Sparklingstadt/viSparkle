@@ -73,15 +73,20 @@ export default function CreatorPage({
 
             <div className="space-y-8">
                 <div className="space-y-1">
-                    <CreatorHeader creator={creator} />
+                    <CreatorHeader
+                        creator={creator}
+                        action={
+                            // A closed creator takes no new follows; current followers can still unfollow.
+                            !isOwner &&
+                            (!closed || viewerFollows) && (
+                                <FollowButton
+                                    creatorSlug={creator.slug}
+                                    following={viewerFollows}
+                                />
+                            )
+                        }
+                    />
                     <div className="flex items-center justify-end gap-2">
-                        {/* A closed creator takes no new follows; current followers can still unfollow. */}
-                        {!isOwner && (!closed || viewerFollows) && (
-                            <FollowButton
-                                creatorSlug={creator.slug}
-                                following={viewerFollows}
-                            />
-                        )}
                         <ReportDialog
                             targetType="creator"
                             targetId={creator.id}
