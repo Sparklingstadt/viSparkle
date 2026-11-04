@@ -78,3 +78,14 @@ it('reuses an existing category with the same name under another slug', function
         ->and($existing->fresh()->slug)->toBe('comic')
         ->and($post->fresh()->post_category_id)->toBe($existing->id);
 });
+
+it('does not touch the updated_at of the posts it categorises', function () {
+    $past = now()->subYear()->startOfSecond();
+    $post = demoPost('ご挨拶');
+    $post->forceFill(['updated_at' => $past])->saveQuietly();
+
+    $this->seed(DemoPostCategoriesSeeder::class);
+
+    expect($post->fresh()->category?->slug)->toBe('diary')
+        ->and($post->fresh()->updated_at->equalTo($past))->toBeTrue();
+});

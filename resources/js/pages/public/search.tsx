@@ -50,7 +50,9 @@ export default function Search({
         (type === 'all' || type === 'posts') &&
         (posts.length > 0 || postCategory !== null);
     const found = creators.length + products.length + posts.length > 0;
-    const filtered = category !== null || postCategory !== null;
+    const filtered =
+        (showProductsSection && category !== null) ||
+        (showPostsSection && postCategory !== null);
 
     return (
         <>

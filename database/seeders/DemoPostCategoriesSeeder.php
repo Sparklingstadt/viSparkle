@@ -42,9 +42,12 @@ class DemoPostCategoriesSeeder extends Seeder
                 ]);
 
             foreach ($definition['titles'] as $needle) {
+                // Needles are matched with LIKE, so MySQL's utf8mb4_unicode_ci folds kana variants; they are chosen for the demo titles only.
+                // toBase() keeps updated_at, which the public post page shows as 最終更新日.
                 Post::whereNull('post_category_id')
                     ->whereHas('creator', fn ($creators) => $creators->whereIn('slug', DemoProductsSeeder::creatorSlugs()))
                     ->where('title', 'like', '%'.addcslashes($needle, '\\%_').'%')
+                    ->toBase()
                     ->update(['post_category_id' => $category->id]);
             }
         }

@@ -47,13 +47,15 @@ class DemoCategoriesSeeder extends Seeder
                 $query = Product::whereNull('product_category_id')
                     ->whereHas('creator', fn ($creators) => $creators->whereIn('slug', DemoProductsSeeder::creatorSlugs()));
 
+                // Names are matched with LIKE (or =), so MySQL's utf8mb4_unicode_ci folds kana variants; they are chosen for the demo names only.
                 if (str_ends_with($name, '*')) {
                     $query->where('name', 'like', substr($name, 0, -1).'%');
                 } else {
                     $query->where('name', $name);
                 }
 
-                $query->update(['product_category_id' => $category->id]);
+                // toBase() keeps updated_at untouched.
+                $query->toBase()->update(['product_category_id' => $category->id]);
             }
         }
     }

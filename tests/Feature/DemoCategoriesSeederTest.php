@@ -70,3 +70,14 @@ it('reuses an existing category with the same name under another slug', function
         ->and(ProductCategory::count())->toBe(6)
         ->and($existing->fresh()->slug)->toBe('music-cd');
 });
+
+it('does not touch the updated_at of the products it categorises', function () {
+    $past = now()->subYear()->startOfSecond();
+    $product = demoProduct('Tシャツ');
+    $product->forceFill(['updated_at' => $past])->saveQuietly();
+
+    $this->seed(DemoCategoriesSeeder::class);
+
+    expect($product->fresh()->category?->slug)->toBe('apparel')
+        ->and($product->fresh()->updated_at->equalTo($past))->toBeTrue();
+});
