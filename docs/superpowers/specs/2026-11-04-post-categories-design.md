@@ -1,7 +1,7 @@
 # viSparkle — 投稿カテゴリ 設計書
 
 - 作成日: 2026-11-04
-- ステータス: 提案（PR でユーザーがレビュー）
+- ステータス: 実装済み（#49）
 - 前提: 商品カテゴリ（`docs/superpowers/specs/2026-11-04-product-categories-design.md`、#48）が main にマージ済み
 
 ## 1. 目的
