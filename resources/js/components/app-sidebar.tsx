@@ -28,7 +28,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard as adminDashboard } from '@/routes/admin';
-import { feed } from '@/routes';
+import { feed, home } from '@/routes';
 import { index as cart } from '@/routes/cart';
 import { index as orders } from '@/routes/orders';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
@@ -130,7 +130,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={feed()} prefetch>
+                            <Link href={home()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
