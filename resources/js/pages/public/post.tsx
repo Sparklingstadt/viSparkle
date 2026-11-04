@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
+import { show as showPostCategory } from '@/routes/post-categories';
 import { edit } from '@/routes/creator/posts';
 import type { CreatorProfile, PlanData, PostDetail } from '@/types';
 
@@ -90,6 +91,13 @@ export default function PostPage({
                 )}
 
                 <header className="space-y-2">
+                    {post.category && (
+                        <Badge variant="secondary" asChild>
+                            <Link href={showPostCategory(post.category.slug)}>
+                                {post.category.name}
+                            </Link>
+                        </Badge>
+                    )}
                     <h1 className="text-2xl font-bold">{post.title}</h1>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {post.published_at && (

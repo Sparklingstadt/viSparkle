@@ -5,6 +5,7 @@ use App\Http\Controllers\Public\CategoryPageController;
 use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LegalController;
+use App\Http\Controllers\Public\PostCategoryPageController;
 use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
 use App\Http\Controllers\Public\ProductPageController;
@@ -38,6 +39,7 @@ require __DIR__.'/billing.php';
 require __DIR__.'/admin.php';
 
 Route::get('categories/{category:slug}', CategoryPageController::class)->name('categories.show');
+Route::get('post-categories/{category:slug}', PostCategoryPageController::class)->name('post-categories.show');
 Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
 Route::get('/@{creator}/shop/{product}', ProductPageController::class)->whereNumber('product')->name('shop.products.show');
 Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');

@@ -94,6 +94,7 @@ export type PostAttachment = {
 
 export type PostDetail = PostSummary & {
     updated_at: string;
+    category: CategorySummary | null;
     body?: TiptapNode | null;
     image_urls?: Record<string, string>;
     attachments?: PostAttachment[];
