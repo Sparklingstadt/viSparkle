@@ -2,12 +2,13 @@ import { Head, Link } from '@inertiajs/react';
 import { Carousel } from '@/components/carousel';
 import { PostCard } from '@/components/post-card';
 import { ProductCarousel } from '@/components/product-carousel';
+import type { LikeableProduct } from '@/components/product-like-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show } from '@/routes/creators';
-import type { CreatorSummary, PostSummary, ShopProductSummary } from '@/types';
+import type { CreatorSummary, PostSummary } from '@/types';
 
 type PostSort = 'new' | 'popular';
 
@@ -24,8 +25,8 @@ export default function Home({
     sort,
 }: {
     posts: PostSummary[];
-    products: (ShopProductSummary & { creator: CreatorSummary })[];
-    recommendedProducts: (ShopProductSummary & { creator: CreatorSummary })[];
+    products: LikeableProduct[];
+    recommendedProducts: LikeableProduct[];
     popularCreators: CreatorSummary[];
     sort: PostSort;
 }) {

@@ -105,6 +105,7 @@ export type ShopProductSummary = {
     price: number;
     sold_out: boolean;
     cover_url: string | null;
+    like_count: number;
 };
 
 export type ProductKind = 'physical' | 'digital';

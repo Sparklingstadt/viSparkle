@@ -1,26 +1,27 @@
 import { Link } from '@inertiajs/react';
 import { Carousel } from '@/components/carousel';
+import {
+    ProductLikeButton,
+    type LikeableProduct,
+} from '@/components/product-like-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatYen } from '@/lib/format';
 import { show as showProduct } from '@/routes/shop/products';
-import type { CreatorSummary, ShopProductSummary } from '@/types';
-
-type CarouselProduct = ShopProductSummary & { creator: CreatorSummary };
 
 export function ProductCarousel({
     title,
     products,
 }: {
     title: string;
-    products: CarouselProduct[];
+    products: LikeableProduct[];
 }) {
     return (
         <Carousel title={title}>
             {products.map((product) => (
                 <li
                     key={product.id}
-                    className="w-40 shrink-0 snap-start sm:w-48"
+                    className="relative w-40 shrink-0 snap-start sm:w-48"
                 >
                     <Link
                         href={showProduct({
@@ -70,6 +71,10 @@ export function ProductCarousel({
                             </p>
                         </div>
                     </Link>
+                    <ProductLikeButton
+                        product={product}
+                        className="absolute right-1.5 bottom-1.5"
+                    />
                 </li>
             ))}
         </Carousel>

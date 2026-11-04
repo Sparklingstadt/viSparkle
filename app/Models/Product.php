@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int $price
  * @property bool $is_published
  * @property int $sort_order
+ * @property int $like_count
  * @property Carbon|null $hidden_at
  * @property string|null $hidden_reason
  * @property Carbon|null $deleted_at
@@ -47,6 +49,7 @@ class Product extends Model
             'price' => 'integer',
             'is_published' => 'boolean',
             'sort_order' => 'integer',
+            'like_count' => 'integer',
             'hidden_at' => 'datetime',
         ];
     }
@@ -72,6 +75,37 @@ class Product extends Model
         ], 'quantity')
             ->orderByDesc('sold_count')
             ->orderByDesc('id');
+    }
+
+    /**
+     * Idempotent: like_count only moves when the row is actually added.
+     */
+    public function like(User $user): void
+    {
+        DB::transaction(function () use ($user) {
+            $added = ProductLike::query()->insertOrIgnore([
+                'product_id' => $this->id,
+                'user_id' => $user->id,
+                'created_at' => now(),
+            ]);
+
+            if ($added > 0) {
+                // Bypass Eloquent so a like doesn't bump updated_at.
+                static::whereKey($this->id)->toBase()->increment('like_count');
+            }
+        });
+    }
+
+    /**
+     * Idempotent: like_count only moves when a row is actually removed.
+     */
+    public function unlike(User $user): void
+    {
+        DB::transaction(function () use ($user) {
+            if ($this->likes()->where('user_id', $user->id)->delete() > 0) {
+                static::whereKey($this->id)->toBase()->decrement('like_count');
+            }
+        });
     }
 
     public function isListed(): bool
@@ -133,7 +167,14 @@ class Product extends Model
             // Only goods sell out; a digital work holds no stock.
             'sold_out' => ! $this->isDigital() && $this->stock < 1,
             'cover_url' => $this->coverUrl(),
+            'like_count' => $this->like_count,
         ];
+    }
+
+    /** @return HasMany<ProductLike, $this> */
+    public function likes(): HasMany
+    {
+        return $this->hasMany(ProductLike::class);
     }
 
     /** @return BelongsTo<Creator, $this> */

@@ -7,6 +7,7 @@ use App\Models\Creator;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\Product;
+use App\Models\ProductLike;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -36,23 +37,28 @@ class HomeController extends Controller
             ->latest()
             ->latest('id')
             ->limit(12)
-            ->get()
-            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
+            ->get();
         // Best sellers that aren't already among the new arrivals.
         $recommendedProducts = Product::listed()
             ->popular()
             ->whereHas('creator', fn ($query) => $query->open())
-            ->whereNotIn('id', $products->pluck('id'))
+            ->whereNotIn('id', $products->modelKeys())
             ->with(['creator', 'images', 'variants'])
             ->limit(12)
-            ->get()
-            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
+            ->get();
+        $likedProducts = ProductLike::idsLikedBy($request->user(), [...$products->modelKeys(), ...$recommendedProducts->modelKeys()]);
+        $carouselItem = fn (Product $product) => [
+            ...$product->toSummary(),
+            'creator' => $product->creator->toSummary(),
+            'liked' => isset($likedProducts[$product->id]),
+            'can_like' => $product->creator->user_id !== $request->user()?->id,
+        ];
         $popularCreators = Creator::weeklyPopular()->limit(25)->get()->map->toSummary();
 
         return Inertia::render('public/home', [
             'posts' => $posts,
-            'products' => $products,
-            'recommendedProducts' => $recommendedProducts,
+            'products' => $products->map($carouselItem),
+            'recommendedProducts' => $recommendedProducts->map($carouselItem),
             'popularCreators' => $popularCreators,
             'sort' => $sort,
         ]);
