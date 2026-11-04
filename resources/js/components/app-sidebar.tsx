@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed, home } from '@/routes';
+import { register as creatorRegister } from '@/routes/creator';
 import { index as cart } from '@/routes/cart';
 import { index as orders } from '@/routes/orders';
 import { index as creatorEarnings } from '@/routes/creator/earnings';
@@ -102,6 +103,13 @@ const creatorNavItems: NavItem[] = [
     },
 ];
 
+// The only way into creator registration, so it stands in for the creator items.
+const creatorRegisterNavItem: NavItem = {
+    title: 'クリエイター登録',
+    href: creatorRegister(),
+    icon: Palette,
+};
+
 // Opens Stripe's customer portal, so only fans who have paid before get it.
 const billingNavItem: NavItem = {
     title: 'お支払い方法・請求履歴',
@@ -120,7 +128,7 @@ export function AppSidebar() {
     const items = [
         ...fanNavItems,
         ...(auth.user?.has_billing_account ? [billingNavItem] : []),
-        ...creatorNavItems,
+        ...(auth.creator ? creatorNavItems : [creatorRegisterNavItem]),
         ...(auth.user?.is_admin ? [adminNavItem] : []),
     ];
 
