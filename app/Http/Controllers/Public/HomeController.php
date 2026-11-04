@@ -38,7 +38,7 @@ class HomeController extends Controller
             ->limit(12)
             ->get()
             ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
-        // Best sellers the visitor isn't already looking at in the new arrivals above.
+        // Best sellers that aren't already among the new arrivals.
         $recommendedProducts = Product::listed()
             ->popular()
             ->whereHas('creator', fn ($query) => $query->open())

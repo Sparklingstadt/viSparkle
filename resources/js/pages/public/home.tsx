@@ -79,6 +79,13 @@ export default function Home({
                     </section>
                 )}
 
+                {recommendedProducts.length > 0 && (
+                    <ProductCarousel
+                        title="おすすめの商品"
+                        products={recommendedProducts}
+                    />
+                )}
+
                 {products.length === 0 ? (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">新着商品</h2>
@@ -88,13 +95,6 @@ export default function Home({
                     </section>
                 ) : (
                     <ProductCarousel title="新着商品" products={products} />
-                )}
-
-                {recommendedProducts.length > 0 && (
-                    <ProductCarousel
-                        title="おすすめの商品"
-                        products={recommendedProducts}
-                    />
                 )}
 
                 <section className="space-y-4">
