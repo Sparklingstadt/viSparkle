@@ -52,12 +52,12 @@ export default function Home({
                                 直近7日間に新しく支援を始めたファンが多い順です。
                             </p>
                         </div>
-                        <ol className="flex gap-4 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible">
+                        <ol className="flex gap-4 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible lg:gap-3">
                             {popularCreators.map((creator, index) => (
                                 <li key={creator.slug} className="shrink-0">
                                     <Link
                                         href={show(creator.slug)}
-                                        className="flex w-24 flex-col items-center gap-2 text-center"
+                                        className="flex w-24 flex-col items-center gap-2 text-center lg:w-22"
                                     >
                                         <div className="relative">
                                             <Avatar className="size-16">
