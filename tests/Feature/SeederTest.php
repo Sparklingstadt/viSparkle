@@ -211,3 +211,20 @@ it('draws pictures for demo goods that were seeded without them', function () {
     expect($path)->toBe("creators/{$product->creator_id}/products/demo-{$product->id}.png");
     Storage::disk('public')->assertExists($path);
 });
+
+it('dates demo goods so that the creators mix in the new arrivals', function () {
+    Storage::fake('public');
+    Storage::fake('private');
+
+    $this->seed();
+
+    $dates = Product::query()->orderBy('id')->pluck('created_at', 'id')->map->toIso8601String();
+    $newest = Product::query()->latest()->latest('id')->limit(12)->pluck('creator_id');
+
+    expect($newest->unique()->count())->toBeGreaterThan(3)
+        ->and(Product::query()->where('created_at', '>', now())->exists())->toBeFalse();
+
+    $this->seed(DemoProductsSeeder::class);
+
+    expect(Product::query()->orderBy('id')->pluck('created_at', 'id')->map->toIso8601String()->all())->toBe($dates->all());
+});

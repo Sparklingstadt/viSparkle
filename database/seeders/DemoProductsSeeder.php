@@ -21,6 +21,9 @@ use Random\Randomizer;
  * Every product gets a picture drawn by DemoProductPainter: the shape of the goods with the creator's motif and
  * colours. Products without a picture get one on any run, so goods seeded before the pictures came get theirs too.
  *
+ * Each product is dated a little before its creator joined, by an amount taken from its name, so the creators' goods
+ * mix in the new arrivals on the home page. Worked out from fixed values, so another run gives the same dates.
+ *
  * Rows are written directly, so they are published even for a creator who cannot sell yet. Uses no model factories,
  * so it also runs on production. Safe to re-run: a creator who has products already gets no new ones.
  */
@@ -32,6 +35,11 @@ class DemoProductsSeeder extends Seeder
      * The chance (in percent) that each optional item is on sale.
      */
     private const OPTIONAL_CHANCE = 50;
+
+    /**
+     * How far before the creator's sign-up a product may be dated.
+     */
+    private const MAX_AGE_MINUTES = 72 * 60;
 
     /**
      * Pictures drawn in this process, by slug, product name and number of kinds.
@@ -50,6 +58,17 @@ class DemoProductsSeeder extends Seeder
 
         foreach (Creator::whereIn('slug', $slugs)->get() as $creator) {
             $this->paintImages($creator);
+            $this->spreadDates($creator);
+        }
+    }
+
+    private function spreadDates(Creator $creator): void
+    {
+        foreach ($creator->products as $product) {
+            $minutes = crc32("{$creator->slug}:{$product->name}") % self::MAX_AGE_MINUTES;
+
+            // Bypass Eloquent so the date change doesn't bump updated_at.
+            Product::whereKey($product->id)->toBase()->update(['created_at' => $creator->created_at->subMinutes($minutes)]);
         }
     }
 

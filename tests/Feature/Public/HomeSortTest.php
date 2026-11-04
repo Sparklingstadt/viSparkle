@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Post;
+use App\Models\Product;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => fakePrivateDisk());
@@ -37,6 +38,16 @@ it('shows at most eight public posts on the home page', function () {
 
     $this->get(route('home'))
         ->assertInertia(fn (Assert $page) => $page->has('posts', 8));
+});
+
+it('lists new products by the date they were added', function () {
+    $newest = Product::factory()->create(['created_at' => now()]);
+    $older = Product::factory()->create(['created_at' => now()->subDay()]);
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('products.0.id', $newest->id)
+            ->where('products.1.id', $older->id));
 });
 
 it('falls back to newest for an unknown sort', function () {

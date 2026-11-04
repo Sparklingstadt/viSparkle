@@ -33,6 +33,7 @@ class HomeController extends Controller
         $products = Product::listed()
             ->whereHas('creator', fn ($query) => $query->open())
             ->with(['creator', 'images', 'variants'])
+            ->latest()
             ->latest('id')
             ->limit(12)
             ->get()
