@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Creator;
 
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
@@ -23,6 +25,7 @@ trait ProductRules
             'description' => ['nullable', 'string', 'max:5000'],
             'price' => ['required', 'integer', 'between:50,1000000'],
             'is_published' => ['boolean'],
+            'product_category_id' => ['nullable', 'integer', $this->categoryExistsRule()],
         ];
 
         if ($this->isDigitalWork()) {
@@ -42,6 +45,38 @@ trait ProductRules
      * Whether the form is for a digital work.
      */
     abstract protected function isDigitalWork(): bool;
+
+    /**
+     * The category the product already has, if any. It stays valid even after it is archived.
+     */
+    abstract protected function currentCategoryId(): ?int;
+
+    /**
+     * An active category, or the one the product already has. Exists::where(Closure) hands the closure the bare query,
+     * so the OR is grouped explicitly to keep it from escaping the id match.
+     */
+    private function categoryExistsRule(): mixed
+    {
+        $currentId = $this->currentCategoryId();
+
+        return Rule::exists('product_categories', 'id')->where(
+            fn (Builder $query) => $query->where(
+                fn (Builder $group) => $group->whereNull('archived_at')
+                    ->when($currentId, fn (Builder $q, int $id) => $q->orWhere('id', $id))
+            )
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'product_category_id.integer' => 'カテゴリが正しくありません',
+            'product_category_id.exists' => 'カテゴリが正しくありません',
+        ];
+    }
 
     /**
      * A product with several kinds needs a name for each, so the buyer can tell them apart.
@@ -74,6 +109,7 @@ trait ProductRules
             'name' => '商品名',
             'description' => '説明',
             'price' => '価格',
+            'product_category_id' => 'カテゴリ',
             'variants' => '種類',
             'variants.*.name' => '種類の名前',
             'variants.*.stock' => '在庫',

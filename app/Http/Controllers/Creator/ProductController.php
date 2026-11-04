@@ -10,6 +10,7 @@ use App\Http\Requests\Creator\UpdateProductRequest;
 use App\Models\Creator;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductFile;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -59,6 +60,7 @@ class ProductController extends Controller
     {
         return Inertia::render('creator/products/edit', [
             'product' => null,
+            'categories' => self::categoryOptions(null),
             'can_publish' => $request->user()->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
@@ -81,6 +83,7 @@ class ProductController extends Controller
             $product = new Product([
                 ...$request->safe()->only(['name', 'price']),
                 'description' => $request->validated('description') ?: null,
+                'product_category_id' => $request->validated('product_category_id'),
                 'is_published' => $published,
             ]);
             $product->kind = $kind;
@@ -121,6 +124,7 @@ class ProductController extends Controller
                 'name' => $product->name,
                 'description' => $product->description,
                 'price' => $product->price,
+                'category_id' => $product->product_category_id,
                 'variants' => $product->variants->map(fn (ProductVariant $variant) => [
                     'id' => $variant->id,
                     'name' => $variant->name,
@@ -141,6 +145,7 @@ class ProductController extends Controller
                     'mime' => $file->mime,
                 ])->values(),
             ],
+            'categories' => self::categoryOptions($product->product_category_id),
             'can_publish' => $product->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
@@ -165,6 +170,7 @@ class ProductController extends Controller
             $product->fill([
                 ...$request->safe()->only(['name', 'price']),
                 'description' => $request->validated('description') ?: null,
+                'product_category_id' => $request->validated('product_category_id'),
                 'is_published' => $published,
             ])->save();
 
@@ -212,6 +218,28 @@ class ProductController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => '商品を削除しました。']);
 
         return to_route('creator.products.index');
+    }
+
+    /**
+     * Active categories in order; a product whose category was archived since keeps it, listed last.
+     *
+     * @return list<array{id: int, name: string, archived: bool}>
+     */
+    private static function categoryOptions(?int $currentId): array
+    {
+        $options = ProductCategory::query()->active()->ordered()->get()
+            ->map(fn (ProductCategory $category) => ['id' => $category->id, 'name' => $category->name, 'archived' => false])
+            ->all();
+
+        $current = $currentId === null || in_array($currentId, array_column($options, 'id'), true)
+            ? null
+            : ProductCategory::query()->find($currentId);
+
+        if ($current !== null) {
+            $options[] = ['id' => $current->id, 'name' => $current->name, 'archived' => true];
+        }
+
+        return array_values($options);
     }
 
     /**

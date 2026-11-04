@@ -42,4 +42,12 @@ class UpdateProductRequest extends FormRequest
 
         return $product->isDigital();
     }
+
+    protected function currentCategoryId(): ?int
+    {
+        /** @var Product $product */
+        $product = $this->route('product');
+
+        return $product->product_category_id;
+    }
 }
