@@ -11,7 +11,7 @@ export function CartLink() {
             <Link
                 href={cart()}
                 aria-label={
-                    cartCount > 0 ? `カート（${cartCount}点）` : 'カート'
+                    cartCount > 0 ? `カート（${cartCount}種類）` : 'カート'
                 }
             >
                 <ShoppingCart className="size-4" />
