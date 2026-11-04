@@ -143,7 +143,7 @@ export default function Home({
                             まだ投稿がありません。
                         </p>
                     ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             {posts.map((post) => (
                                 <PostCard
                                     key={post.id}

@@ -32,6 +32,13 @@ it('sorts recent free posts by views when popular is chosen', function () {
             ->where('posts.1.id', $quiet->id));
 });
 
+it('shows at most eight public posts on the home page', function () {
+    Post::factory()->published()->count(9)->create();
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page->has('posts', 8));
+});
+
 it('falls back to newest for an unknown sort', function () {
     $this->get(route('home', ['sort' => 'bogus']))
         ->assertInertia(fn (Assert $page) => $page->where('sort', 'new'));

@@ -25,7 +25,7 @@ class HomeController extends Controller
             ->where('required_price', 0)
             ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->with(['creator', 'cover'])
-            ->limit(20)
+            ->limit(8)
             ->get();
         $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
         $posts = $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
