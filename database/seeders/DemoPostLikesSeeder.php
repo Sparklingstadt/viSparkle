@@ -8,17 +8,14 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
 
 /**
- * Local demo data: gives every public post one to ten likes from throwaway fans.
+ * Gives every public post one to ten likes from throwaway fans. Uses no model factories, so it also runs on production.
  * Posts that already have likes are left alone, so seeding twice changes nothing.
  */
 class DemoPostLikesSeeder extends Seeder
 {
     private const MAX_LIKES = 10;
 
-    /**
-     * With fan@example.com, this makes one hundred fans.
-     */
-    private const FANS = 99;
+    private const TOTAL_FANS = 100;
 
     /**
      * The throwaway fans, made on first use.
@@ -27,10 +24,13 @@ class DemoPostLikesSeeder extends Seeder
      */
     public static function fans(): Collection
     {
+        // fan@example.com counts as one of the hundred where it exists (it doesn't on production).
+        $count = self::TOTAL_FANS - User::query()->where('email', 'fan@example.com')->count();
+
         return new Collection(array_map(
             fn (int $number) => User::query()->where('email', "demo-fan-{$number}@example.com")->first()
-                ?? User::factory()->create(['name' => "デモファン{$number}", 'email' => "demo-fan-{$number}@example.com"]),
-            range(1, self::FANS),
+                ?? DemoCreatorsSeeder::account("デモファン{$number}", "demo-fan-{$number}@example.com"),
+            range(1, $count),
         ));
     }
 

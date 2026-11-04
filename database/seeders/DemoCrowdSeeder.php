@@ -5,16 +5,17 @@ namespace Database\Seeders;
 use App\Billing\FakeGateway;
 use App\Enums\PostStatus;
 use App\Models\Creator;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Local demo data: 39 more creators, each with a plan, a free post and a paid post, so that with the eleven from
- * DemoCreatorsSeeder the service has fifty. Their accounts use the password "password". Uses model factories, so it
- * doesn't run on production. Safe to re-run: a creator who exists already is skipped.
+ * More demo creators, each with a plan, a free post and a paid post, until the service has fifty. Their accounts are
+ * made like DemoCreatorsSeeder's, and this uses no model factories, so it also runs on production.
+ * Safe to re-run: a creator who exists already is skipped, and nothing is added past fifty.
  */
 class DemoCrowdSeeder extends Seeder
 {
+    private const TOTAL_CREATORS = 50;
+
     /**
      * Romanised name for the slug, and the name shown.
      *
@@ -22,7 +23,7 @@ class DemoCrowdSeeder extends Seeder
      */
     private const NAMES = [
         'akari' => 'あかり', 'sora' => 'そら', 'hinata' => 'ひなた', 'minato' => 'みなと', 'tsumugi' => 'つむぎ', 'haru' => 'はる',
-        'ren' => 'れん', 'yui' => 'ゆい', 'kaede' => 'かえで', 'nagi' => 'なぎ', 'suzu' => 'すず', 'riku' => 'りく', 'mio' => 'みお',
+        'ren' => 'れん', 'yui' => 'ゆい', 'kaede' => 'かえで', 'nagi' => 'なぎ', 'suzu' => 'すず', 'riku' => 'りく', 'mio' => 'みお', 'nana' => 'なな',
     ];
 
     /**
@@ -54,12 +55,16 @@ class DemoCrowdSeeder extends Seeder
                 $slug = "{$romaji}-{$genre}";
                 $index++;
 
+                if (Creator::count() >= self::TOTAL_CREATORS) {
+                    return;
+                }
+
                 if (Creator::where('slug', $slug)->exists()) {
                     continue;
                 }
 
                 $displayName = $name.$suffix;
-                $user = User::factory()->create(['name' => $displayName, 'email' => "{$slug}@example.com"]);
+                $user = DemoCreatorsSeeder::account($displayName, "{$slug}@example.com");
                 $creator = $user->creator()->create(['slug' => $slug, 'display_name' => $displayName, 'bio' => "{$displayName}へようこそ。\n制作の様子を発信しています。"]);
 
                 $this->createContent($creator, $freeTitle, $paidTitle);
@@ -87,7 +92,7 @@ class DemoCrowdSeeder extends Seeder
 
     private function openFakePayoutAccount(Creator $creator): void
     {
-        if (config('fanbox.billing.driver') !== 'fake') {
+        if (config('fanbox.billing.driver') !== 'fake' || app()->isProduction()) {
             return;
         }
 

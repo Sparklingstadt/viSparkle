@@ -61,10 +61,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoCreatorsSeeder::class);
 
         if (app()->isLocal()) {
-            $this->call(DemoCrowdSeeder::class);
+            $this->call(DemoShowcaseSeeder::class);
         }
-
-        $this->call(DemoPostLikesSeeder::class);
-        $this->call(DemoSupportsSeeder::class);
     }
 }

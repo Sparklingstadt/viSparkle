@@ -2,14 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Enums\SupportStatus;
 use App\Models\Creator;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Local demo data: fills the home page's weekly ranking by having the throwaway fans start supporting up to 25 creators
- * within the last week. The ranking only counts seven days, so it empties again a week after seeding.
+ * Fills the home page's weekly ranking by having the throwaway fans start supporting up to 25 creators within the last
+ * week. These supports have no Stripe subscription, like a free grant: nothing is charged and nothing syncs with them.
+ * The ranking only counts seven days, so it empties again a week after seeding.
  * Creators the fans support already count towards the 25, so seeding twice changes nothing.
  */
 class DemoSupportsSeeder extends Seeder
@@ -33,11 +35,14 @@ class DemoSupportsSeeder extends Seeder
             ->each(function (Creator $creator) use ($fans) {
                 $plan = $creator->plans()->orderBy('price')->firstOrFail();
 
-                $fans->random(random_int(1, self::MAX_SUPPORTERS))->each(fn (User $fan) => Support::factory()
-                    ->for($fan)
-                    ->forPlan($plan)
-                    ->active()
-                    ->create(['started_at' => now()->subDays(random_int(0, 6))]));
+                $fans->random(random_int(1, self::MAX_SUPPORTERS))->each(fn (User $fan) => Support::create([
+                    'user_id' => $fan->id,
+                    'creator_id' => $creator->id,
+                    'plan_id' => $plan->id,
+                    'price' => $plan->price,
+                    'status' => SupportStatus::Active,
+                    'started_at' => now()->subDays(random_int(0, 6)),
+                ]));
             });
     }
 }

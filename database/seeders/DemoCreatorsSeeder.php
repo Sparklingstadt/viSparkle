@@ -151,16 +151,7 @@ class DemoCreatorsSeeder extends Seeder
                 continue;
             }
 
-            $user = User::create([
-                'name' => $name,
-                'email' => "{$slug}@example.com",
-                'password' => app()->isProduction() ? Str::random(64) : 'password',
-            ]);
-            $user->forceFill([
-                'email_verified_at' => now(),
-                'terms_version' => LegalDocuments::termsVersion(),
-                'terms_accepted_at' => now(),
-            ])->save();
+            $user = self::account($name, "{$slug}@example.com");
 
             $creator = $user->creator()->create(['slug' => $slug, 'display_name' => $name, 'bio' => $bio]);
 
@@ -176,6 +167,25 @@ class DemoCreatorsSeeder extends Seeder
         }
 
         $this->call(DemoProductsSeeder::class);
+    }
+
+    /**
+     * A ready-to-use demo account. Locally its password is "password"; in production nobody knows it.
+     */
+    public static function account(string $name, string $email): User
+    {
+        $user = User::create([
+            'name' => $name,
+            'email' => $email,
+            'password' => app()->isProduction() ? Str::random(64) : 'password',
+        ]);
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'terms_version' => LegalDocuments::termsVersion(),
+            'terms_accepted_at' => now(),
+        ])->save();
+
+        return $user;
     }
 
     /**
