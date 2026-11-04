@@ -118,8 +118,8 @@ export default function Home({
                                     <Link
                                         href={home({
                                             query:
-                                                tab.sort === 'popular'
-                                                    ? { sort: 'popular' }
+                                                tab.sort === 'new'
+                                                    ? { sort: 'new' }
                                                     : {},
                                         })}
                                         role="tab"

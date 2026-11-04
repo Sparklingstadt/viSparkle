@@ -18,7 +18,7 @@ class HomeController extends Controller
     public function __invoke(Request $request, PostPresenter $presenter): Response
     {
         $entitlement = Entitlement::for($request->user());
-        $sort = $request->query('sort') === 'popular' ? 'popular' : 'new';
+        $sort = $request->query('sort') === 'new' ? 'new' : 'popular';
 
         $posts = ($sort === 'popular' ? Post::popular() : Post::published())
             ->visible()

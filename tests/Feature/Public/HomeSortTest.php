@@ -8,18 +8,18 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => fakePrivateDisk());
 
-it('defaults to newest posts', function () {
+it('shows newest posts when newest is chosen', function () {
     $old = Post::factory()->published()->create(['published_at' => now()->subDays(2), 'view_count' => 50]);
     $new = Post::factory()->published()->create(['view_count' => 1]);
 
-    $this->get(route('home'))
+    $this->get(route('home', ['sort' => 'new']))
         ->assertInertia(fn (Assert $page) => $page
             ->where('sort', 'new')
             ->where('posts.0.id', $new->id)
             ->where('posts.1.id', $old->id));
 });
 
-it('sorts recent free posts by views when popular is chosen', function () {
+it('sorts recent free posts by views by default', function () {
     $quiet = Post::factory()->published()->create(['view_count' => 1]);
     $hit = Post::factory()->published()->create(['published_at' => now()->subDays(3), 'view_count' => 50]);
     Post::factory()->published()->create(['published_at' => now()->subDays(31), 'view_count' => 999]);
@@ -27,7 +27,7 @@ it('sorts recent free posts by views when popular is chosen', function () {
     Post::factory()->published()->hidden()->create(['view_count' => 999]);
     Post::factory()->draft()->create(['view_count' => 999]);
 
-    $this->get(route('home', ['sort' => 'popular']))
+    $this->get(route('home'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('sort', 'popular')
             ->has('posts', 2)
@@ -75,9 +75,9 @@ it('leaves unlisted products out of the recommendations', function () {
         ->assertInertia(fn (Assert $page) => $page->has('recommendedProducts', 0));
 });
 
-it('falls back to newest for an unknown sort', function () {
+it('falls back to popular for an unknown sort', function () {
     $this->get(route('home', ['sort' => 'bogus']))
-        ->assertInertia(fn (Assert $page) => $page->where('sort', 'new'));
+        ->assertInertia(fn (Assert $page) => $page->where('sort', 'popular'));
 });
 
 it('counts a view once per session and ignores the author', function () {
