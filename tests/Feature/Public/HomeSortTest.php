@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\OrderStatus;
+use App\Models\Order;
 use App\Models\Post;
 use App\Models\Product;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -48,6 +50,29 @@ it('lists new products by the date they were added', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('products.0.id', $newest->id)
             ->where('products.1.id', $older->id));
+});
+
+it('recommends best sellers that are not among the new arrivals', function () {
+    $sellers = Product::factory()->count(2)->create(['created_at' => now()->subWeek()]);
+    $bestSeller = $sellers->first();
+    $order = Order::factory()->create(['status' => OrderStatus::Paid]);
+    $order->items()->create(['product_id' => $bestSeller->id, 'product_name' => $bestSeller->name, 'unit_price' => $bestSeller->price, 'quantity' => 3]);
+    Product::factory()->count(12)->create();
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('products', 12)
+            ->has('recommendedProducts', 2)
+            ->where('recommendedProducts.0.id', $bestSeller->id));
+});
+
+it('leaves unlisted products out of the recommendations', function () {
+    Product::factory()->count(12)->create();
+    Product::factory()->unpublished()->create(['created_at' => now()->subWeek()]);
+    Product::factory()->create(['created_at' => now()->subWeek(), 'hidden_at' => now()]);
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page->has('recommendedProducts', 0));
 });
 
 it('falls back to newest for an unknown sort', function () {

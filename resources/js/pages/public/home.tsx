@@ -18,11 +18,13 @@ const sortTabs: { label: string; sort: PostSort }[] = [
 export default function Home({
     posts,
     products,
+    recommendedProducts,
     popularCreators,
     sort,
 }: {
     posts: PostSummary[];
     products: (ShopProductSummary & { creator: CreatorSummary })[];
+    recommendedProducts: (ShopProductSummary & { creator: CreatorSummary })[];
     popularCreators: CreatorSummary[];
     sort: PostSort;
 }) {
@@ -86,6 +88,13 @@ export default function Home({
                     </section>
                 ) : (
                     <ProductCarousel title="新着商品" products={products} />
+                )}
+
+                {recommendedProducts.length > 0 && (
+                    <ProductCarousel
+                        title="おすすめの商品"
+                        products={recommendedProducts}
+                    />
                 )}
 
                 <section className="space-y-4">

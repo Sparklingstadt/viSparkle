@@ -38,11 +38,21 @@ class HomeController extends Controller
             ->limit(12)
             ->get()
             ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
+        // Best sellers the visitor isn't already looking at in the new arrivals above.
+        $recommendedProducts = Product::listed()
+            ->popular()
+            ->whereHas('creator', fn ($query) => $query->open())
+            ->whereNotIn('id', $products->pluck('id'))
+            ->with(['creator', 'images', 'variants'])
+            ->limit(12)
+            ->get()
+            ->map(fn (Product $product) => [...$product->toSummary(), 'creator' => $product->creator->toSummary()]);
         $popularCreators = Creator::weeklyPopular()->limit(10)->get()->map->toSummary();
 
         return Inertia::render('public/home', [
             'posts' => $posts,
             'products' => $products,
+            'recommendedProducts' => $recommendedProducts,
             'popularCreators' => $popularCreators,
             'sort' => $sort,
         ]);
