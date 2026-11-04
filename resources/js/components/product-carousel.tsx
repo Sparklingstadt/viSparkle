@@ -21,7 +21,7 @@ export function ProductCarousel({
             {products.map((product) => (
                 <li
                     key={product.id}
-                    className="relative w-[152px] shrink-0 snap-start"
+                    className="relative w-[172px] shrink-0 snap-start"
                 >
                     <Link
                         href={showProduct({
