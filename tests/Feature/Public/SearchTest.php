@@ -3,6 +3,7 @@
 use App\Models\Creator;
 use App\Models\Post;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -121,3 +122,38 @@ it('cuts a keyword down to one hundred characters', function () {
     $this->get(route('search', ['q' => str_repeat('あ', 101)]))
         ->assertInertia(fn (Assert $page) => $page->where('q', str_repeat('あ', 100)));
 });
+
+it('narrows products by category', function () {
+    $category = ProductCategory::factory()->create(['slug' => 'sticker']);
+    $inside = Product::factory()->create(['name' => '星空シール', 'product_category_id' => $category->id]);
+    Product::factory()->create(['name' => '星空マグ']);
+    Creator::factory()->create(['display_name' => '星空']);
+    Post::factory()->published()->create(['title' => '星空の写真']);
+
+    $this->get(route('search', ['q' => '星空', 'category' => 'sticker']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('category', 'sticker')
+            ->has('categories', 1)
+            ->has('products', 1)
+            ->where('products.0.id', $inside->id)
+            ->has('creators', 1)
+            ->has('posts', 1));
+});
+
+it('ignores an unknown or archived category', function (mixed $value) {
+    ProductCategory::factory()->create();
+    $category = ProductCategory::factory()->create(['slug' => 'sticker']);
+    Product::factory()->create(['name' => '星空シール', 'product_category_id' => $category->id]);
+    Product::factory()->create(['name' => '星空マグ']);
+
+    $this->get(route('search', ['q' => '星空', 'category' => value($value)]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('category', null)
+            ->has('products', 2));
+})->with([
+    'unknown' => 'nope',
+    'archived' => fn () => ProductCategory::factory()->archived()->create()->slug,
+    'array' => [['x']],
+]);

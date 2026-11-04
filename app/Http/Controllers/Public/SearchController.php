@@ -7,6 +7,7 @@ use App\Models\Creator;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,13 +29,17 @@ class SearchController extends Controller
         $raw = $request->query('q');
         $q = is_string($raw) ? mb_substr(Str::trim($raw), 0, self::MAX_KEYWORD_LENGTH) : '';
         $type = in_array($request->query('type'), self::TYPES, true) ? $request->query('type') : 'all';
+        $slug = $request->query('category');
+        $category = is_string($slug) ? ProductCategory::active()->where('slug', $slug)->first() : null;
         $wants = fn (string $kind): bool => $q !== '' && in_array($type, ['all', $kind], true);
 
         return Inertia::render('public/search', [
             'q' => $q,
             'type' => $type,
+            'category' => $category?->slug,
+            'categories' => ProductCategory::activeSummaries(),
             'creators' => $wants('creators') ? $this->creators($q) : [],
-            'products' => $wants('products') ? $this->products($q) : [],
+            'products' => $wants('products') ? $this->products($q, $category) : [],
             'posts' => $wants('posts') ? $this->posts($request, $presenter, $q) : [],
         ]);
     }
@@ -55,9 +60,10 @@ class SearchController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function products(string $q): array
+    private function products(string $q, ?ProductCategory $category): array
     {
         return $this->matching(Product::listed(), ['name', 'description'], $q)
+            ->when($category, fn (Builder $query, ProductCategory $category) => $query->inCategory($category))
             ->whereHas('creator', fn ($query) => $query->open())
             ->with(['creator', 'images', 'variants'])
             ->latest('id')

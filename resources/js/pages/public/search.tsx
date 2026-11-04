@@ -1,21 +1,38 @@
 import { Head, Link } from '@inertiajs/react';
+import { CategoryLinks } from '@/components/category-links';
 import { PostCard } from '@/components/post-card';
 import { ProductCard } from '@/components/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { search } from '@/routes';
 import { show } from '@/routes/creators';
-import type { CreatorSummary, PostSummary, ShopProductSummary } from '@/types';
+import type {
+    CategorySummary,
+    CreatorSummary,
+    PostSummary,
+    ShopProductSummary,
+} from '@/types';
 
 export default function Search({
     q,
+    type,
+    category,
+    categories,
     creators,
     products,
     posts,
 }: {
     q: string;
+    type: string;
+    category: string | null;
+    categories: CategorySummary[];
     creators: CreatorSummary[];
     products: (ShopProductSummary & { creator: CreatorSummary })[];
     posts: PostSummary[];
 }) {
+    const showProducts =
+        q !== '' &&
+        (type === 'all' || type === 'products') &&
+        categories.length > 0;
     const found = creators.length + products.length + posts.length > 0;
 
     return (
@@ -74,9 +91,25 @@ export default function Search({
                     </section>
                 )}
 
-                {products.length > 0 && (
+                {(products.length > 0 || showProducts) && (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">商品</h2>
+                        {showProducts && (
+                            <CategoryLinks
+                                categories={categories}
+                                current={category}
+                                allLabel="すべて"
+                                href={(slug) =>
+                                    search({
+                                        query: {
+                                            q,
+                                            type,
+                                            ...(slug ? { category: slug } : {}),
+                                        },
+                                    }).url
+                                }
+                            />
+                        )}
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             {products.map((product) => (
                                 <ProductCard
