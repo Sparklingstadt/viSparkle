@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Heart, Lock } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
@@ -46,7 +47,23 @@ export function PostCard({
             <div className="space-y-1 p-3">
                 <p className="line-clamp-2 font-medium">{post.title}</p>
                 <p className="text-xs text-muted-foreground">
-                    {showCreator && `${post.creator.display_name} · `}
+                    {showCreator && (
+                        <>
+                            <Avatar className="mr-1 inline-flex size-4 align-[-3px]">
+                                {post.creator.avatar_url && (
+                                    <AvatarImage
+                                        src={post.creator.avatar_url}
+                                        alt=""
+                                    />
+                                )}
+                                <AvatarFallback className="text-[10px]">
+                                    {post.creator.display_name.slice(0, 1)}
+                                </AvatarFallback>
+                            </Avatar>
+                            {post.creator.display_name}
+                            {' · '}
+                        </>
+                    )}
                     {formatDate(post.published_at)}
                     {!post.locked && post.required_price > 0 && (
                         <> · {formatYen(post.required_price)}〜</>
