@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
@@ -122,8 +123,24 @@ export function ProductCarousel({
                                 <p className="line-clamp-2 font-medium">
                                     {product.name}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">
-                                    {product.creator.display_name}
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Avatar className="size-4 shrink-0">
+                                        {product.creator.avatar_url && (
+                                            <AvatarImage
+                                                src={product.creator.avatar_url}
+                                                alt=""
+                                            />
+                                        )}
+                                        <AvatarFallback className="text-[10px]">
+                                            {product.creator.display_name.slice(
+                                                0,
+                                                1,
+                                            )}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="truncate">
+                                        {product.creator.display_name}
+                                    </span>
                                 </p>
                                 <p className="flex items-center gap-2 text-sm">
                                     {formatYen(product.price)}
