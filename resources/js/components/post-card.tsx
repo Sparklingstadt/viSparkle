@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
+import { cn } from '@/lib/utils';
 import { show } from '@/routes/posts';
 import type { PostSummary } from '@/types';
 
@@ -72,8 +73,22 @@ export function PostCard({
                     {!!post.like_count && (
                         <>
                             {' · '}
-                            <Heart className="inline size-3 align-[-1px]" />{' '}
-                            {post.like_count}
+                            <Heart
+                                aria-label={
+                                    post.liked ? 'いいね済み' : undefined
+                                }
+                                className={cn(
+                                    'inline size-3 align-[-1px]',
+                                    post.liked && 'fill-current text-rose-500',
+                                )}
+                            />{' '}
+                            <span
+                                className={cn(
+                                    post.liked && 'font-medium text-rose-500',
+                                )}
+                            >
+                                {post.like_count}
+                            </span>
                         </>
                     )}
                 </p>
