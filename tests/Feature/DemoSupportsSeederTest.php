@@ -8,13 +8,13 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => fakePrivateDisk());
 
-it('fills the weekly ranking with ten creators', function () {
-    Creator::factory()->count(11)->create()->each(fn (Creator $creator) => Plan::factory()->for($creator)->create());
+it('fills the weekly ranking with 25 creators', function () {
+    Creator::factory()->count(26)->create()->each(fn (Creator $creator) => Plan::factory()->for($creator)->create());
 
     $this->seed(DemoSupportsSeeder::class);
 
     $this->get(route('home'))
-        ->assertInertia(fn (Assert $page) => $page->has('popularCreators', 10));
+        ->assertInertia(fn (Assert $page) => $page->has('popularCreators', 25));
 });
 
 it('changes nothing when seeded twice', function () {

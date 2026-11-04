@@ -16,6 +16,11 @@ class DemoPostLikesSeeder extends Seeder
     private const MAX_LIKES = 10;
 
     /**
+     * With fan@example.com, this makes one hundred fans.
+     */
+    private const FANS = 99;
+
+    /**
      * The throwaway fans, made on first use.
      *
      * @return Collection<int, User>
@@ -25,7 +30,7 @@ class DemoPostLikesSeeder extends Seeder
         return new Collection(array_map(
             fn (int $number) => User::query()->where('email', "demo-fan-{$number}@example.com")->first()
                 ?? User::factory()->create(['name' => "デモファン{$number}", 'email' => "demo-fan-{$number}@example.com"]),
-            range(1, self::MAX_LIKES),
+            range(1, self::FANS),
         ));
     }
 

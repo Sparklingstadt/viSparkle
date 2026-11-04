@@ -251,7 +251,7 @@ class DemoCreatorsSeeder extends Seeder
      *
      * @param  array{string, string}  $palette
      */
-    private function paintImages(Creator $creator, array $palette): void
+    public function paintImages(Creator $creator, array $palette): void
     {
         $updates = [];
 
