@@ -23,7 +23,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                             asChild
-                            className="relative h-12 data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-1 data-[active=true]:before:rounded-full data-[active=true]:before:bg-sidebar-primary"
+                            className="h-12"
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
                         >
