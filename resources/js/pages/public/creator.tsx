@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { CategoryLinks } from '@/components/category-links';
 import { CreatorHeader } from '@/components/creator-header';
 import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
@@ -11,6 +12,7 @@ import { SupportButton } from '@/components/support-button';
 import { show } from '@/routes/creators';
 import { show as showProduct } from '@/routes/shop/products';
 import type {
+    CategorySummary,
     CreatorProfile,
     Paginated,
     PlanData,
@@ -33,6 +35,8 @@ export default function CreatorPage({
     creator,
     plans,
     posts,
+    postCategory,
+    postCategories,
     isOwner,
     viewerSupportPrice,
     viewerPlanId,
@@ -49,6 +53,8 @@ export default function CreatorPage({
     creator: CreatorProfile & { id: number };
     plans: PlanData[];
     posts: Paginated<PostSummary>;
+    postCategory: string | null;
+    postCategories: CategorySummary[];
     isOwner: boolean;
     viewerSupportPrice: number | null;
     viewerPlanId: number | null;
@@ -273,6 +279,20 @@ export default function CreatorPage({
                 ) : (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">投稿</h2>
+                        {postCategories.length > 0 && (
+                            <CategoryLinks
+                                categories={postCategories}
+                                current={postCategory}
+                                allLabel="すべて"
+                                href={(slug) =>
+                                    show(creator.slug, {
+                                        query: slug
+                                            ? { post_category: slug }
+                                            : {},
+                                    }).url
+                                }
+                            />
+                        )}
                         {posts.data.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 まだ投稿がありません。

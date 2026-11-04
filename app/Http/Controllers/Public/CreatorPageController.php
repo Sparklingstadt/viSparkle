@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\PostLike;
 use App\Models\Product;
 use App\Models\Support;
@@ -31,11 +32,20 @@ class CreatorPageController extends Controller
         $tab = $shopVisible && $request->query('tab') === 'shop' ? 'shop' : 'posts';
         $sort = $request->query('sort') === 'popular' ? 'popular' : 'new';
 
+        $postCategories = PostCategory::active()
+            ->ordered()
+            ->whereHas('posts', fn ($query) => $query->where('creator_id', $creator->id)->published()->visible())
+            ->get();
+        $slug = $request->query('post_category');
+        $postCategory = is_string($slug) ? $postCategories->firstWhere('slug', $slug) : null;
+
         $posts = $creator->posts()
             ->published()
             ->visible()
+            ->when($postCategory, fn ($query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->with('cover')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
         $liked = PostLike::idsLikedBy($viewer, $posts->pluck('id'));
         $posts->through(function (Post $post) use ($creator, $presenter, $entitlement, $liked) {
             $post->setRelation('creator', $creator);
@@ -52,6 +62,8 @@ class CreatorPageController extends Controller
             ],
             'plans' => self::visiblePlans($creator, $isOwner, $support),
             'posts' => $posts,
+            'postCategory' => $postCategory?->slug,
+            'postCategories' => array_values($postCategories->map->toSummary()->all()),
             'isOwner' => $isOwner,
             'viewerSupportPrice' => $entitlement->supportPriceFor($creator->id),
             'viewerPlanId' => $support?->plan_id,
