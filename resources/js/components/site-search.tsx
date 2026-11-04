@@ -54,18 +54,20 @@ export function SiteSearch({ className }: { className?: string }) {
                     ))}
                 </SelectContent>
             </Select>
-            <Input
-                key={q}
-                type="search"
-                name="q"
-                aria-label="検索キーワード"
-                placeholder="キーワードを入力"
-                defaultValue={q}
-                maxLength={100}
-                className="h-8 min-w-0"
-            />
+            <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                    key={q}
+                    type="search"
+                    name="q"
+                    aria-label="検索キーワード"
+                    placeholder="キーワードを入力"
+                    defaultValue={q}
+                    maxLength={100}
+                    className="h-8 pl-8"
+                />
+            </div>
             <Button type="submit" size="sm" variant="secondary">
-                <Search />
                 検索
             </Button>
         </Form>
