@@ -1,6 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -67,9 +66,6 @@ export function SiteSearch({ className }: { className?: string }) {
                     ))}
                 </SelectContent>
             </Select>
-            <Button type="submit" size="sm" variant="secondary">
-                検索
-            </Button>
         </Form>
     );
 }
