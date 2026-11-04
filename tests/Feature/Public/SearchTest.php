@@ -2,6 +2,7 @@
 
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
@@ -166,4 +167,79 @@ it('sends no categories and no filter without a keyword', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('category', null)
             ->where('categories', []));
+});
+
+it('narrows posts by post category', function () {
+    $category = PostCategory::factory()->create(['slug' => 'diary']);
+    $inside = Post::factory()->published()->create(['title' => '星空の日記', 'post_category_id' => $category->id]);
+    Post::factory()->published()->create(['title' => '星空の写真']);
+    Creator::factory()->create(['display_name' => '星空']);
+    Product::factory()->create(['name' => '星空マグ']);
+
+    $this->get(route('search', ['q' => '星空', 'post_category' => 'diary']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('postCategory', 'diary')
+            ->has('postCategories', 1)
+            ->has('posts', 1)
+            ->where('posts.0.id', $inside->id)
+            ->has('creators', 1)
+            ->has('products', 1));
+});
+
+it('never lists a paid post even when it matches the category', function () {
+    $category = PostCategory::factory()->create(['slug' => 'diary']);
+    Post::factory()->published()->requiring(500)->create(['title' => '星空の有料日記', 'post_category_id' => $category->id]);
+
+    $this->get(route('search', ['q' => '星空', 'post_category' => 'diary']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('postCategory', 'diary')
+            ->has('posts', 0));
+});
+
+it('ignores an unknown or archived post category', function (mixed $value) {
+    PostCategory::factory()->create();
+    $category = PostCategory::factory()->create(['slug' => 'diary']);
+    Post::factory()->published()->create(['title' => '星空の日記', 'post_category_id' => $category->id]);
+    Post::factory()->published()->create(['title' => '星空の写真']);
+
+    $this->get(route('search', ['q' => '星空', 'post_category' => value($value)]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('postCategory', null)
+            ->has('posts', 2));
+})->with([
+    'unknown' => 'nope',
+    'archived' => fn () => PostCategory::factory()->archived()->create()->slug,
+    'array' => [['x']],
+]);
+
+it('sends no post categories and no post filter without a keyword', function () {
+    PostCategory::factory()->create(['slug' => 'diary']);
+
+    $this->get(route('search', ['post_category' => 'diary']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('postCategory', null)
+            ->where('postCategories', []));
+});
+
+it('combines the product and post category filters', function () {
+    $productCategory = ProductCategory::factory()->create(['slug' => 'sticker']);
+    $postCategory = PostCategory::factory()->create(['slug' => 'diary']);
+    $product = Product::factory()->create(['name' => '星空シール', 'product_category_id' => $productCategory->id]);
+    Product::factory()->create(['name' => '星空マグ']);
+    $post = Post::factory()->published()->create(['title' => '星空の日記', 'post_category_id' => $postCategory->id]);
+    Post::factory()->published()->create(['title' => '星空の写真']);
+
+    $this->get(route('search', ['q' => '星空', 'category' => 'sticker', 'post_category' => 'diary']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('category', 'sticker')
+            ->where('postCategory', 'diary')
+            ->has('products', 1)
+            ->where('products.0.id', $product->id)
+            ->has('posts', 1)
+            ->where('posts.0.id', $post->id));
 });

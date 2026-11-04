@@ -17,6 +17,8 @@ export default function Search({
     type,
     category,
     categories,
+    postCategory,
+    postCategories,
     creators,
     products,
     posts,
@@ -25,6 +27,8 @@ export default function Search({
     type: string;
     category: string | null;
     categories: CategorySummary[];
+    postCategory: string | null;
+    postCategories: CategorySummary[];
     creators: CreatorSummary[];
     products: (ShopProductSummary & { creator: CreatorSummary })[];
     posts: PostSummary[];
@@ -37,8 +41,16 @@ export default function Search({
         q !== '' &&
         (type === 'all' || type === 'products') &&
         (products.length > 0 || category !== null);
+    const showPostLinks =
+        q !== '' &&
+        (type === 'all' || type === 'posts') &&
+        postCategories.length > 0;
+    const showPostsSection =
+        q !== '' &&
+        (type === 'all' || type === 'posts') &&
+        (posts.length > 0 || postCategory !== null);
     const found = creators.length + products.length + posts.length > 0;
-    const filtered = category !== null;
+    const filtered = category !== null || postCategory !== null;
 
     return (
         <>
@@ -110,6 +122,12 @@ export default function Search({
                                             q,
                                             type,
                                             ...(slug ? { category: slug } : {}),
+                                            ...(postCategory
+                                                ? {
+                                                      post_category:
+                                                          postCategory,
+                                                  }
+                                                : {}),
                                         },
                                     }).url
                                 }
@@ -132,18 +150,43 @@ export default function Search({
                     </section>
                 )}
 
-                {posts.length > 0 && (
+                {showPostsSection && (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">全体公開投稿</h2>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {posts.map((post) => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    showCreator
-                                />
-                            ))}
-                        </div>
+                        {showPostLinks && (
+                            <CategoryLinks
+                                categories={postCategories}
+                                current={postCategory}
+                                allLabel="すべて"
+                                href={(slug) =>
+                                    search({
+                                        query: {
+                                            q,
+                                            type,
+                                            ...(category ? { category } : {}),
+                                            ...(slug
+                                                ? { post_category: slug }
+                                                : {}),
+                                        },
+                                    }).url
+                                }
+                            />
+                        )}
+                        {posts.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                このカテゴリの投稿は見つかりませんでした。
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {posts.map((post) => (
+                                    <PostCard
+                                        key={post.id}
+                                        post={post}
+                                        showCreator
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </section>
                 )}
             </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\PostLike;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -31,6 +32,8 @@ class SearchController extends Controller
         $type = in_array($request->query('type'), self::TYPES, true) ? $request->query('type') : 'all';
         $slug = $request->query('category');
         $category = $q !== '' && is_string($slug) ? ProductCategory::active()->where('slug', $slug)->first() : null;
+        $postSlug = $request->query('post_category');
+        $postCategory = $q !== '' && is_string($postSlug) ? PostCategory::active()->where('slug', $postSlug)->first() : null;
         $wants = fn (string $kind): bool => $q !== '' && in_array($type, ['all', $kind], true);
 
         return Inertia::render('public/search', [
@@ -38,9 +41,11 @@ class SearchController extends Controller
             'type' => $type,
             'category' => $category?->slug,
             'categories' => $q !== '' ? ProductCategory::activeSummaries() : [],
+            'postCategory' => $postCategory?->slug,
+            'postCategories' => $q !== '' ? PostCategory::activeSummaries() : [],
             'creators' => $wants('creators') ? $this->creators($q) : [],
             'products' => $wants('products') ? $this->products($q, $category) : [],
-            'posts' => $wants('posts') ? $this->posts($request, $presenter, $q) : [],
+            'posts' => $wants('posts') ? $this->posts($request, $presenter, $q, $postCategory) : [],
         ]);
     }
 
@@ -78,9 +83,10 @@ class SearchController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function posts(Request $request, PostPresenter $presenter, string $q): array
+    private function posts(Request $request, PostPresenter $presenter, string $q, ?PostCategory $postCategory): array
     {
         $posts = $this->matching(Post::published()->visible(), ['title', 'excerpt'], $q)
+            ->when($postCategory, fn (Builder $query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->where('required_price', 0)
             ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
             ->with(['creator', 'cover'])
