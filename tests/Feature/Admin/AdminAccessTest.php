@@ -5,6 +5,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Post;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Report;
 use App\Models\Support;
 use App\Models\User;
@@ -22,6 +23,12 @@ dataset('admin routes', [
     'product update' => ['put', fn () => route('admin.products.update', Product::factory()->create())],
     'users' => ['get', fn () => route('admin.users.index')],
     'user update' => ['patch', fn () => route('admin.users.update', User::factory()->create())],
+    'categories' => ['get', fn () => route('admin.categories.index')],
+    'category store' => ['post', fn () => route('admin.categories.store')],
+    'category update' => ['put', fn () => route('admin.categories.update', ProductCategory::factory()->create())],
+    'category move' => ['post', fn () => route('admin.categories.move', ProductCategory::factory()->create())],
+    'category archive' => ['patch', fn () => route('admin.categories.archive', ProductCategory::factory()->create())],
+    'category destroy' => ['delete', fn () => route('admin.categories.destroy', ProductCategory::factory()->create())],
 ]);
 
 it('returns 404 to non-admins on every admin route', function (string $method, Closure $url) {
