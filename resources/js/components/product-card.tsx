@@ -15,7 +15,7 @@ export function ProductCard({
                 creator: product.creator.slug,
                 product: product.id,
             })}
-            className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+            className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/30 hover:bg-muted/70"
         >
             <div className="aspect-square bg-muted">
                 {product.cover_url && (

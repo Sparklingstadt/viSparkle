@@ -33,7 +33,7 @@ export default function OrdersIndex({ orders }: { orders: Paginated<Row> }) {
                             <li key={order.id}>
                                 <Link
                                     href={show(order.id)}
-                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted/50"
+                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted"
                                 >
                                     <div className="min-w-0 space-y-1">
                                         <p className="text-xs text-muted-foreground">

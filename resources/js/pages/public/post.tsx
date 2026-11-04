@@ -173,7 +173,7 @@ export default function PostPage({
                                         <li key={file.id}>
                                             <a
                                                 href={file.url}
-                                                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/50"
+                                                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted"
                                             >
                                                 <span className="flex min-w-0 items-center gap-2">
                                                     <Paperclip className="size-4 shrink-0" />

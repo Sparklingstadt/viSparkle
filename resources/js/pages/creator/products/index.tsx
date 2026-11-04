@@ -71,7 +71,7 @@ export default function ProductsIndex({
                             <li key={product.id}>
                                 <Link
                                     href={ProductController.edit(product.id)}
-                                    className="flex items-center gap-4 p-3 hover:bg-muted/50"
+                                    className="flex items-center gap-4 p-3 hover:bg-muted"
                                 >
                                     <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
                                         {product.cover_url ? (

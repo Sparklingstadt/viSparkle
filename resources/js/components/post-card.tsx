@@ -17,7 +17,7 @@ export function PostCard({
     return (
         <Link
             href={show({ creator: post.creator.slug, post: post.id })}
-            className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-muted/40"
+            className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/30 hover:bg-muted/70"
         >
             <div className="relative aspect-video bg-muted">
                 {post.cover_thumb_url ? (

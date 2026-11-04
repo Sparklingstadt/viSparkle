@@ -47,7 +47,7 @@ export default function Search({
                                 <li key={creator.slug}>
                                     <Link
                                         href={show(creator.slug)}
-                                        className="flex items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-muted/40"
+                                        className="flex items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-foreground/30 hover:bg-muted/70"
                                     >
                                         <Avatar className="size-10">
                                             <AvatarImage

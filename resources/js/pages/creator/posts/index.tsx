@@ -47,7 +47,7 @@ export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
                             <li key={post.id}>
                                 <Link
                                     href={PostController.edit(post.id)}
-                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted/50"
+                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted"
                                 >
                                     <div className="min-w-0">
                                         <p className="truncate font-medium">
