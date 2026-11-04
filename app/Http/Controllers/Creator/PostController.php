@@ -7,6 +7,7 @@ use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\UpdatePostRequest;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\PostFile;
 use App\Services\PostFileStorer;
 use App\Services\PostFileUrls;
@@ -70,12 +71,14 @@ class PostController extends Controller
                 'status' => $post->status,
                 'published_at' => $post->published_at,
                 'cover_file_id' => $post->cover_file_id,
+                'category_id' => $post->post_category_id,
                 'hidden' => $post->isHidden(),
                 'hidden_reason' => $post->hidden_reason,
                 'images' => $files->where('kind', PostFileKind::Image)->values()->map(fn (PostFile $file) => $this->fileData($file)),
                 'attachments' => $files->where('kind', PostFileKind::Attachment)->values()->map(fn (PostFile $file) => $this->fileData($file)),
             ],
             'priceOptions' => UpdatePostRequest::priceOptions($post),
+            'categories' => self::categoryOptions($post->post_category_id),
             'creatorSlug' => $request->user()->creator->slug,
         ]);
     }
@@ -94,6 +97,8 @@ class PostController extends Controller
             'body' => $request->validated('body'),
             'required_price' => $request->validated('required_price'),
             'cover_file_id' => $request->validated('cover_file_id'),
+            // Empty-string conversion is off for this endpoint (see bootstrap/app.php), so the form's "未設定" arrives as ''.
+            'post_category_id' => $request->validated('post_category_id') ?: null,
         ]);
 
         if ($action === 'publish') {
@@ -129,6 +134,28 @@ class PostController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => '投稿を削除しました。']);
 
         return to_route('creator.posts.index');
+    }
+
+    /**
+     * Active categories in order; a post whose category was archived since keeps it, listed last.
+     *
+     * @return list<array{id: int, name: string, archived: bool}>
+     */
+    private static function categoryOptions(?int $currentId): array
+    {
+        $options = PostCategory::query()->active()->ordered()->get()
+            ->map(fn (PostCategory $category) => ['id' => $category->id, 'name' => $category->name, 'archived' => false])
+            ->all();
+
+        $current = $currentId === null || in_array($currentId, array_column($options, 'id'), true)
+            ? null
+            : PostCategory::query()->find($currentId);
+
+        if ($current !== null) {
+            $options[] = ['id' => $current->id, 'name' => $current->name, 'archived' => true];
+        }
+
+        return array_values($options);
     }
 
     private function pruneUnreferencedImages(Post $post): void

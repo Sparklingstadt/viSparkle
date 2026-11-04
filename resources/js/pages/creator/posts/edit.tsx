@@ -26,15 +26,18 @@ type FormData = {
     body: TiptapNode | null;
     required_price: number;
     cover_file_id: number | null;
+    post_category_id: number | '';
 };
 
 export default function PostEdit({
     post,
     priceOptions,
+    categories,
     creatorSlug,
 }: {
     post: EditorPost;
     priceOptions: number[];
+    categories: { id: number; name: string; archived: boolean }[];
     creatorSlug: string;
 }) {
     const form = useForm<FormData>({
@@ -43,6 +46,7 @@ export default function PostEdit({
         body: post.body,
         required_price: post.required_price,
         cover_file_id: post.cover_file_id,
+        post_category_id: post.category_id ?? '',
     });
     const [uploadedImages, setUploadedImages] = useState<PostFileData[]>([]);
     const [uploadedAttachments, setUploadedAttachments] = useState<
@@ -202,6 +206,34 @@ export default function PostEdit({
                     />
                     <InputError message={form.errors.title} />
                 </div>
+
+                {categories.length > 0 && (
+                    <div className="grid gap-2">
+                        <Label htmlFor="post_category_id">カテゴリ</Label>
+                        <select
+                            id="post_category_id"
+                            value={form.data.post_category_id}
+                            onChange={(e) =>
+                                form.setData(
+                                    'post_category_id',
+                                    e.target.value === ''
+                                        ? ''
+                                        : Number(e.target.value),
+                                )
+                            }
+                            className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                        >
+                            <option value="">未設定</option>
+                            {categories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                    {category.name}
+                                    {category.archived && '（受付終了）'}
+                                </option>
+                            ))}
+                        </select>
+                        <InputError message={form.errors.post_category_id} />
+                    </div>
+                )}
 
                 <div className="grid gap-2">
                     <Label htmlFor="required_price">閲覧できる人</Label>
