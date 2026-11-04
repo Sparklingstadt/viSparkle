@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { Carousel } from '@/components/carousel';
 import { PostCard } from '@/components/post-card';
 import { ProductCarousel } from '@/components/product-carousel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,49 +44,46 @@ export default function Home({
                 </section>
 
                 {popularCreators.length > 0 && (
-                    <section className="space-y-4">
-                        <div className="space-y-1">
-                            <h2 className="text-lg font-semibold">
-                                今週の人気クリエイター
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                直近7日間に新しく支援を始めたファンが多い順です。
-                            </p>
-                        </div>
-                        <ol className="flex gap-4 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible lg:gap-3">
-                            {popularCreators.map((creator, index) => (
-                                <li key={creator.slug} className="shrink-0">
-                                    <Link
-                                        href={show(creator.slug)}
-                                        className="flex w-24 flex-col items-center gap-2 text-center lg:w-22"
-                                    >
-                                        <div className="relative">
-                                            <Avatar className="size-16">
-                                                {creator.avatar_url && (
-                                                    <AvatarImage
-                                                        src={creator.avatar_url}
-                                                        alt=""
-                                                    />
+                    <Carousel
+                        title="今週の人気クリエイター"
+                        description="直近7日間に新しく支援を始めたファンが多い順です。"
+                        trackClassName="scroll-pl-1 pt-1 pl-1"
+                    >
+                        {popularCreators.map((creator, index) => (
+                            <li
+                                key={creator.slug}
+                                className="shrink-0 snap-start"
+                            >
+                                <Link
+                                    href={show(creator.slug)}
+                                    className="flex w-24 flex-col items-center gap-2 text-center"
+                                >
+                                    <div className="relative">
+                                        <Avatar className="size-16">
+                                            {creator.avatar_url && (
+                                                <AvatarImage
+                                                    src={creator.avatar_url}
+                                                    alt=""
+                                                />
+                                            )}
+                                            <AvatarFallback>
+                                                {creator.display_name.slice(
+                                                    0,
+                                                    1,
                                                 )}
-                                                <AvatarFallback>
-                                                    {creator.display_name.slice(
-                                                        0,
-                                                        1,
-                                                    )}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span className="absolute -top-1 -left-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                                                {index + 1}
-                                            </span>
-                                        </div>
-                                        <span className="line-clamp-2 text-sm">
-                                            {creator.display_name}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="absolute -top-1 -left-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                            {index + 1}
                                         </span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ol>
-                    </section>
+                                    </div>
+                                    <span className="line-clamp-2 text-sm">
+                                        {creator.display_name}
+                                    </span>
+                                </Link>
+                            </li>
+                        ))}
+                    </Carousel>
                 )}
 
                 {recommendedProducts.length > 0 && (
