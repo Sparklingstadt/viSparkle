@@ -45,14 +45,14 @@
 **Interfaces:**
 
 - Produces:
-  - `ProductCategory` — `#[Fillable(['name', 'slug', 'sort_order'])]`、casts `sort_order: integer`, `archived_at: datetime`
-  - スコープ `active()`（`whereNull('archived_at')`）、`ordered()`（`orderBy('sort_order')->orderBy('id')`）
-  - `isArchived(): bool`、`toSummary(): array{id: int, name: string, slug: string}`、`products(): HasMany<Product>`
-  - `static nextSortOrder(): int` — 最大 `sort_order` + 1（0件なら 0）
-  - `ProductCategory::activeSummaries(): list<array{id,name,slug}>` — `active()->ordered()->get()->map->toSummary()->all()`（ホーム・検索・カテゴリページで共用）
-  - `Product::category(): BelongsTo<ProductCategory>`（外部キー `product_category_id`）、`Product::publicCategory(): ?ProductCategory`（読み込み済みのカテゴリが有効なときだけ返す）、スコープ `Product::inCategory(ProductCategory $category)`
-  - `Product` の fillable に `product_category_id` を追加、PHPDoc に `@property int|null $product_category_id`
-  - ファクトリ: `ProductCategoryFactory` の state `archived()`
+    - `ProductCategory` — `#[Fillable(['name', 'slug', 'sort_order'])]`、casts `sort_order: integer`, `archived_at: datetime`
+    - スコープ `active()`（`whereNull('archived_at')`）、`ordered()`（`orderBy('sort_order')->orderBy('id')`）
+    - `isArchived(): bool`、`toSummary(): array{id: int, name: string, slug: string}`、`products(): HasMany<Product>`
+    - `static nextSortOrder(): int` — 最大 `sort_order` + 1（0件なら 0）
+    - `ProductCategory::activeSummaries(): list<array{id,name,slug}>` — `active()->ordered()->get()->map->toSummary()->all()`（ホーム・検索・カテゴリページで共用）
+    - `Product::category(): BelongsTo<ProductCategory>`（外部キー `product_category_id`）、`Product::publicCategory(): ?ProductCategory`（読み込み済みのカテゴリが有効なときだけ返す）、スコープ `Product::inCategory(ProductCategory $category)`
+    - `Product` の fillable に `product_category_id` を追加、PHPDoc に `@property int|null $product_category_id`
+    - ファクトリ: `ProductCategoryFactory` の state `archived()`
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -106,11 +106,11 @@ it('puts a new category last', function () {
 
 - Consumes: Task 1 の `ProductCategory`
 - Produces: ルート `admin.categories.index|store|update|move|archive|destroy`（設計書 §5 のメソッドとパス。ルートパラメータ名は `category`、ID で解決）
-  - `index` → Inertia `admin/categories`、props `categories: list<{id, name, slug, archived: bool, products_count: int}>`（`ordered()`、`withCount('products')` は soft delete 済みを含まない）
-  - `move` は `direction: in:up,down` を受け、`ordered()` で隣のカテゴリと `sort_order` を入れ替える（アーカイブ済みも並びに含める）。端では何もしない。入れ替えは `DB::transaction` 内で、並びを `sort_order` を 0 から振り直してから入れ替えると同値の `sort_order` でも確実に動く
-  - `archive` は `archived: boolean` を受ける
-  - `destroy` は商品（削除済みを除く）が1件でもあれば `ValidationException`（キー `category`、文言は Global Constraints）。削除済み商品は外部キーで「未設定」になる
-  - すべて成功時に `Inertia::flash('toast', ['type' => 'success', 'message' => ...])` を出し `back()`、`AdminAction::record($admin, 'category.*', $category)` を記録
+    - `index` → Inertia `admin/categories`、props `categories: list<{id, name, slug, archived: bool, products_count: int}>`（`ordered()`、`withCount('products')` は soft delete 済みを含まない）
+    - `move` は `direction: in:up,down` を受け、`ordered()` で隣のカテゴリと `sort_order` を入れ替える（アーカイブ済みも並びに含める）。端では何もしない。入れ替えは `DB::transaction` 内で、並びを `sort_order` を 0 から振り直してから入れ替えると同値の `sort_order` でも確実に動く
+    - `archive` は `archived: boolean` を受ける
+    - `destroy` は商品（削除済みを除く）が1件でもあれば `ValidationException`（キー `category`、文言は Global Constraints）。削除済み商品は外部キーで「未設定」になる
+    - すべて成功時に `Inertia::flash('toast', ['type' => 'success', 'message' => ...])` を出し `back()`、`AdminAction::record($admin, 'category.*', $category)` を記録
 
 - [ ] **Step 1: 失敗するテストを書く**（`beforeEach` で `User::factory()->admin()->create()`）
 
@@ -156,10 +156,10 @@ it('refuses to delete a category in use', ...);                  // assertSessio
 
 - Consumes: Task 1 の `ProductCategory::active()`, `ordered()`
 - Produces:
-  - ルール: `'product_category_id' => ['nullable', 'integer', Rule::exists('product_categories', 'id')->where(fn ($q) => $q->whereNull('archived_at')->when($this->currentCategoryId(), fn ($q, $id) => $q->orWhere('id', $id)))]`（`orWhere` は `whereNull` と括弧でまとめること）。エラー文言は `カテゴリが正しくありません`（`messages()` で `product_category_id.exists` と `.integer` に設定）
-  - 画面 props `categories: list<{id, name, archived: bool}>` — 有効なものを `ordered()` で。編集時、商品のカテゴリがアーカイブ済みならその1件を `archived: true` で末尾に足す
-  - 画面 props `product.category_id: number | null`
-  - 保存: 空文字・未送信は `null`
+    - ルール: `'product_category_id' => ['nullable', 'integer', Rule::exists('product_categories', 'id')->where(fn ($q) => $q->whereNull('archived_at')->when($this->currentCategoryId(), fn ($q, $id) => $q->orWhere('id', $id)))]`（`orWhere` は `whereNull` と括弧でまとめること）。エラー文言は `カテゴリが正しくありません`（`messages()` で `product_category_id.exists` と `.integer` に設定）
+    - 画面 props `categories: list<{id, name, archived: bool}>` — 有効なものを `ordered()` で。編集時、商品のカテゴリがアーカイブ済みならその1件を `archived: true` で末尾に足す
+    - 画面 props `product.category_id: number | null`
+    - 保存: 空文字・未送信は `null`
 
 - [ ] **Step 1: 失敗するテストを書く**（既存 `tests/Feature/Creator/ProductManagementTest.php` の作成・更新リクエストの形に合わせる）
 
@@ -196,9 +196,9 @@ it('rejects an archived category the product does not have', ...); // 別のア�
 
 - Consumes: Task 1 の `ProductCategory::activeSummaries()`, `Product::inCategory()`, `publicCategory()`
 - Produces:
-  - 商品ページ props `product.category: CategorySummary | null`（`publicCategory()?->toSummary()`）
-  - カテゴリページ: アーカイブ済みは `abort(404)`。props `category: CategorySummary`、`categories: CategorySummary[]`（有効な一覧）、`products`（`paginate(24)->withQueryString()` を `through` でホームと同じ形 `[...toSummary(), creator, liked, can_like]` に。`liked` は `ProductLike::idsLikedBy`）
-  - `CategoryLinks({ categories, current?: string | null, href: (slug: string | null) => string, allLabel?: string })` — `allLabel` を渡したときだけ先頭に「すべて」を出す。選択中は強調
+    - 商品ページ props `product.category: CategorySummary | null`（`publicCategory()?->toSummary()`）
+    - カテゴリページ: アーカイブ済みは `abort(404)`。props `category: CategorySummary`、`categories: CategorySummary[]`（有効な一覧）、`products`（`paginate(24)->withQueryString()` を `through` でホームと同じ形 `[...toSummary(), creator, liked, can_like]` に。`liked` は `ProductLike::idsLikedBy`）
+    - `CategoryLinks({ categories, current?: string | null, href: (slug: string | null) => string, allLabel?: string })` — `allLabel` を渡したときだけ先頭に「すべて」を出す。選択中は強調
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -258,16 +258,16 @@ it('ignores an unknown or archived category', function ($value) { ... })->with([
 - Consumes: Task 1, Task 4 の `CategoryLinks`
 - Produces: `DemoCategoriesSeeder` — slug で `updateOrCreate` する固定の一覧と、カテゴリ未設定のデモ商品への割り当て（商品名の前方一致）:
 
-| slug           | name             | 割り当てる商品名                          |
-| -------------- | ---------------- | ----------------------------------------- |
-| `acrylic`      | アクリルグッズ   | `アクリルスタンド*`, `アクリルチャーム`   |
-| `badges-cheki` | 缶バッジ・チェキ | `缶バッジ`, `ランダムチェキ*`             |
-| `apparel`      | アパレル・布もの | `Tシャツ`, `タペストリー`, `パスケース`   |
-| `illustration` | イラスト集       | `ラフ画集`                                |
-| `music`        | 音楽             | （なし）                                  |
-| `books`        | 本・同人誌       | （なし）                                  |
+| slug           | name             | 割り当てる商品名                        |
+| -------------- | ---------------- | --------------------------------------- |
+| `acrylic`      | アクリルグッズ   | `アクリルスタンド*`, `アクリルチャーム` |
+| `badges-cheki` | 缶バッジ・チェキ | `缶バッジ`, `ランダムチェキ*`           |
+| `apparel`      | アパレル・布もの | `Tシャツ`, `タペストリー`, `パスケース` |
+| `illustration` | イラスト集       | `ラフ画集`                              |
+| `music`        | 音楽             | （なし）                                |
+| `books`        | 本・同人誌       | （なし）                                |
 
-  ファクトリを使わない（本番でも動く）。既にカテゴリが付いた商品は変えない。
+ファクトリを使わない（本番でも動く）。既にカテゴリが付いた商品は変えない。
 
 - [ ] **Step 1: 失敗するテストを書く**
 

@@ -20,26 +20,26 @@
 
 ## 3. 方式
 
-| 項目           | 採用                                                       | 理由                                                                     |
-| -------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 保存先         | `product_categories` テーブル＋`products.product_category_id` | 運営が画面から編集でき、1商品1カテゴリにそのまま対応する                 |
-| 付けられる数   | 0〜1個                                                     | 入力の手間が少なく、既存の商品は未設定のまま動く                         |
-| 階層           | なし（一段）                                               | YAGNI。必要になったら親カテゴリを足す                                    |
-| 使わなくなった | アーカイブ（`archived_at`）。削除は商品が0件のときだけ      | 付いている商品のデータを消さずに、表から外せる                           |
-| 種類との関係   | グッズ・デジタル作品で共通の一覧                           | 一覧を分ける要望はない。分けるなら後で `kind` 列を足す                   |
+| 項目           | 採用                                                          | 理由                                                     |
+| -------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| 保存先         | `product_categories` テーブル＋`products.product_category_id` | 運営が画面から編集でき、1商品1カテゴリにそのまま対応する |
+| 付けられる数   | 0〜1個                                                        | 入力の手間が少なく、既存の商品は未設定のまま動く         |
+| 階層           | なし（一段）                                                  | YAGNI。必要になったら親カテゴリを足す                    |
+| 使わなくなった | アーカイブ（`archived_at`）。削除は商品が0件のときだけ        | 付いている商品のデータを消さずに、表から外せる           |
+| 種類との関係   | グッズ・デジタル作品で共通の一覧                              | 一覧を分ける要望はない。分けるなら後で `kind` 列を足す   |
 
 ## 4. データ
 
 `product_categories`
 
-| 列            | 型                     | 備考                                           |
-| ------------- | ---------------------- | ---------------------------------------------- |
-| `id`          | bigint                 |                                                |
-| `name`        | varchar(30)            | 一意                                           |
-| `slug`        | varchar(40)            | 一意。小文字英数字とハイフン（`^[a-z0-9]+(-[a-z0-9]+)*$`） |
-| `sort_order`  | unsigned int           | 小さい順に表示                                 |
-| `archived_at` | datetime, nullable     | 入っていればアーカイブ済み                     |
-| timestamps    |                        |                                                |
+| 列            | 型                 | 備考                                                       |
+| ------------- | ------------------ | ---------------------------------------------------------- |
+| `id`          | bigint             |                                                            |
+| `name`        | varchar(30)        | 一意                                                       |
+| `slug`        | varchar(40)        | 一意。小文字英数字とハイフン（`^[a-z0-9]+(-[a-z0-9]+)*$`） |
+| `sort_order`  | unsigned int       | 小さい順に表示                                             |
+| `archived_at` | datetime, nullable | 入っていればアーカイブ済み                                 |
+| timestamps    |                    |                                                            |
 
 `products.product_category_id`: nullable の外部キー。`nullOnDelete`。索引は外部キーの索引で足りる。
 
@@ -59,14 +59,14 @@
 
 ルート（`admin` ミドルウェア下、`admin.categories.*`）:
 
-| メソッド | パス                               | 内容                                     |
-| -------- | ---------------------------------- | ---------------------------------------- |
-| GET      | `/admin/categories`                | 一覧（商品数つき）＋追加フォーム         |
-| POST     | `/admin/categories`                | 追加（末尾に並ぶ）                       |
-| PUT      | `/admin/categories/{category}`     | 名前・slug の変更                        |
-| POST     | `/admin/categories/{category}/move`| `direction=up|down` で隣と入れ替え        |
-| PATCH    | `/admin/categories/{category}/archive` | `archived=true|false` でアーカイブ・再開 |
-| DELETE   | `/admin/categories/{category}`     | 商品が1件でも付いていれば 422 のエラー    |
+| メソッド | パス                                   | 内容                                   |
+| -------- | -------------------------------------- | -------------------------------------- |
+| GET      | `/admin/categories`                    | 一覧（商品数つき）＋追加フォーム       |
+| POST     | `/admin/categories`                    | 追加（末尾に並ぶ）                     |
+| PUT      | `/admin/categories/{category}`         | 名前・slug の変更                      |
+| POST     | `/admin/categories/{category}/move`    | `direction=up                          | down` で隣と入れ替え      |
+| PATCH    | `/admin/categories/{category}/archive` | `archived=true                         | false` でアーカイブ・再開 |
+| DELETE   | `/admin/categories/{category}`         | 商品が1件でも付いていれば 422 のエラー |
 
 - 一覧の商品数は削除済み（soft delete）を除いた商品の件数
 - 管理メニュー（`resources/js/layouts/admin/layout.tsx`）に「カテゴリ」を追加
