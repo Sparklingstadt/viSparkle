@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
 
 /**
@@ -14,10 +15,23 @@ class DemoPostLikesSeeder extends Seeder
 {
     private const MAX_LIKES = 10;
 
+    /**
+     * The throwaway fans, made on first use.
+     *
+     * @return Collection<int, User>
+     */
+    public static function fans(): Collection
+    {
+        return new Collection(array_map(
+            fn (int $number) => User::query()->where('email', "demo-fan-{$number}@example.com")->first()
+                ?? User::factory()->create(['name' => "デモファン{$number}", 'email' => "demo-fan-{$number}@example.com"]),
+            range(1, self::MAX_LIKES),
+        ));
+    }
+
     public function run(): void
     {
-        $fans = collect(range(1, self::MAX_LIKES))->map(fn (int $number) => User::query()->where('email', "demo-fan-{$number}@example.com")->first()
-            ?? User::factory()->create(['name' => "デモファン{$number}", 'email' => "demo-fan-{$number}@example.com"]));
+        $fans = self::fans();
 
         Post::published()
             ->visible()
