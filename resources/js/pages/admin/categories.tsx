@@ -1,36 +1,46 @@
-import { Form, Head } from '@inertiajs/react';
-import {
-    archive,
-    destroy,
-    move,
-    store,
-    update,
-} from '@/actions/App/Http/Controllers/Admin/CategoryController';
+import { Form, Head, Link } from '@inertiajs/react';
+import * as PostCategoryController from '@/actions/App/Http/Controllers/Admin/PostCategoryController';
+import * as ProductCategoryController from '@/actions/App/Http/Controllers/Admin/CategoryController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import { index } from '@/routes/admin/categories';
+import { index as postIndex } from '@/routes/admin/post-categories';
 
 type Row = {
     id: number;
     name: string;
     slug: string;
     archived: boolean;
-    products_count: number;
+    usage_count: number;
 };
 
+type Kind = 'products' | 'posts';
+
+const actionsByKind = {
+    products: ProductCategoryController,
+    posts: PostCategoryController,
+};
+
+const usageLabel = { products: '商品', posts: '投稿' } as const;
+
 function CategoryRow({
+    kind,
     category,
     first,
     last,
 }: {
+    kind: Kind;
     category: Row;
     first: boolean;
     last: boolean;
 }) {
+    const { archive, destroy, move, update } = actionsByKind[kind];
+
     return (
         <li
             className={`space-y-3 p-4 ${category.archived ? 'opacity-60' : ''}`}
@@ -81,7 +91,7 @@ function CategoryRow({
                     <Badge variant="outline">アーカイブ済み</Badge>
                 )}
                 <span className="text-muted-foreground">
-                    商品 {category.products_count} 件
+                    {usageLabel[kind]} {category.usage_count} 件
                 </span>
 
                 <Form
@@ -160,7 +170,7 @@ function CategoryRow({
                                 size="sm"
                                 variant="destructive"
                                 disabled={
-                                    category.products_count > 0 || processing
+                                    category.usage_count > 0 || processing
                                 }
                             >
                                 削除
@@ -174,13 +184,40 @@ function CategoryRow({
     );
 }
 
-export default function Categories({ categories }: { categories: Row[] }) {
+export default function Categories({
+    kind,
+    categories,
+}: {
+    kind: Kind;
+    categories: Row[];
+}) {
+    const { store } = actionsByKind[kind];
+
     return (
         <>
             <Head title="カテゴリ" />
 
             <div className="space-y-6">
                 <Heading title="カテゴリ" />
+
+                <nav className="flex gap-1" aria-label="カテゴリの種類">
+                    {(
+                        [
+                            ['products', '商品', index()],
+                            ['posts', '投稿', postIndex()],
+                        ] as const
+                    ).map(([key, title, href]) => (
+                        <Button
+                            key={key}
+                            size="sm"
+                            variant="ghost"
+                            asChild
+                            className={cn({ 'bg-muted': kind === key })}
+                        >
+                            <Link href={href}>{title}</Link>
+                        </Button>
+                    ))}
+                </nav>
 
                 <Form
                     {...store.form()}
@@ -233,6 +270,7 @@ export default function Categories({ categories }: { categories: Row[] }) {
                         {categories.map((category, i) => (
                             <CategoryRow
                                 key={category.id}
+                                kind={kind}
                                 category={category}
                                 first={i === 0}
                                 last={i === categories.length - 1}

@@ -4,6 +4,7 @@ use App\Enums\ReportStatus;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Report;
@@ -29,6 +30,12 @@ dataset('admin routes', [
     'category move' => ['post', fn () => route('admin.categories.move', ProductCategory::factory()->create())],
     'category archive' => ['patch', fn () => route('admin.categories.archive', ProductCategory::factory()->create())],
     'category destroy' => ['delete', fn () => route('admin.categories.destroy', ProductCategory::factory()->create())],
+    'post categories' => ['get', fn () => route('admin.post-categories.index')],
+    'post category store' => ['post', fn () => route('admin.post-categories.store')],
+    'post category update' => ['put', fn () => route('admin.post-categories.update', PostCategory::factory()->create())],
+    'post category move' => ['post', fn () => route('admin.post-categories.move', PostCategory::factory()->create())],
+    'post category archive' => ['patch', fn () => route('admin.post-categories.archive', PostCategory::factory()->create())],
+    'post category destroy' => ['delete', fn () => route('admin.post-categories.destroy', PostCategory::factory()->create())],
 ]);
 
 it('returns 404 to non-admins on every admin route', function (string $method, Closure $url) {

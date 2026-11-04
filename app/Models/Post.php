@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * @property int $id
  * @property int $creator_id
+ * @property int|null $post_category_id
  * @property string $title
  * @property array<string, mixed>|null $body
  * @property string|null $excerpt
@@ -34,7 +35,7 @@ use Illuminate\Support\Facades\DB;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['title', 'body', 'excerpt', 'cover_file_id', 'required_price', 'status', 'published_at'])]
+#[Fillable(['title', 'body', 'excerpt', 'cover_file_id', 'required_price', 'status', 'published_at', 'post_category_id'])]
 class Post extends Model
 {
     /** @use HasFactory<PostFactory> */
@@ -100,6 +101,13 @@ class Post extends Model
 
     /** @param  Builder<self>  $query */
     #[Scope]
+    protected function inCategory(Builder $query, PostCategory $category): void
+    {
+        $query->where('post_category_id', $category->id);
+    }
+
+    /** @param  Builder<self>  $query */
+    #[Scope]
     protected function visible(Builder $query): void
     {
         $query->whereNull('hidden_at');
@@ -150,6 +158,22 @@ class Post extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(Creator::class);
+    }
+
+    /** @return BelongsTo<PostCategory, $this> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(PostCategory::class, 'post_category_id');
+    }
+
+    /**
+     * The category, unless it is archived or unset: archived categories are not shown publicly.
+     */
+    public function publicCategory(): ?PostCategory
+    {
+        $category = $this->category;
+
+        return $category !== null && ! $category->isArchived() ? $category : null;
     }
 
     /** @return HasMany<PostFile, $this> */

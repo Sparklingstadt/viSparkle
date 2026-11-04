@@ -35,8 +35,8 @@ it('lists categories with their product counts', function () {
         ->assertInertia(fn ($page) => $page
             ->component('admin/categories')
             ->where('categories', [
-                ['id' => $first->id, 'name' => 'A', 'slug' => 'a', 'archived' => false, 'products_count' => 2],
-                ['id' => $second->id, 'name' => 'B', 'slug' => 'b', 'archived' => true, 'products_count' => 0],
+                ['id' => $first->id, 'name' => 'A', 'slug' => 'a', 'archived' => false, 'usage_count' => 2],
+                ['id' => $second->id, 'name' => 'B', 'slug' => 'b', 'archived' => true, 'usage_count' => 0],
             ]));
 });
 

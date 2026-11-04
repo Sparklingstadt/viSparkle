@@ -6,6 +6,7 @@ use App\Enums\PostFileKind;
 use App\Models\Post;
 use App\Services\Tiptap\TiptapDocumentValidator;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,24 @@ class UpdatePostRequest extends FormRequest
                 'nullable', 'integer',
                 Rule::exists('post_files', 'id')->where('post_id', $post->id)->where('kind', PostFileKind::Image->value),
             ],
+            'post_category_id' => ['nullable', 'integer', $this->categoryExistsRule($post)],
         ];
+    }
+
+    /**
+     * An active category, or the one the post already has. Exists::where(Closure) hands the closure the bare query,
+     * so the OR is grouped explicitly to keep it from escaping the id match.
+     */
+    private function categoryExistsRule(Post $post): mixed
+    {
+        $currentId = $post->post_category_id;
+
+        return Rule::exists('post_categories', 'id')->where(
+            fn (Builder $query) => $query->where(
+                fn (Builder $group) => $group->whereNull('archived_at')
+                    ->when($currentId, fn (Builder $q, int $id) => $q->orWhere('id', $id))
+            )
+        );
     }
 
     /**
@@ -84,8 +102,19 @@ class UpdatePostRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            'post_category_id.integer' => 'カテゴリが正しくありません',
+            'post_category_id.exists' => 'カテゴリが正しくありません',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function attributes(): array
     {
-        return ['title' => 'タイトル', 'excerpt' => '公開部分（抜粋）', 'body' => '本文', 'required_price' => '閲覧に必要な金額', 'cover_file_id' => 'カバー画像'];
+        return ['post_category_id' => 'カテゴリ', 'title' => 'タイトル', 'excerpt' => '公開部分（抜粋）', 'body' => '本文', 'required_price' => '閲覧に必要な金額', 'cover_file_id' => 'カバー画像'];
     }
 }

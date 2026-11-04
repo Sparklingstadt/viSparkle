@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PostCategoryController;
 use App\Http\Controllers\Admin\PostModerationController;
 use App\Http\Controllers\Admin\ProductModerationController;
 use App\Http\Controllers\Admin\ReportController;
@@ -36,4 +37,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('categories/{category}/move', [CategoryController::class, 'move'])->name('categories.move');
     Route::patch('categories/{category}/archive', [CategoryController::class, 'archive'])->name('categories.archive');
     Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    Route::get('post-categories', [PostCategoryController::class, 'index'])->name('post-categories.index');
+    Route::post('post-categories', [PostCategoryController::class, 'store'])->name('post-categories.store');
+    Route::put('post-categories/{category}', [PostCategoryController::class, 'update'])->name('post-categories.update');
+    Route::post('post-categories/{category}/move', [PostCategoryController::class, 'move'])->name('post-categories.move');
+    Route::patch('post-categories/{category}/archive', [PostCategoryController::class, 'archive'])->name('post-categories.archive');
+    Route::delete('post-categories/{category}', [PostCategoryController::class, 'destroy'])->name('post-categories.destroy');
 });

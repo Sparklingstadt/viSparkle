@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { home } from '@/routes';
 import { show as showCategory } from '@/routes/categories';
 import { show } from '@/routes/creators';
+import { show as showPostCategory } from '@/routes/post-categories';
 import type { CategorySummary, CreatorSummary, PostSummary } from '@/types';
 
 type PostSort = 'new' | 'popular';
@@ -25,6 +26,7 @@ export default function Home({
     recommendedProducts,
     popularCreators,
     categories,
+    postCategories,
     sort,
 }: {
     posts: PostSummary[];
@@ -32,6 +34,7 @@ export default function Home({
     recommendedProducts: LikeableProduct[];
     popularCreators: CreatorSummary[];
     categories: CategorySummary[];
+    postCategories: CategorySummary[];
     sort: PostSort;
 }) {
     return (
@@ -152,6 +155,12 @@ export default function Home({
                             ))}
                         </div>
                     </div>
+                    {postCategories.length > 0 && (
+                        <CategoryLinks
+                            categories={postCategories}
+                            href={(slug) => showPostCategory(slug!).url}
+                        />
+                    )}
                     {sort === 'popular' && (
                         <p className="text-sm text-muted-foreground">
                             直近30日に公開された投稿を、閲覧数の多い順に表示しています。

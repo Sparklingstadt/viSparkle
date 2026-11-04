@@ -23,7 +23,7 @@ class PostPageController extends Controller
         abort_unless($post->creator_id === $creator->id, 404);
         abort_unless(($post->isPublished() && ! $post->isHidden()) || $entitlement->isAuthorOf($post), 404);
 
-        $post->setRelation('creator', $creator)->load('cover');
+        $post->setRelation('creator', $creator)->load(['cover', 'category']);
         $isOwner = $entitlement->isAuthorOf($post);
         if ($post->isPublished()) {
             $post->recordView($viewer, $request->session());
@@ -31,7 +31,10 @@ class PostPageController extends Controller
         $support = CreatorPageController::activeSupport($viewer, $creator);
 
         return Inertia::render('public/post', [
-            'post' => $presenter->detail($post, $entitlement, PostLike::idsLikedBy($viewer, [$post->id])),
+            'post' => [
+                ...$presenter->detail($post, $entitlement, PostLike::idsLikedBy($viewer, [$post->id])),
+                'category' => $post->publicCategory()?->toSummary(),
+            ],
             'creator' => [
                 'id' => $creator->id,
                 ...$creator->toSummary(),

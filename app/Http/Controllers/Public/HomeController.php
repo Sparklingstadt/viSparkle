@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\PostLike;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -62,6 +63,7 @@ class HomeController extends Controller
             'recommendedProducts' => $recommendedProducts->map($carouselItem),
             'popularCreators' => $popularCreators,
             'categories' => ProductCategory::activeSummaries(),
+            'postCategories' => PostCategory::activeSummaries(),
             'sort' => $sort,
         ]);
     }
