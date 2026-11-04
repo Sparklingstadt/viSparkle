@@ -33,6 +33,15 @@ export default function Home({
             <Head title="ホーム" />
 
             <div className="space-y-10">
+                <section className="space-y-2 py-6 text-center">
+                    <h1 className="text-3xl font-bold">
+                        クリエイターを、月額で応援しよう
+                    </h1>
+                    <p className="text-muted-foreground">
+                        支援すると、プランに応じた限定投稿を見られます。
+                    </p>
+                </section>
+
                 {popularCreators.length > 0 && (
                     <section className="space-y-4">
                         <div className="space-y-1">
