@@ -55,7 +55,7 @@ class HomeController extends Controller
             'liked' => isset($likedProducts[$product->id]),
             'can_like' => $product->creator->user_id !== $request->user()?->id,
         ];
-        $popularCreators = Creator::weeklyPopular()->limit(25)->get()->map->toSummary();
+        $popularCreators = Creator::weeklyPopular()->withMinPlanPrice()->limit(25)->get()->map->toCard();
 
         return Inertia::render('public/home', [
             'posts' => $posts,

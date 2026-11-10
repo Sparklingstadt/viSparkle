@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Paperclip, Trash2 } from 'lucide-react';
+import { Lock, Paperclip, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
@@ -31,12 +31,12 @@ type FormData = {
 
 export default function PostEdit({
     post,
-    priceOptions,
+    audiences,
     categories,
     creatorSlug,
 }: {
     post: EditorPost;
-    priceOptions: number[];
+    audiences: { price: number; plans: string[]; readers: number | null }[];
     categories: { id: number; name: string; archived: boolean }[];
     creatorSlug: string;
 }) {
@@ -138,7 +138,7 @@ export default function PostEdit({
         <>
             <Head title={`編集: ${post.title}`} />
 
-            <div className="mx-auto w-full max-w-4xl space-y-6 p-4">
+            <div className="mx-auto w-full max-w-6xl space-y-6 p-4 pt-0">
                 {post.hidden && (
                     <Alert variant="destructive">
                         <AlertDescription>
@@ -147,7 +147,7 @@ export default function PostEdit({
                         </AlertDescription>
                     </Alert>
                 )}
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2">
                         <Badge
                             variant={
@@ -196,234 +196,298 @@ export default function PostEdit({
                     </div>
                 </div>
 
-                <div className="grid gap-2">
-                    <Label htmlFor="title">タイトル</Label>
-                    <Input
-                        id="title"
-                        value={form.data.title}
-                        maxLength={100}
-                        onChange={(e) => form.setData('title', e.target.value)}
-                    />
-                    <InputError message={form.errors.title} />
-                </div>
-
-                {categories.length > 0 && (
-                    <div className="grid gap-2">
-                        <Label htmlFor="post_category_id">カテゴリ</Label>
-                        <select
-                            id="post_category_id"
-                            value={form.data.post_category_id}
-                            onChange={(e) =>
-                                form.setData(
-                                    'post_category_id',
-                                    e.target.value === ''
-                                        ? ''
-                                        : Number(e.target.value),
-                                )
-                            }
-                            className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-                        >
-                            <option value="">未設定</option>
-                            {categories.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                    {category.name}
-                                    {category.archived && '（受付終了）'}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={form.errors.post_category_id} />
-                    </div>
-                )}
-
-                <div className="grid gap-2">
-                    <Label htmlFor="required_price">閲覧できる人</Label>
-                    <select
-                        id="required_price"
-                        value={form.data.required_price}
-                        onChange={(e) =>
-                            form.setData(
-                                'required_price',
-                                Number(e.target.value),
-                            )
-                        }
-                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-                    >
-                        {priceOptions.map((price) => (
-                            <option key={price} value={price}>
-                                {price === 0
-                                    ? '全体公開（誰でも閲覧可）'
-                                    : `月額 ${formatYen(price)} 以上の支援者`}
-                            </option>
-                        ))}
-                    </select>
-                    <InputError message={form.errors.required_price} />
-                </div>
-
-                <div className="grid gap-2">
-                    <Label htmlFor="excerpt">
-                        公開部分（支援していない人にも表示）
-                    </Label>
-                    <textarea
-                        id="excerpt"
-                        value={form.data.excerpt}
-                        maxLength={300}
-                        rows={3}
-                        onChange={(e) =>
-                            form.setData('excerpt', e.target.value)
-                        }
-                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
-                    />
-                    <InputError message={form.errors.excerpt} />
-                </div>
-
-                <div className="grid gap-2">
-                    <Label>本文（支援者のみ）</Label>
-                    <PostEditor
-                        initialContent={post.body}
-                        imageUrls={imageUrls}
-                        onChange={(doc) => form.setData('body', doc)}
-                        onUploadImage={async (file) => {
-                            const uploaded = await upload('image', file);
-
-                            if (!uploaded) {
-                                return null;
-                            }
-
-                            setUploadedImages((list) => [...list, uploaded]);
-
-                            return { id: uploaded.id, url: uploaded.url };
-                        }}
-                    />
-                    {uploading > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                            アップロード中…
-                        </p>
-                    )}
-                    <InputError message={form.errors.body} />
-                </div>
-
-                <section className="grid gap-2">
-                    <Label>カバー画像（本文中の画像から選択）</Label>
-                    <p className="text-xs text-muted-foreground">
-                        カバー画像の縮小版は、支援していない人にも表示されます（一覧ではぼかし表示）。限定公開したい画像は選ばないでください。
-                    </p>
-                    {images.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            本文に画像を追加すると選択できます。
-                        </p>
-                    ) : (
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    form.setData('cover_file_id', null)
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                    <div className="min-w-0 space-y-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title" className="sr-only">
+                                タイトル
+                            </Label>
+                            <Input
+                                id="title"
+                                className="h-auto border-0 px-0 text-3xl font-black shadow-none focus-visible:ring-0 md:text-3xl"
+                                placeholder="タイトル"
+                                value={form.data.title}
+                                maxLength={100}
+                                onChange={(e) =>
+                                    form.setData('title', e.target.value)
                                 }
-                                className={cn(
-                                    'flex size-20 items-center justify-center rounded-md border text-xs',
-                                    form.data.cover_file_id === null &&
-                                        'ring-2 ring-primary',
-                                )}
-                            >
-                                なし
-                            </button>
-                            {images.map((image) => (
-                                <button
-                                    key={image.id}
-                                    type="button"
-                                    onClick={() =>
-                                        form.setData('cover_file_id', image.id)
-                                    }
-                                    className={cn(
-                                        'size-20 overflow-hidden rounded-md border',
-                                        form.data.cover_file_id === image.id &&
-                                            'ring-2 ring-primary',
-                                    )}
-                                >
-                                    <img
-                                        src={image.thumb_url}
-                                        alt=""
-                                        className="size-full object-cover"
-                                    />
-                                </button>
-                            ))}
+                            />
+                            <InputError message={form.errors.title} />
                         </div>
-                    )}
-                    <InputError message={form.errors.cover_file_id} />
-                </section>
 
-                <section className="grid gap-2">
-                    <Label htmlFor="attachment">
-                        添付ファイル（支援者のみ）
-                    </Label>
-                    <ul className="space-y-1">
-                        {attachments.map((file) => (
-                            <li
-                                key={file.id}
-                                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
-                            >
-                                <span className="flex min-w-0 items-center gap-2">
-                                    <Paperclip className="size-4 shrink-0" />
-                                    <span className="truncate">
-                                        {file.original_name}
-                                    </span>
-                                    <span className="shrink-0 text-muted-foreground">
-                                        {formatBytes(file.size)}
-                                    </span>
-                                </span>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    aria-label="削除"
-                                    onClick={() => void removeAttachment(file)}
-                                >
-                                    <Trash2 />
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
-                    <Input
-                        id="attachment"
-                        type="file"
-                        multiple
-                        onChange={async (e) => {
-                            const files = Array.from(e.target.files ?? []);
-                            e.target.value = '';
+                        <div className="grid gap-2">
+                            <Label htmlFor="excerpt">
+                                冒頭（支援していない人にも見えます）
+                            </Label>
+                            <textarea
+                                id="excerpt"
+                                value={form.data.excerpt}
+                                maxLength={300}
+                                rows={3}
+                                onChange={(e) =>
+                                    form.setData('excerpt', e.target.value)
+                                }
+                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                            />
+                            <InputError message={form.errors.excerpt} />
+                        </div>
 
-                            for (const file of files) {
-                                const uploaded = await upload(
-                                    'attachment',
-                                    file,
-                                );
+                        <div className="grid gap-2">
+                            <Label className="flex items-center gap-2 rounded-xl border border-dashed border-primary/40 bg-secondary px-3 py-2 text-primary">
+                                <Lock className="size-4" />
+                                ここから下は「読める人」で選んだ支援者だけが読めます
+                            </Label>
+                            <PostEditor
+                                initialContent={post.body}
+                                imageUrls={imageUrls}
+                                onChange={(doc) => form.setData('body', doc)}
+                                onUploadImage={async (file) => {
+                                    const uploaded = await upload(
+                                        'image',
+                                        file,
+                                    );
 
-                                if (uploaded) {
-                                    setUploadedAttachments((list) => [
+                                    if (!uploaded) {
+                                        return null;
+                                    }
+
+                                    setUploadedImages((list) => [
                                         ...list,
                                         uploaded,
                                     ]);
-                                }
-                            }
-                        }}
-                    />
-                </section>
 
-                <div className="border-t pt-6">
-                    <Button
-                        variant="destructive"
-                        disabled={busy}
-                        onClick={() => {
-                            if (
-                                confirm(
-                                    'この投稿を削除しますか？添付ファイルも削除されます。',
-                                )
-                            ) {
-                                router.delete(
-                                    PostController.destroy.url(post.id),
-                                );
-                            }
-                        }}
-                    >
-                        投稿を削除
-                    </Button>
+                                    return {
+                                        id: uploaded.id,
+                                        url: uploaded.url,
+                                    };
+                                }}
+                            />
+                            {uploading > 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    アップロード中…
+                                </p>
+                            )}
+                            <InputError message={form.errors.body} />
+                        </div>
+
+                        <section className="grid gap-2">
+                            <Label htmlFor="attachment">
+                                添付ファイル（支援者のみ）
+                            </Label>
+                            <ul className="space-y-1">
+                                {attachments.map((file) => (
+                                    <li
+                                        key={file.id}
+                                        className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                                    >
+                                        <span className="flex min-w-0 items-center gap-2">
+                                            <Paperclip className="size-4 shrink-0" />
+                                            <span className="truncate">
+                                                {file.original_name}
+                                            </span>
+                                            <span className="shrink-0 text-muted-foreground">
+                                                {formatBytes(file.size)}
+                                            </span>
+                                        </span>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            aria-label="削除"
+                                            onClick={() =>
+                                                void removeAttachment(file)
+                                            }
+                                        >
+                                            <Trash2 />
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                            <Input
+                                id="attachment"
+                                type="file"
+                                multiple
+                                onChange={async (e) => {
+                                    const files = Array.from(
+                                        e.target.files ?? [],
+                                    );
+                                    e.target.value = '';
+
+                                    for (const file of files) {
+                                        const uploaded = await upload(
+                                            'attachment',
+                                            file,
+                                        );
+
+                                        if (uploaded) {
+                                            setUploadedAttachments((list) => [
+                                                ...list,
+                                                uploaded,
+                                            ]);
+                                        }
+                                    }
+                                }}
+                            />
+                        </section>
+                    </div>
+                    <aside className="space-y-6">
+                        <fieldset className="grid gap-2">
+                            <legend className="mb-2 text-sm font-bold">
+                                読める人
+                            </legend>
+                            {audiences.map((audience) => (
+                                <label
+                                    key={audience.price}
+                                    className={cn(
+                                        'flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 transition-colors',
+                                        form.data.required_price ===
+                                            audience.price
+                                            ? 'border-2 border-primary bg-secondary'
+                                            : 'border hover:border-primary/50',
+                                    )}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="required_price"
+                                        value={audience.price}
+                                        checked={
+                                            form.data.required_price ===
+                                            audience.price
+                                        }
+                                        onChange={() =>
+                                            form.setData(
+                                                'required_price',
+                                                audience.price,
+                                            )
+                                        }
+                                        className="size-4 accent-primary"
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold">
+                                            {audience.price === 0
+                                                ? '全体公開'
+                                                : `${audience.plans.length > 0 ? `${audience.plans.join('・')} ` : ''}${formatYen(audience.price)} 以上`}
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            {audience.readers === null
+                                                ? '誰でも読めます'
+                                                : `支援中の ${audience.readers} 人が読めます`}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
+                            <InputError message={form.errors.required_price} />
+                        </fieldset>
+
+                        {categories.length > 0 && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="post_category_id">
+                                    カテゴリ
+                                </Label>
+                                <select
+                                    id="post_category_id"
+                                    value={form.data.post_category_id}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'post_category_id',
+                                            e.target.value === ''
+                                                ? ''
+                                                : Number(e.target.value),
+                                        )
+                                    }
+                                    className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+                                >
+                                    <option value="">未設定</option>
+                                    {categories.map((category) => (
+                                        <option
+                                            key={category.id}
+                                            value={category.id}
+                                        >
+                                            {category.name}
+                                            {category.archived &&
+                                                '（受付終了）'}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError
+                                    message={form.errors.post_category_id}
+                                />
+                            </div>
+                        )}
+
+                        <section className="grid gap-2">
+                            <Label>カバー画像（本文中の画像から選択）</Label>
+                            <p className="text-xs text-muted-foreground">
+                                カバー画像の縮小版は、支援していない人にも表示されます（一覧ではぼかし表示）。限定公開したい画像は選ばないでください。
+                            </p>
+                            {images.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    本文に画像を追加すると選択できます。
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            form.setData('cover_file_id', null)
+                                        }
+                                        className={cn(
+                                            'flex aspect-video items-center justify-center rounded-lg border text-xs',
+                                            form.data.cover_file_id === null &&
+                                                'ring-2 ring-primary',
+                                        )}
+                                    >
+                                        なし
+                                    </button>
+                                    {images.map((image) => (
+                                        <button
+                                            key={image.id}
+                                            type="button"
+                                            onClick={() =>
+                                                form.setData(
+                                                    'cover_file_id',
+                                                    image.id,
+                                                )
+                                            }
+                                            className={cn(
+                                                'aspect-video overflow-hidden rounded-lg border',
+                                                form.data.cover_file_id ===
+                                                    image.id &&
+                                                    'ring-2 ring-primary',
+                                            )}
+                                        >
+                                            <img
+                                                src={image.thumb_url}
+                                                alt=""
+                                                className="size-full object-cover"
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <InputError message={form.errors.cover_file_id} />
+                        </section>
+
+                        <div className="border-t pt-4">
+                            <Button
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                disabled={busy}
+                                onClick={() => {
+                                    if (
+                                        confirm(
+                                            'この投稿を削除しますか？添付ファイルも削除されます。',
+                                        )
+                                    ) {
+                                        router.delete(
+                                            PostController.destroy.url(post.id),
+                                        );
+                                    }
+                                }}
+                            >
+                                投稿を削除
+                            </Button>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </>

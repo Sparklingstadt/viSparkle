@@ -3,8 +3,10 @@ import { Download, Paperclip } from 'lucide-react';
 import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
 import { LikeButton } from '@/components/like-button';
+import { AccessBadge } from '@/components/access-badge';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
+import { PostCard } from '@/components/post-card';
 import {
     ReportDialog,
     type ReportReasonOption,
@@ -13,15 +15,21 @@ import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { formatBytes, formatDate, formatYen } from '@/lib/format';
+import { formatBytes, formatDate } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
 import { show as showPostCategory } from '@/routes/post-categories';
 import { edit } from '@/routes/creator/posts';
-import type { CreatorProfile, PlanData, PostDetail } from '@/types';
+import type {
+    CreatorProfile,
+    PlanData,
+    PostDetail,
+    PostSummary,
+} from '@/types';
 
 export default function PostPage({
     post,
     creator,
+    morePosts,
     plans,
     isOwner,
     viewerSupportPrice,
@@ -35,6 +43,7 @@ export default function PostPage({
 }: {
     post: PostDetail;
     creator: CreatorProfile & { id: number };
+    morePosts: PostSummary[];
     plans: PlanData[];
     isOwner: boolean;
     viewerSupportPrice: number | null;
@@ -57,13 +66,16 @@ export default function PostPage({
         router.reload({ only: ['post'] });
     };
 
-    const unlocking = plans.filter((plan) => plan.price >= post.required_price);
+    // Cheapest first: the first one is the plan that unlocks this post for the least.
+    const unlocking = plans
+        .filter((plan) => plan.price >= post.required_price)
+        .sort((a, b) => a.price - b.price);
 
     return (
         <>
             <Head title={post.title} />
 
-            <article className="mx-auto max-w-3xl space-y-6">
+            <article className="mx-auto max-w-3xl space-y-8">
                 <CreatorHeader creator={creator} compact />
 
                 {hiddenReason !== null && (
@@ -80,35 +92,32 @@ export default function PostPage({
                         src={post.cover_thumb_url}
                         alt=""
                         onError={refreshUrls}
-                        className={`aspect-video w-full rounded-xl object-cover ${post.locked ? 'blur-md' : ''}`}
+                        className={`aspect-video w-full rounded-2xl object-cover ${post.locked ? 'blur-md' : ''}`}
                     />
                 ) : (
                     <img
                         src={placeholderCover(post.id)}
                         alt=""
-                        className="aspect-video w-full rounded-xl object-cover"
+                        className="aspect-video w-full rounded-2xl object-cover"
                     />
                 )}
 
-                <header className="space-y-2">
-                    {post.category && (
-                        <Badge variant="secondary" asChild>
-                            <Link href={showPostCategory(post.category.slug)}>
-                                {post.category.name}
-                            </Link>
-                        </Badge>
-                    )}
-                    <h1 className="text-2xl font-bold">{post.title}</h1>
+                <header className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <AccessBadge price={post.required_price} />
+                        {post.category && (
+                            <Badge variant="secondary" asChild>
+                                <Link
+                                    href={showPostCategory(post.category.slug)}
+                                >
+                                    {post.category.name}
+                                </Link>
+                            </Badge>
+                        )}
                         {post.published_at && (
                             <span>投稿日 {formatDate(post.published_at)}</span>
                         )}
                         <span>最終更新日 {formatDate(post.updated_at)}</span>
-                        <Badge variant="outline">
-                            {post.required_price === 0
-                                ? '全体公開'
-                                : `${formatYen(post.required_price)}以上の支援者向け`}
-                        </Badge>
                         {isOwner && (
                             <Link
                                 href={edit(post.id)}
@@ -118,10 +127,15 @@ export default function PostPage({
                             </Link>
                         )}
                     </div>
+                    <h1 className="text-3xl leading-snug font-black sm:text-4xl">
+                        {post.title}
+                    </h1>
                 </header>
 
                 {post.excerpt && (
-                    <p className="whitespace-pre-wrap">{post.excerpt}</p>
+                    <p className="text-lg leading-loose whitespace-pre-wrap">
+                        {post.excerpt}
+                    </p>
                 )}
 
                 {post.locked ? (
@@ -129,17 +143,19 @@ export default function PostPage({
                         <LockedPost
                             requiredPrice={post.required_price}
                             supportPrice={viewerSupportPrice}
-                        />
-                        {unlocking.length > 0 && (
-                            <section id="plans" className="space-y-4">
-                                <h2 className="text-lg font-semibold">
-                                    この投稿を閲覧できるプラン
-                                </h2>
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    {unlocking.map((plan) => (
+                            creatorName={creator.display_name}
+                        >
+                            {unlocking.length > 0 && (
+                                <div id="plans" className="grid gap-3">
+                                    {unlocking.map((plan, index) => (
                                         <PlanCard
                                             key={plan.id}
                                             plan={plan}
+                                            featured={
+                                                unlocking.length > 1 &&
+                                                index === 0
+                                            }
+                                            featuredLabel="この投稿がいちばん安く読めます"
                                             action={
                                                 <SupportButton
                                                     creatorSlug={creator.slug}
@@ -163,8 +179,8 @@ export default function PostPage({
                                         />
                                     ))}
                                 </div>
-                            </section>
-                        )}
+                            )}
+                        </LockedPost>
                     </>
                 ) : (
                     <>
@@ -202,7 +218,7 @@ export default function PostPage({
                     </>
                 )}
 
-                <footer className="flex items-center justify-between gap-4">
+                <footer className="flex items-center justify-between gap-4 border-y py-4">
                     <LikeButton post={post} />
                     <ReportDialog
                         targetType="post"
@@ -211,6 +227,19 @@ export default function PostPage({
                         isOwner={isOwner}
                     />
                 </footer>
+
+                {morePosts.length > 0 && (
+                    <section className="space-y-4">
+                        <h2 className="text-xl font-bold">
+                            {creator.display_name}さんのほかの投稿
+                        </h2>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            {morePosts.map((other) => (
+                                <PostCard key={other.id} post={other} />
+                            ))}
+                        </div>
+                    </section>
+                )}
             </article>
         </>
     );

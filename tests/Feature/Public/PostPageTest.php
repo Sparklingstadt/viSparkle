@@ -73,3 +73,17 @@ it('offers accepting plans that unlock a locked post', function () {
             ->where('plans.0.price', 300)
             ->where('viewerSupportPrice', null));
 });
+
+it('shows up to four other posts by the same creator, newest first', function () {
+    $post = Post::factory()->published()->create();
+    $others = collect(range(1, 5))->map(fn (int $day) => Post::factory()->for($post->creator)->published()->create(['published_at' => now()->subDays($day)]));
+    Post::factory()->for($post->creator)->draft()->create();
+    Post::factory()->published()->create();
+
+    $this->get(route('posts.show', [$post->creator, $post]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('morePosts', 4)
+            ->where('morePosts.0.id', $others[0]->id)
+            ->where('morePosts.3.id', $others[3]->id)
+            ->where('morePosts.0.creator.slug', $post->creator->slug));
+});

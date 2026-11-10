@@ -22,18 +22,18 @@
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {
-                background-color: oklch(1 0 0);
+                background-color: #ffffff;
             }
 
             html.dark {
-                background-color: oklch(0.145 0 0);
+                background-color: #15121c;
             }
         </style>
 
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-        <meta name="theme-color" content="#7c3aed">
+        <meta name="theme-color" content="#6d28d9">
 
         {{-- Site-wide share card. Pages render client-side, so crawlers see these defaults for every URL. --}}
         <meta name="description" content="クリエイターを月額で応援できるサービス。支援するとプランに応じた限定投稿が見られます。">

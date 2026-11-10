@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { bunny, google } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
@@ -14,7 +14,19 @@ export default defineConfig({
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                    weights: [400, 500, 600, 700],
+                }),
+                // Japanese fonts come from Google: its CSS splits each weight into ~120 files by
+                // unicode-range, so a page downloads only the slices for the characters it shows.
+                // (Bunny serves the same families without unicode-range.) Preloading them all would
+                // defeat that, so preload stays off.
+                google('Noto Sans JP', {
+                    weights: [400, 500, 700],
+                    preload: false,
+                }),
+                google('Zen Kaku Gothic New', {
+                    weights: [700, 900],
+                    preload: false,
                 }),
             ],
         }),

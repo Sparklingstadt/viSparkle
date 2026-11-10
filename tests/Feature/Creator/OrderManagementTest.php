@@ -152,6 +152,22 @@ it('filters orders by status', function () {
         ->and($ids('?status=bogus'))->toEqualCanonicalizing([$paid->id, $shipped->id, $refunded->id]);
 });
 
+it('counts orders per status and marks the rows that can be shipped from the list', function () {
+    $goods = Product::factory()->for($this->creator)->create();
+    $work = Product::factory()->for($this->creator)->digital()->create();
+    $toShip = Order::factory()->paid()->for($this->creator)->withItem($goods)->create();
+    $digitalOnly = Order::factory()->paid()->for($this->creator)->withItem($work)->create();
+    Order::factory()->shipped()->for($this->creator)->withItem($goods)->create();
+    Order::factory()->for($this->creator)->create();
+    Order::factory()->paid()->create();
+
+    $this->get(route('creator.orders.index', ['status' => 'paid']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('counts', ['all' => 3, 'pending' => 1, 'paid' => 2, 'shipped' => 1, 'canceled' => 0, 'refunded' => 0])
+            ->where('orders.data', fn ($rows) => collect($rows)->firstWhere('id', $toShip->id)['can_ship'] === true
+                && collect($rows)->firstWhere('id', $digitalOnly->id)['can_ship'] === false));
+});
+
 it('paginates 20 per page, newest first', function () {
     Order::factory()->count(21)->paid()->for($this->creator)->sequence(fn ($s) => ['created_at' => now()->subMinutes(30 - $s->index)])->create();
 

@@ -67,3 +67,21 @@ it('shows at most 25 creators', function () {
 
     $this->get(route('home'))->assertInertia(fn (Assert $page) => $page->has('popularCreators', 25));
 });
+
+it('shows each creator with header, bio and the lowest price a fan can start supporting at', function () {
+    $creator = Creator::factory()->create(['bio' => '季節のイラストを描いています。', 'header_path' => 'headers/a.png']);
+    supportCreator($creator, 2);
+    Plan::factory()->for($creator)->price(300)->create();
+    Plan::factory()->for($creator)->price(100)->notAccepting()->create();
+    $closedPlans = Creator::factory()->create();
+    Support::factory()->forPlan(Plan::factory()->for($closedPlans)->notAccepting()->create())->active()->create();
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('popularCreators.0.slug', $creator->slug)
+            ->where('popularCreators.0.bio', '季節のイラストを描いています。')
+            ->where('popularCreators.0.header_url', fn (?string $url) => str_ends_with((string) $url, 'headers/a.png'))
+            ->where('popularCreators.0.min_plan_price', fn (?int $price) => $price !== null && $price <= 300)
+            ->where('popularCreators.1.slug', $closedPlans->slug)
+            ->where('popularCreators.1.min_plan_price', null));
+});

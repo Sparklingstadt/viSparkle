@@ -42,6 +42,7 @@ class OrderController extends Controller
                 'created_at' => $order->created_at,
                 'buyer_name' => $order->user?->name,
                 'shipping_name' => $order->shipping_name,
+                'can_ship' => self::canShip($order),
                 'items' => $order->items->map(fn (OrderItem $item) => [
                     'id' => $item->id,
                     'product_name' => $item->product_name,
@@ -49,8 +50,15 @@ class OrderController extends Controller
                 ])->values(),
             ]);
 
+        $counts = $request->user()->creator->orders()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
         return Inertia::render('creator/orders/index', [
             'orders' => $orders,
+            // "all" is what the list shows without a filter: the orders that were paid.
+            'counts' => [
+                'all' => (int) collect([OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])->sum(fn (OrderStatus $case) => $counts[$case->value] ?? 0),
+                ...collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $case) => [$case->value => (int) ($counts[$case->value] ?? 0)])->all(),
+            ],
             'status' => $status?->value,
             'statuses' => collect(OrderStatus::cases())->map(fn (OrderStatus $case) => ['value' => $case->value, 'label' => $case->label()])->values(),
         ]);
@@ -90,10 +98,16 @@ class OrderController extends Controller
                 'paid_at' => $order->paid_at,
                 'shipped_at' => $order->shipped_at,
                 // Digital-only orders have nothing to ship; an order with a digital work is refunded by an admin only.
-                'can_ship' => $order->status === OrderStatus::Paid && ($order->hasPhysical() || ! $order->hasDigital()),
+                'can_ship' => self::canShip($order),
                 'can_refund' => $order->status === OrderStatus::Paid && ! $order->hasDigital(),
             ],
         ]);
+    }
+
+    /** Paid and holding goods (an order of only digital works has nothing to send). */
+    private static function canShip(Order $order): bool
+    {
+        return $order->status === OrderStatus::Paid && ($order->hasPhysical() || ! $order->hasDigital());
     }
 
     public function ship(Request $request, Order $order): RedirectResponse

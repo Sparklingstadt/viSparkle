@@ -254,3 +254,16 @@ it('marks a group whose work lost its files as not purchasable', function () {
     expect($group['purchasable'])->toBeFalse()
         ->and(app(Cart::class)->refusal($this->buyer, $group))->toBe('現在購入できません');
 });
+
+it('tells each group whether a support amount can be added at checkout', function (bool $enabled, bool $accepts, bool $expected) {
+    config(['fanbox.billing.support_enabled' => $enabled]);
+    $this->creator->update(['accepts_support' => $accepts]);
+    app(Cart::class)->add($this->buyer, Product::factory()->for($this->creator)->create()->variants()->firstOrFail(), 1);
+
+    $this->actingAs($this->buyer)->get(route('cart.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('groups.0.accepts_support', $expected));
+})->with([
+    'service on, creator accepts' => [true, true, true],
+    'service on, creator declines' => [true, false, false],
+    'service off' => [false, true, false],
+]);

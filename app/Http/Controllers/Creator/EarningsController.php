@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Creator;
 
 use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
+use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Services\Billing\AccountSync;
@@ -31,7 +32,25 @@ class EarningsController extends Controller
             'activeSupporters' => $creator->supports()->active()->count(),
             'months' => $this->months($creator),
             'shop_months' => $this->shopMonths($creator),
+            'todo' => $this->todo($creator),
         ]);
+    }
+
+    /**
+     * What waits on the creator, shown above the numbers: goods to ship and posts left in draft.
+     *
+     * @return array{awaitingShipment: int, drafts: int, latestDraft: array{id: int, title: string}|null}
+     */
+    private function todo(Creator $creator): array
+    {
+        $drafts = $creator->posts()->where('status', PostStatus::Draft);
+        $latestDraft = (clone $drafts)->latest('updated_at')->latest('id')->first(['id', 'title']);
+
+        return [
+            'awaitingShipment' => $creator->orders()->awaitingShipment()->count(),
+            'drafts' => $drafts->count(),
+            'latestDraft' => $latestDraft === null ? null : ['id' => $latestDraft->id, 'title' => $latestDraft->title],
+        ];
     }
 
     public function onboarding(Request $request, PaymentGateway $gateway): SymfonyResponse

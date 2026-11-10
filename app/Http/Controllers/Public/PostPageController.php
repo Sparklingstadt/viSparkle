@@ -30,6 +30,17 @@ class PostPageController extends Controller
         }
         $support = CreatorPageController::activeSupport($viewer, $creator);
 
+        $morePosts = $creator->posts()
+            ->published()
+            ->visible()
+            ->whereKeyNot($post->id)
+            ->with('cover')
+            ->latest('published_at')
+            ->limit(4)
+            ->get();
+        $morePostsLiked = PostLike::idsLikedBy($viewer, $morePosts->modelKeys());
+        $morePosts = $morePosts->map(fn (Post $other) => $presenter->summary($other->setRelation('creator', $creator), $entitlement, $morePostsLiked));
+
         return Inertia::render('public/post', [
             'post' => [
                 ...$presenter->detail($post, $entitlement, PostLike::idsLikedBy($viewer, [$post->id])),
@@ -41,6 +52,7 @@ class PostPageController extends Controller
                 'bio' => $creator->bio,
                 'header_url' => $creator->headerUrl(),
             ],
+            'morePosts' => $morePosts,
             'plans' => CreatorPageController::visiblePlans($creator, $isOwner, $support),
             'isOwner' => $isOwner,
             'viewerSupportPrice' => $entitlement->supportPriceFor($creator->id),
