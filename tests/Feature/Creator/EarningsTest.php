@@ -4,6 +4,8 @@ use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Post;
+use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -221,4 +223,25 @@ it('counts support in shop sales and takes its own fee', function () {
             'month' => '2026-11', 'orders' => 3, 'sales' => 8300, 'refunded' => 1300,
             'net' => 8300 - 1300 - 300 - 350, 'supports' => 2, 'support_amount' => 1300,
         ]));
+});
+
+it('lists what the creator has to do: paid orders with goods to ship and drafts', function () {
+    $creator = Creator::factory()->payable()->create();
+    $goods = Product::factory()->for($creator)->create();
+    $work = Product::factory()->for($creator)->digital()->create();
+    Order::factory()->for($creator)->paid()->withItem($goods)->count(2)->create();
+    Order::factory()->for($creator)->paid()->withItem($work)->create();
+    Order::factory()->for($creator)->shipped()->withItem($goods)->create();
+    Order::factory()->for($creator)->pending()->withItem($goods)->create();
+    Order::factory()->paid()->withItem(Product::factory()->create())->create();
+    Post::factory()->for($creator)->draft()->create(['title' => '古い下書き', 'updated_at' => now()->subDay()]);
+    $latest = Post::factory()->for($creator)->draft()->create(['title' => '新しい下書き']);
+    Post::factory()->for($creator)->published()->create();
+
+    $this->actingAs($creator->user)->get(route('creator.earnings.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('todo.awaitingShipment', 2)
+            ->where('todo.drafts', 2)
+            ->where('todo.latestDraft.id', $latest->id)
+            ->where('todo.latestDraft.title', '新しい下書き'));
 });

@@ -4,8 +4,11 @@ namespace App\Models;
 
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -97,6 +100,18 @@ class Order extends Model
     {
         return intdiv(($this->subtotal + $this->shipping_fee) * $this->fee_percent, 100)
             + intdiv($this->support_amount * $this->support_fee_percent, 100);
+    }
+
+    /**
+     * Paid orders holding goods the creator still has to send. Digital-only orders never ship.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function awaitingShipment(Builder $query): void
+    {
+        $query->where('status', OrderStatus::Paid)
+            ->whereHas('items', fn ($q) => $q->where('product_kind', ProductKind::Physical));
     }
 
     public function hasPhysical(): bool

@@ -1,17 +1,22 @@
 import { Head, Link } from '@inertiajs/react';
 import { CategoryLinks } from '@/components/category-links';
 import { Carousel } from '@/components/carousel';
+import { CreatorCard } from '@/components/creator-card';
 import { PostCard } from '@/components/post-card';
 import { ProductCarousel } from '@/components/product-carousel';
 import type { LikeableProduct } from '@/components/product-like-button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { home } from '@/routes';
+import { home, search } from '@/routes';
+import { register as registerCreator } from '@/routes/creator';
 import { show as showCategory } from '@/routes/categories';
-import { show } from '@/routes/creators';
 import { show as showPostCategory } from '@/routes/post-categories';
-import type { CategorySummary, CreatorSummary, PostSummary } from '@/types';
+import type {
+    CategorySummary,
+    CreatorCard as CreatorCardData,
+    PostSummary,
+} from '@/types';
 
 type PostSort = 'new' | 'popular';
 
@@ -32,42 +37,73 @@ export default function Home({
     posts: PostSummary[];
     products: LikeableProduct[];
     recommendedProducts: LikeableProduct[];
-    popularCreators: CreatorSummary[];
+    popularCreators: CreatorCardData[];
     categories: CategorySummary[];
     postCategories: CategorySummary[];
     sort: PostSort;
 }) {
+    // The hero shows the top four only when every one of them has a header image to fill its tile.
+    const heroCreators = popularCreators
+        .slice(0, 4)
+        .filter((creator) => creator.header_url !== null);
+
     return (
         <>
             <Head title="ホーム" />
 
             <div className="space-y-10">
-                <section className="space-y-2 py-6 text-center">
-                    <h1 className="text-3xl font-bold">
-                        クリエイターを、月額で応援しよう
-                    </h1>
-                    <p className="text-muted-foreground">
-                        支援すると、プランに応じた限定投稿を見られます。
-                    </p>
-                </section>
-
-                {popularCreators.length > 0 && (
-                    <Carousel
-                        title="今週の人気クリエイター"
-                        description="直近7日間に新しく支援を始めたファンが多い順です。"
-                        trackClassName="scroll-pl-1 pt-1 pl-1"
-                    >
-                        {popularCreators.map((creator, index) => (
-                            <li
-                                key={creator.slug}
-                                className="shrink-0 snap-start"
-                            >
-                                <Link
-                                    href={show(creator.slug)}
-                                    className="flex w-24 flex-col items-center gap-2 text-center"
+                <section className="grid items-center gap-10 pt-6 md:grid-cols-2">
+                    <div className="space-y-5">
+                        <p className="text-sm font-bold tracking-wider text-primary">
+                            月額でつながる創作の場所
+                        </p>
+                        <h1 className="text-4xl leading-tight font-black sm:text-5xl">
+                            クリエイターを、
+                            <br />
+                            月額で応援しよう
+                        </h1>
+                        <p className="leading-relaxed text-muted-foreground">
+                            支援すると、プランに応じた限定投稿が見られます。
+                            <br />
+                            グッズやデジタル作品もまとめて買えます。
+                        </p>
+                        <div className="flex flex-wrap gap-3 pt-1">
+                            <Button asChild size="lg">
+                                <Link href={search()}>クリエイターを探す</Link>
+                            </Button>
+                            <Button asChild size="lg" variant="outline">
+                                <Link href={registerCreator()}>
+                                    クリエイターとしてはじめる
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                    {heroCreators.length === 4 && (
+                        <div
+                            className="hidden grid-cols-2 gap-4 md:grid"
+                            aria-hidden
+                        >
+                            {heroCreators.map((creator, index) => (
+                                <div
+                                    key={creator.slug}
+                                    className={cn(
+                                        'overflow-hidden rounded-2xl border bg-card',
+                                        index % 2 === 1
+                                            ? 'translate-y-6 rotate-2'
+                                            : '-rotate-2',
+                                    )}
                                 >
-                                    <div className="relative">
-                                        <Avatar className="size-16">
+                                    <div className="h-24 bg-secondary">
+                                        {creator.header_url && (
+                                            <img
+                                                src={creator.header_url}
+                                                alt=""
+                                                className="size-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 px-3.5 pb-3.5">
+                                        <Avatar className="-mt-5 size-11 border-[3px] border-card">
                                             {creator.avatar_url && (
                                                 <AvatarImage
                                                     src={creator.avatar_url}
@@ -81,14 +117,31 @@ export default function Home({
                                                 )}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <span className="absolute -top-1 -left-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                                            {index + 1}
-                                        </span>
+                                        <p className="truncate text-sm font-bold">
+                                            {creator.display_name}
+                                        </p>
                                     </div>
-                                    <span className="line-clamp-2 text-sm">
-                                        {creator.display_name}
-                                    </span>
-                                </Link>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                {popularCreators.length > 0 && (
+                    <Carousel
+                        title="今週の人気クリエイター"
+                        description="直近7日間に新しく支援を始めたファンが多い順です。"
+                        trackClassName="scroll-pl-1 pt-1 pl-1"
+                    >
+                        {popularCreators.map((creator, index) => (
+                            <li
+                                key={creator.slug}
+                                className="w-52 shrink-0 snap-start"
+                            >
+                                <CreatorCard
+                                    creator={creator}
+                                    rank={index + 1}
+                                />
                             </li>
                         ))}
                     </Carousel>
@@ -126,16 +179,21 @@ export default function Home({
                                 ? '人気の全体公開投稿'
                                 : '新着の全体公開投稿'}
                         </h2>
-                        <div className="flex gap-1" role="tablist">
+                        <div
+                            className="flex gap-1 rounded-full bg-muted p-1"
+                            role="tablist"
+                        >
                             {sortTabs.map((tab) => (
                                 <Button
                                     key={tab.sort}
                                     size="sm"
                                     variant="ghost"
                                     asChild
-                                    className={cn({
-                                        'bg-muted': tab.sort === sort,
-                                    })}
+                                    className={cn(
+                                        'text-muted-foreground',
+                                        tab.sort === sort &&
+                                            'bg-background text-foreground shadow-xs hover:bg-background',
+                                    )}
                                 >
                                     <Link
                                         href={home({

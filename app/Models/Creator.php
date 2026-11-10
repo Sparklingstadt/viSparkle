@@ -96,6 +96,17 @@ class Creator extends Model
             ->orderByDesc('id');
     }
 
+    /**
+     * Adds min_plan_price: the lowest price among plans that are accepting new supports.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function withMinPlanPrice(Builder $query): void
+    {
+        $query->withMin(['plans as min_plan_price' => fn ($q) => $q->where('is_accepting', true)], 'price');
+    }
+
     public function isClosed(): bool
     {
         return $this->closed_at !== null;
@@ -141,6 +152,23 @@ class Creator extends Model
     public function toSummary(): array
     {
         return ['slug' => $this->slug, 'display_name' => $this->display_name, 'avatar_url' => $this->avatarUrl()];
+    }
+
+    /**
+     * The summary plus what a creator card shows. min_plan_price comes from withMinPlanPrice() and is null when no plan is accepting.
+     *
+     * @return array{slug: string, display_name: string, avatar_url: string|null, header_url: string|null, bio: string|null, min_plan_price: int|null}
+     */
+    public function toCard(): array
+    {
+        $minPlanPrice = $this->getAttribute('min_plan_price');
+
+        return [
+            ...$this->toSummary(),
+            'header_url' => $this->headerUrl(),
+            'bio' => $this->bio,
+            'min_plan_price' => $minPlanPrice === null ? null : (int) $minPlanPrice,
+        ];
     }
 
     public function canAcceptSupports(): bool

@@ -6,6 +6,7 @@ use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\PostFile;
+use App\Models\Support;
 use App\Services\PostFileStorer;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -34,6 +35,22 @@ it('lists own posts only', function () {
     $this->get(route('creator.posts.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('creator/posts/index')->has('posts.data', 2));
+});
+
+it('filters own posts by status and counts each status', function () {
+    Post::factory()->for($this->creator)->published()->count(2)->create();
+    $draft = Post::factory()->for($this->creator)->draft()->create();
+    Post::factory()->draft()->create();
+
+    $this->get(route('creator.posts.index', ['status' => 'draft']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('status', 'draft')
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $draft->id)
+            ->where('counts', ['all' => 3, 'published' => 2, 'draft' => 1]));
+
+    $this->get(route('creator.posts.index', ['status' => 'bogus']))
+        ->assertInertia(fn (Assert $page) => $page->where('status', null)->has('posts.data', 3));
 });
 
 it('creates an empty draft and redirects to the editor', function () {
@@ -108,6 +125,22 @@ it('validates required_price against own plans', function (int $price, bool $ok)
     'own plan' => [500, true],
     'not a plan' => [300, false],
 ]);
+
+it('tells the editor which plans and how many supporters each audience covers', function () {
+    $this->creator->plans()->first()->update(['name' => 'しっかり応援']);
+    $small = Plan::factory()->for($this->creator)->price(300)->create(['name' => 'ちょっと応援']);
+    Support::factory()->forPlan($small)->active()->create();
+    Support::factory()->forPlan($this->creator->plans()->where('price', 500)->firstOrFail())->active()->count(2)->create();
+    Support::factory()->forPlan($small)->ended()->create();
+    $post = Post::factory()->for($this->creator)->create();
+
+    $this->get(route('creator.posts.edit', $post))
+        ->assertInertia(fn (Assert $page) => $page->where('audiences', [
+            ['price' => 0, 'plans' => [], 'readers' => null],
+            ['price' => 300, 'plans' => ['ちょっと応援'], 'readers' => 3],
+            ['price' => 500, 'plans' => ['しっかり応援'], 'readers' => 2],
+        ]));
+});
 
 it('keeps an existing required_price selectable after its plan is gone', function () {
     $post = Post::factory()->for($this->creator)->requiring(500)->create();

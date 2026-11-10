@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Heart, Lock } from 'lucide-react';
+import { AccessBadge } from '@/components/access-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
 import { cn } from '@/lib/utils';
@@ -18,9 +18,9 @@ export function PostCard({
     return (
         <Link
             href={show({ creator: post.creator.slug, post: post.id })}
-            className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/30 hover:bg-muted/70"
+            className="group flex flex-col gap-3 rounded-2xl p-1 transition-colors hover:bg-muted/70"
         >
-            <div className="relative aspect-video bg-muted">
+            <div className="relative aspect-video overflow-hidden rounded-xl bg-muted">
                 {post.cover_thumb_url ? (
                     <img
                         src={post.cover_thumb_url}
@@ -37,61 +37,63 @@ export function PostCard({
                     />
                 )}
                 {post.locked && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Badge className="gap-1">
-                            <Lock className="size-3" />
-                            {formatYen(post.required_price)}〜
-                        </Badge>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 text-white">
+                        <Lock className="size-5" aria-hidden />
+                        <span className="text-sm font-bold">
+                            {formatYen(post.required_price)} プランで読めます
+                        </span>
                     </div>
                 )}
             </div>
-            <div className="space-y-1 p-3">
-                <p className="line-clamp-2 font-medium">{post.title}</p>
+            <div className="flex gap-2.5 px-1 pb-1">
                 {showCreator && (
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Avatar className="size-4 shrink-0">
-                            {post.creator.avatar_url && (
-                                <AvatarImage
-                                    src={post.creator.avatar_url}
-                                    alt=""
-                                />
-                            )}
-                            <AvatarFallback className="text-[10px]">
-                                {post.creator.display_name.slice(0, 1)}
-                            </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate">
-                            {post.creator.display_name}
-                        </span>
-                    </p>
+                    <Avatar className="size-8 shrink-0">
+                        {post.creator.avatar_url && (
+                            <AvatarImage src={post.creator.avatar_url} alt="" />
+                        )}
+                        <AvatarFallback className="text-xs">
+                            {post.creator.display_name.slice(0, 1)}
+                        </AvatarFallback>
+                    </Avatar>
                 )}
-                <p className="text-xs text-muted-foreground">
-                    {formatDate(post.published_at)}
-                    {!post.locked && post.required_price > 0 && (
-                        <> · {formatYen(post.required_price)}〜</>
-                    )}
-                    {!!post.like_count && (
-                        <>
-                            {' · '}
-                            <Heart
-                                aria-label={
-                                    post.liked ? 'いいね済み' : undefined
-                                }
-                                className={cn(
-                                    'inline size-3 align-[-1px]',
-                                    post.liked && 'fill-current text-rose-500',
-                                )}
-                            />{' '}
+                <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="line-clamp-2 leading-snug font-bold">
+                        {post.title}
+                    </p>
+                    <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                        {showCreator && (
+                            <>
+                                <span className="truncate">
+                                    {post.creator.display_name}
+                                </span>
+                                <span aria-hidden>·</span>
+                            </>
+                        )}
+                        <span>{formatDate(post.published_at)}</span>
+                        {!!post.like_count && (
                             <span
                                 className={cn(
-                                    post.liked && 'font-medium text-rose-500',
+                                    'ml-1 inline-flex items-center gap-0.5',
+                                    post.liked && 'font-medium text-support',
                                 )}
                             >
+                                <Heart
+                                    aria-label={
+                                        post.liked ? 'いいね済み' : 'いいね'
+                                    }
+                                    className={cn(
+                                        'size-3',
+                                        post.liked && 'fill-current',
+                                    )}
+                                />
                                 {post.like_count}
                             </span>
-                        </>
+                        )}
+                    </p>
+                    {!post.locked && (
+                        <AccessBadge price={post.required_price} />
                     )}
-                </p>
+                </div>
             </div>
         </Link>
     );

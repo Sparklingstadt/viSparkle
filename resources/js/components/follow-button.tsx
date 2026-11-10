@@ -48,8 +48,7 @@ export function FollowButton({
 
     return (
         <Button
-            variant={followed ? 'outline' : 'default'}
-            size="sm"
+            variant={followed ? 'secondary' : 'outline'}
             onClick={toggle}
             disabled={pending !== null}
             aria-pressed={followed}

@@ -27,9 +27,15 @@ class PostController extends Controller
 
     public function index(Request $request): Response
     {
-        $posts = $request->user()->creator->posts()
+        $creator = $request->user()->creator;
+        $status = PostStatus::tryFrom((string) $request->query('status'));
+        $counts = $creator->posts()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        $posts = $creator->posts()
+            ->when($status, fn ($query, PostStatus $status) => $query->where('status', $status))
             ->latest('updated_at')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (Post $post) => [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -41,7 +47,15 @@ class PostController extends Controller
                 'like_count' => $post->like_count,
             ]);
 
-        return Inertia::render('creator/posts/index', ['posts' => $posts]);
+        return Inertia::render('creator/posts/index', [
+            'posts' => $posts,
+            'status' => $status?->value,
+            'counts' => [
+                'all' => (int) $counts->sum(),
+                'published' => (int) ($counts[PostStatus::Published->value] ?? 0),
+                'draft' => (int) ($counts[PostStatus::Draft->value] ?? 0),
+            ],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -78,9 +92,28 @@ class PostController extends Controller
                 'attachments' => $files->where('kind', PostFileKind::Attachment)->values()->map(fn (PostFile $file) => $this->fileData($file)),
             ],
             'priceOptions' => UpdatePostRequest::priceOptions($post),
+            'audiences' => $this->audiences($post),
             'categories' => self::categoryOptions($post->post_category_id),
             'creatorSlug' => $request->user()->creator->slug,
         ]);
+    }
+
+    /**
+     * Each price option with the plans at that price and how many active supporters could read at it (null: anyone).
+     *
+     * @return list<array{price: int, plans: list<string>, readers: int|null}>
+     */
+    private function audiences(Post $post): array
+    {
+        $creator = $post->creator;
+        $plans = $creator->plans()->get(['name', 'price']);
+        $supportPrices = $creator->supports()->active()->pluck('price')->map(fn ($price) => (int) $price);
+
+        return array_map(fn (int $price) => [
+            'price' => $price,
+            'plans' => array_values(array_map('strval', $plans->where('price', $price)->pluck('name')->all())),
+            'readers' => $price === 0 ? null : $supportPrices->filter(fn (int $paid) => $paid >= $price)->count(),
+        ], UpdatePostRequest::priceOptions($post));
     }
 
     public function update(UpdatePostRequest $request, Post $post): RedirectResponse

@@ -1,10 +1,12 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { FilePlus2, Heart } from 'lucide-react';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
+import { AccessBadge } from '@/components/access-badge';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDate, formatYen } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import type { Paginated, PostStatus } from '@/types';
 
@@ -19,76 +21,124 @@ type Row = {
     like_count: number;
 };
 
-export default function PostsIndex({ posts }: { posts: Paginated<Row> }) {
+type StatusFilter = 'published' | 'draft' | null;
+
+const statusTabs: { label: string; status: StatusFilter }[] = [
+    { label: 'すべて', status: null },
+    { label: '公開中', status: 'published' },
+    { label: '下書き', status: 'draft' },
+];
+
+export default function PostsIndex({
+    posts,
+    status,
+    counts,
+}: {
+    posts: Paginated<Row>;
+    status: StatusFilter;
+    counts: { all: number; published: number; draft: number };
+}) {
     return (
         <>
             <Head title="投稿管理" />
 
-            <div className="space-y-6 p-4">
+            <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading title="投稿管理" />
                     <Form {...PostController.store.form()}>
                         {({ processing }) => (
                             <Button disabled={processing}>
                                 <FilePlus2 />
-                                新規作成
+                                投稿を書く
                             </Button>
                         )}
                     </Form>
                 </div>
 
+                <nav
+                    aria-label="状態で絞り込む"
+                    className="flex gap-1 self-start rounded-full bg-muted p-1"
+                >
+                    {statusTabs.map((tab) => (
+                        <Link
+                            key={tab.label}
+                            href={index({
+                                query: tab.status ? { status: tab.status } : {},
+                            })}
+                            aria-current={
+                                tab.status === status ? 'page' : undefined
+                            }
+                            className={cn(
+                                'rounded-full px-4 py-1.5 text-sm font-bold transition-colors',
+                                tab.status === status
+                                    ? 'bg-background shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            {tab.label}{' '}
+                            <span className="font-normal">
+                                {counts[tab.status ?? 'all']}
+                            </span>
+                        </Link>
+                    ))}
+                </nav>
+
                 {posts.data.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                        まだ投稿がありません。
+                        {status === null
+                            ? 'まだ投稿がありません。'
+                            : 'この状態の投稿はありません。'}
                     </p>
                 ) : (
-                    <ul className="divide-y rounded-xl border">
+                    <ul className="divide-y overflow-hidden rounded-2xl border">
                         {posts.data.map((post) => (
                             <li key={post.id}>
                                 <Link
                                     href={PostController.edit(post.id)}
-                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted"
+                                    className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-muted"
                                 >
-                                    <div className="min-w-0">
-                                        <p className="truncate font-medium">
+                                    <div className="min-w-0 flex-1 basis-60 space-y-1.5">
+                                        <p className="truncate font-bold">
                                             {post.title}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {post.status === 'published'
-                                                ? `公開日 ${formatDate(post.published_at)}`
-                                                : `更新日 ${formatDate(post.updated_at)}`}
-                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                            <span
+                                                className={cn(
+                                                    'inline-flex h-6 items-center rounded-full px-2.5 font-bold',
+                                                    post.status === 'published'
+                                                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                                        : 'bg-muted text-muted-foreground',
+                                                )}
+                                            >
+                                                {post.status === 'published'
+                                                    ? '公開中'
+                                                    : '下書き'}
+                                            </span>
+                                            <AccessBadge
+                                                price={post.required_price}
+                                            />
+                                            {post.hidden && (
+                                                <Badge variant="destructive">
+                                                    非公開（運営）
+                                                </Badge>
+                                            )}
+                                            <span>
+                                                {post.status === 'published'
+                                                    ? `公開日 ${formatDate(post.published_at)}`
+                                                    : `${formatDate(post.updated_at)} に編集`}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex shrink-0 items-center gap-2">
-                                        <span
-                                            className="flex items-center gap-1 text-xs text-muted-foreground"
-                                            aria-label={`いいね ${post.like_count}件`}
-                                        >
-                                            <Heart className="size-3" />
-                                            {post.like_count}
-                                        </span>
-                                        {post.hidden && (
-                                            <Badge variant="destructive">
-                                                非公開（運営）
-                                            </Badge>
-                                        )}
-                                        <Badge variant="outline">
-                                            {post.required_price === 0
-                                                ? '全体公開'
-                                                : `${formatYen(post.required_price)}〜`}
-                                        </Badge>
-                                        <Badge
-                                            variant={
-                                                post.status === 'published'
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {post.status === 'published'
-                                                ? '公開中'
-                                                : '下書き'}
-                                        </Badge>
-                                    </div>
+                                    <span
+                                        className="flex w-14 items-center gap-1 text-sm font-bold text-support"
+                                        aria-label={`いいね ${post.like_count}件`}
+                                    >
+                                        <Heart className="size-3.5 fill-current" />
+                                        {post.like_count}
+                                    </span>
+                                    <span className="inline-flex h-9 items-center rounded-full border px-4 text-sm font-bold">
+                                        編集
+                                    </span>
                                 </Link>
                             </li>
                         ))}

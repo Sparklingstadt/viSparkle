@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatBytes, formatYen } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { login } from '@/routes';
 import { index as cartIndex } from '@/routes/cart';
 import { store as storeCartItem } from '@/routes/cart/items';
@@ -101,9 +102,9 @@ export default function ProductPage({
                     ← {creator.display_name} さんのショップ
                 </Link>
 
-                <div className="grid gap-8 md:grid-cols-2">
+                <div className="grid gap-10 md:grid-cols-2">
                     <div className="space-y-2">
-                        <div className="aspect-square overflow-hidden rounded-xl border bg-muted">
+                        <div className="aspect-square overflow-hidden rounded-3xl bg-secondary">
                             {product.images[image] && (
                                 <img
                                     src={product.images[image]}
@@ -137,8 +138,8 @@ export default function ProductPage({
                         )}
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="space-y-1">
+                    <div className="space-y-6">
+                        <div className="space-y-2">
                             <div className="flex flex-wrap gap-1">
                                 {digital && (
                                     <Badge variant="outline">デジタル</Badge>
@@ -155,102 +156,65 @@ export default function ProductPage({
                                     </Badge>
                                 )}
                             </div>
-                            <h1 className="text-2xl font-bold">
+                            <h1 className="text-3xl leading-snug font-black">
                                 {product.name}
                             </h1>
                         </div>
-                        <p className="text-2xl font-bold">
+                        <p className="text-3xl font-bold">
                             {formatYen(product.price)}
                             <span className="text-sm font-normal text-muted-foreground">
                                 {' '}
                                 税込
                             </span>
                         </p>
-                        {digital ? (
-                            <dl className="space-y-1 text-sm">
-                                <div className="flex gap-4">
-                                    <dt className="w-16 text-muted-foreground">
-                                        お渡し
-                                    </dt>
-                                    <dd>ダウンロード販売</dd>
-                                </div>
-                                <div className="flex gap-4">
-                                    <dt className="w-16 text-muted-foreground">
-                                        ファイル
-                                    </dt>
-                                    <dd>
-                                        {product.files.length} 件（合計{' '}
-                                        {formatBytes(product.files_total_size)}
-                                        ）
-                                        {extensions.length > 0 &&
-                                            ` ・ ${extensions.join(' / ')}`}
-                                    </dd>
-                                </div>
-                            </dl>
-                        ) : (
-                            <dl className="space-y-1 text-sm">
-                                <div className="flex gap-4">
-                                    <dt className="w-12 text-muted-foreground">
-                                        送料
-                                    </dt>
-                                    <dd>{formatYen(shippingFee)}</dd>
-                                </div>
-                                <div className="flex gap-4">
-                                    <dt className="w-12 text-muted-foreground">
-                                        在庫
-                                    </dt>
-                                    <dd>
-                                        {soldOut
-                                            ? '売り切れ'
-                                            : `${variant.stock} 点`}
-                                    </dd>
-                                </div>
-                            </dl>
-                        )}
 
                         {kinds && (
                             <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">
-                                    種類
-                                </p>
+                                <p className="text-sm font-bold">種類</p>
                                 <div
                                     role="radiogroup"
                                     aria-label="種類"
-                                    className="flex flex-wrap gap-2"
+                                    className="grid grid-cols-3 gap-2 sm:grid-cols-4"
                                 >
                                     {product.variants.map((v) => (
-                                        <Button
+                                        <button
                                             key={v.id}
                                             type="button"
                                             role="radio"
                                             aria-checked={v.id === variant.id}
-                                            size="sm"
-                                            variant={
-                                                v.id === variant.id
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            className={
-                                                v.stock < 1
-                                                    ? 'text-muted-foreground line-through'
-                                                    : ''
-                                            }
                                             onClick={() => {
                                                 setVariantId(v.id);
                                                 setQuantity(1);
                                             }}
+                                            className={cn(
+                                                'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center transition-colors',
+                                                v.id === variant.id
+                                                    ? 'border-2 border-primary bg-secondary'
+                                                    : v.stock < 1
+                                                      ? 'border border-dashed bg-muted/50 text-muted-foreground'
+                                                      : 'border hover:border-primary/50',
+                                            )}
                                         >
-                                            {v.name}
-                                        </Button>
+                                            <span
+                                                className={cn(
+                                                    'text-sm font-bold',
+                                                    v.stock < 1 &&
+                                                        'line-through',
+                                                )}
+                                            >
+                                                {v.name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {v.stock < 1
+                                                    ? '売り切れ'
+                                                    : v.stock <= 3
+                                                      ? `残り ${v.stock}`
+                                                      : '在庫あり'}
+                                            </span>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
-                        )}
-
-                        {product.description && (
-                            <p className="text-sm whitespace-pre-wrap">
-                                {product.description}
-                            </p>
                         )}
 
                         {shopNotice && (
@@ -313,10 +277,12 @@ export default function ProductPage({
                                     </div>
                                 )}
                                 <Button
-                                    className="w-full"
+                                    size="lg"
+                                    className="h-12 w-full text-base"
                                     disabled={soldOut || isOwner || processing}
                                     onClick={addToCart}
                                 >
+                                    <ShoppingCart className="size-5" />
                                     {soldOut ? '売り切れ' : 'カートに入れる'}
                                 </Button>
                                 {isOwner && (
@@ -333,6 +299,56 @@ export default function ProductPage({
                                     <Link href={cartIndex()}>カートを見る</Link>
                                 </Button>
                             </div>
+                        )}
+                        {digital ? (
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 rounded-2xl bg-secondary px-5 py-4 text-sm">
+                                <div className="contents">
+                                    <dt className="text-muted-foreground">
+                                        お渡し
+                                    </dt>
+                                    <dd>ダウンロード販売</dd>
+                                </div>
+                                <div className="contents">
+                                    <dt className="text-muted-foreground">
+                                        ファイル
+                                    </dt>
+                                    <dd>
+                                        {product.files.length} 件（合計{' '}
+                                        {formatBytes(product.files_total_size)}
+                                        ）
+                                        {extensions.length > 0 &&
+                                            ` ・ ${extensions.join(' / ')}`}
+                                    </dd>
+                                </div>
+                            </dl>
+                        ) : (
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 rounded-2xl bg-secondary px-5 py-4 text-sm">
+                                <div className="contents">
+                                    <dt className="text-muted-foreground">
+                                        送料
+                                    </dt>
+                                    <dd>{formatYen(shippingFee)}</dd>
+                                </div>
+                                <div className="contents">
+                                    <dt className="text-muted-foreground">
+                                        在庫
+                                    </dt>
+                                    <dd>
+                                        {soldOut
+                                            ? '売り切れ'
+                                            : `${variant.stock} 点`}
+                                    </dd>
+                                </div>
+                            </dl>
+                        )}
+
+                        {product.description && (
+                            <section className="space-y-2 border-t pt-5">
+                                <h2 className="font-bold">商品について</h2>
+                                <p className="leading-relaxed whitespace-pre-wrap">
+                                    {product.description}
+                                </p>
+                            </section>
                         )}
                         <div className="flex justify-end">
                             <ReportDialog

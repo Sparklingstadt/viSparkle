@@ -1,10 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { PostCard } from '@/components/post-card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { feed, home } from '@/routes';
-import type { Paginated, PostSummary } from '@/types';
+import { show } from '@/routes/creators';
+import type { CreatorSummary, Paginated, PostSummary } from '@/types';
 
 type FeedTab = 'all' | 'supporting';
 
@@ -16,9 +18,11 @@ const feedTabs: { label: string; tab: FeedTab }[] = [
 export default function Feed({
     posts,
     tab,
+    creators,
 }: {
     posts: Paginated<PostSummary>;
     tab: FeedTab;
+    creators: (CreatorSummary & { supporting: boolean })[];
 }) {
     return (
         <>
@@ -30,16 +34,21 @@ export default function Feed({
                         title="フィード"
                         description="支援中・フォロー中のクリエイターの新着投稿"
                     />
-                    <div className="flex gap-1" role="tablist">
+                    <div
+                        className="flex gap-1 rounded-full bg-muted p-1"
+                        role="tablist"
+                    >
                         {feedTabs.map((item) => (
                             <Button
                                 key={item.tab}
                                 size="sm"
                                 variant="ghost"
                                 asChild
-                                className={cn({
-                                    'bg-muted': item.tab === tab,
-                                })}
+                                className={cn(
+                                    'text-muted-foreground',
+                                    item.tab === tab &&
+                                        'bg-background text-foreground shadow-xs hover:bg-background',
+                                )}
                             >
                                 <Link
                                     href={feed({
@@ -60,6 +69,60 @@ export default function Feed({
                     </div>
                 </div>
 
+                {creators.length > 0 && (
+                    <ul
+                        aria-label="支援中・フォロー中のクリエイター"
+                        className="flex gap-4 overflow-x-auto pb-1"
+                    >
+                        {creators.map((creator) => (
+                            <li key={creator.slug} className="shrink-0">
+                                <Link
+                                    href={show(creator.slug)}
+                                    className="flex w-20 flex-col items-center gap-1.5 text-center"
+                                >
+                                    <span
+                                        className={cn(
+                                            'rounded-full p-0.5',
+                                            creator.supporting
+                                                ? 'ring-2 ring-support'
+                                                : 'ring-1 ring-border',
+                                        )}
+                                    >
+                                        <Avatar className="size-14">
+                                            {creator.avatar_url && (
+                                                <AvatarImage
+                                                    src={creator.avatar_url}
+                                                    alt=""
+                                                />
+                                            )}
+                                            <AvatarFallback>
+                                                {creator.display_name.slice(
+                                                    0,
+                                                    1,
+                                                )}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </span>
+                                    <span className="line-clamp-2 text-xs">
+                                        {creator.display_name}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'text-[10px] font-bold',
+                                            creator.supporting
+                                                ? 'text-support'
+                                                : 'text-muted-foreground',
+                                        )}
+                                    >
+                                        {creator.supporting
+                                            ? '支援中'
+                                            : 'フォロー中'}
+                                    </span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                )}
                 {posts.data.length === 0 ? (
                     tab === 'supporting' ? (
                         <p className="text-sm text-muted-foreground">

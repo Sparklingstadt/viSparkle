@@ -1,10 +1,12 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Check } from 'lucide-react';
+import { useState } from 'react';
 import Heading from '@/components/heading';
 import { OrderStatusBadge } from '@/components/order-status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatYen } from '@/lib/format';
-import { index, show } from '@/routes/creator/orders';
+import { cn } from '@/lib/utils';
+import { index, ship, show } from '@/routes/creator/orders';
 import type { OrderStatusValue, Paginated } from '@/types';
 
 type Row = {
@@ -16,6 +18,7 @@ type Row = {
     created_at: string;
     buyer_name: string | null;
     shipping_name: string | null;
+    can_ship: boolean;
     items: { id: number; product_name: string; quantity: number }[];
 };
 
@@ -23,11 +26,26 @@ export default function CreatorOrdersIndex({
     orders,
     status,
     statuses,
+    counts,
 }: {
     orders: Paginated<Row>;
     status: OrderStatusValue | null;
     statuses: { value: OrderStatusValue; label: string }[];
+    counts: Record<OrderStatusValue | 'all', number>;
 }) {
+    const [shipping, setShipping] = useState<number | null>(null);
+    // Without a tracking number; it can still be added from the order page.
+    const markShipped = (id: number) =>
+        router.post(
+            ship(id).url,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setShipping(id),
+                onFinish: () => setShipping(null),
+            },
+        );
+
     return (
         <>
             <Head title="注文管理" />
@@ -35,78 +53,107 @@ export default function CreatorOrdersIndex({
             <div className="space-y-6 p-4">
                 <Heading title="注文管理" />
 
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        asChild
-                        size="sm"
-                        variant={status === null ? 'default' : 'outline'}
-                    >
-                        <Link href={index()}>すべて</Link>
-                    </Button>
-                    {statuses.map((option) => (
-                        <Button
-                            key={option.value}
-                            asChild
-                            size="sm"
-                            variant={
-                                status === option.value ? 'default' : 'outline'
-                            }
-                        >
+                <nav
+                    aria-label="状態で絞り込む"
+                    className="flex flex-wrap gap-1 border-b"
+                >
+                    {[{ value: null, label: 'すべて' }, ...statuses].map(
+                        (option) => (
                             <Link
+                                key={option.value ?? 'all'}
                                 href={index({
-                                    query: { status: option.value },
+                                    query: option.value
+                                        ? { status: option.value }
+                                        : {},
                                 })}
+                                aria-current={
+                                    status === option.value ? 'page' : undefined
+                                }
+                                className={cn(
+                                    '-mb-px flex items-center gap-2 border-b-[3px] px-3 py-2.5 text-sm font-bold',
+                                    status === option.value
+                                        ? 'border-primary'
+                                        : 'border-transparent text-muted-foreground hover:text-foreground',
+                                )}
                             >
                                 {option.label}
+                                <span
+                                    className={cn(
+                                        'min-w-6 rounded-full px-1.5 text-center text-xs',
+                                        status === option.value
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted',
+                                    )}
+                                >
+                                    {counts[option.value ?? 'all']}
+                                </span>
                             </Link>
-                        </Button>
-                    ))}
-                </div>
+                        ),
+                    )}
+                </nav>
 
                 {orders.data.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         該当する注文はありません。
                     </p>
                 ) : (
-                    <ul className="divide-y rounded-xl border">
+                    <ul className="space-y-3">
                         {orders.data.map((order) => (
-                            <li key={order.id}>
+                            <li
+                                key={order.id}
+                                className="flex flex-wrap items-center gap-4 rounded-2xl border px-5 py-4"
+                            >
                                 <Link
                                     href={show(order.id)}
-                                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted"
+                                    className="min-w-0 flex-1 basis-72 space-y-1.5"
                                 >
-                                    <div className="min-w-0 space-y-1">
-                                        <p className="text-xs text-muted-foreground">
-                                            #{order.id} ·{' '}
-                                            {formatDate(order.created_at)} ·{' '}
+                                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        <span className="font-bold text-primary">
+                                            注文 #{order.id}
+                                        </span>
+                                        <span>
                                             {order.shipping_name ??
                                                 order.buyer_name ??
                                                 '（退会したユーザー）'}
-                                        </p>
-                                        <p className="truncate font-medium">
-                                            {order.items
-                                                .map(
-                                                    (item) =>
-                                                        `${item.product_name} × ${item.quantity}`,
-                                                )
-                                                .join('、')}
-                                        </p>
-                                    </div>
-                                    <div className="flex shrink-0 flex-col items-end gap-1">
+                                        </span>
+                                        <span>
+                                            · {formatDate(order.created_at)}
+                                        </span>
                                         <OrderStatusBadge
                                             status={order.status}
                                             label={order.status_label}
                                         />
                                         {order.support_amount > 0 && (
-                                            <Badge variant="outline">
-                                                応援あり
-                                            </Badge>
+                                            <span className="rounded-full bg-support/10 px-2 py-0.5 font-bold text-support">
+                                                応援{' '}
+                                                {formatYen(
+                                                    order.support_amount,
+                                                )}{' '}
+                                                つき
+                                            </span>
                                         )}
-                                        <span className="text-sm">
-                                            {formatYen(order.total)}
-                                        </span>
-                                    </div>
+                                    </p>
+                                    <p className="truncate font-bold hover:underline">
+                                        {order.items
+                                            .map(
+                                                (item) =>
+                                                    `${item.product_name} × ${item.quantity}`,
+                                            )
+                                            .join('、')}
+                                    </p>
                                 </Link>
+                                <span className="text-lg font-bold">
+                                    {formatYen(order.total)}
+                                </span>
+                                {order.can_ship && (
+                                    <Button
+                                        disabled={shipping === order.id}
+                                        onClick={() => markShipped(order.id)}
+                                    >
+                                        <Check />
+                                        発送済みにする
+                                    </Button>
+                                )}
                             </li>
                         ))}
                     </ul>

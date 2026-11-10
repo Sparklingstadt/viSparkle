@@ -64,7 +64,7 @@ export function ProductLikeButton({
             data-test="product-like-button"
             className={cn('h-7 gap-1 px-2 disabled:opacity-100', className)}
         >
-            <Heart className={liked ? 'fill-current text-rose-500' : ''} />
+            <Heart className={liked ? 'fill-current text-support' : ''} />
             <span>{count}</span>
         </Button>
     );

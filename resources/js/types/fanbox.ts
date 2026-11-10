@@ -4,6 +4,13 @@ export type CreatorSummary = {
     avatar_url: string | null;
 };
 
+/** A creator as a card shows it: min_plan_price is the cheapest plan taking new supports, or null. */
+export type CreatorCard = CreatorSummary & {
+    header_url: string | null;
+    bio: string | null;
+    min_plan_price: number | null;
+};
+
 export type CreatorProfile = CreatorSummary & {
     bio: string | null;
     header_url: string | null;
@@ -137,6 +144,7 @@ export type CartGroup = {
     shipping_fee: number;
     total: number;
     purchasable: boolean;
+    accepts_support: boolean;
 };
 
 export type OrderStatusValue =

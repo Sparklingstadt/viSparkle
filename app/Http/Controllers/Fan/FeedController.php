@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Fan;
 
 use App\Http\Controllers\Controller;
+use App\Models\Creator;
 use App\Models\Follow;
 use App\Models\Post;
 use App\Models\PostLike;
@@ -41,6 +42,18 @@ class FeedController extends Controller
         $liked = PostLike::idsLikedBy($user, $posts->pluck('id'));
         $posts->through(fn (Post $post) => $presenter->summary($post, $entitlement, $liked));
 
-        return Inertia::render('fan/feed', ['posts' => $posts, 'tab' => $tab]);
+        // The row of avatars above the posts: supported creators first, then the ones only followed.
+        $supportedIds = (clone $supported)->pluck('creator_id')->all();
+        $creators = Creator::open()
+            ->where(fn ($query) => $query
+                ->whereIn('id', $supportedIds)
+                ->orWhereIn('id', Follow::query()->where('user_id', $user->id)->select('creator_id')))
+            ->orderBy('display_name')
+            ->get()
+            ->map(fn (Creator $creator) => [...$creator->toSummary(), 'supporting' => in_array($creator->id, $supportedIds, true)])
+            ->sortByDesc('supporting')
+            ->values();
+
+        return Inertia::render('fan/feed', ['posts' => $posts, 'tab' => $tab, 'creators' => $creators]);
     }
 }

@@ -117,3 +117,24 @@ it('keeps the tab in pagination links', function () {
     $this->actingAs($fan)->get(route('feed', ['tab' => 'supporting']))
         ->assertInertia(fn ($page) => $page->where('posts.next_page_url', fn (string $url) => str_contains($url, 'tab=supporting')));
 });
+
+it('lists the supported creators first, then followed ones, without closed creators', function () {
+    $fan = User::factory()->create();
+    $supported = Creator::factory()->create();
+    Support::factory()->for($fan)->forPlan(Plan::factory()->for($supported)->create())->active()->create();
+    $followed = Creator::factory()->create();
+    $followed->follow($fan);
+    $both = Creator::factory()->create();
+    Support::factory()->for($fan)->forPlan(Plan::factory()->for($both)->create())->active()->create();
+    $both->follow($fan);
+    $closed = Creator::factory()->closed()->create();
+    $closed->follow($fan);
+
+    $this->actingAs($fan)->get(route('feed'))
+        ->assertInertia(fn ($page) => $page
+            ->has('creators', 3)
+            ->where('creators.0.supporting', true)
+            ->where('creators.1.supporting', true)
+            ->where('creators.2.slug', $followed->slug)
+            ->where('creators.2.supporting', false));
+});

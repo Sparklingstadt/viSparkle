@@ -89,6 +89,8 @@ class CartController extends Controller
             'shipping_fee' => $group['shipping_fee'],
             'total' => $group['total'],
             'purchasable' => $group['purchasable'],
+            // Whether the confirm screen will offer a support amount on top, so the cart can say so beforehand.
+            'accepts_support' => config('fanbox.billing.support_enabled') && $group['creator']->accepts_support,
         ];
     }
 }
