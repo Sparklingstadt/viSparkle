@@ -53,7 +53,7 @@ export function LikeButton({ post }: { post: PostSummary }) {
                 aria-label={liked ? 'いいねを取り消す' : 'いいねする'}
                 data-test="like-button"
             >
-                <Heart className={liked ? 'fill-current text-rose-500' : ''} />
+                <Heart className={liked ? 'fill-current text-support' : ''} />
                 <span>{count}</span>
             </Button>
             {post.locked && !post.liked && (
