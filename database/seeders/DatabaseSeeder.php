@@ -62,6 +62,8 @@ class DatabaseSeeder extends Seeder
 
         if (app()->isLocal()) {
             $this->call(DemoShowcaseSeeder::class);
+            // Last, so the posts of every demo seeder above get a cover. Local only: drawing them takes a while.
+            $this->call(DemoPostCoversSeeder::class);
         }
     }
 }
