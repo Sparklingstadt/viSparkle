@@ -29,10 +29,16 @@ export default function CreatorOrdersIndex({
     counts,
 }: {
     orders: Paginated<Row>;
-    status: OrderStatusValue | null;
+    status: OrderStatusValue | 'all';
     statuses: { value: OrderStatusValue; label: string }[];
     counts: Record<OrderStatusValue | 'all', number>;
 }) {
+    // Orders waiting to be shipped come first (the list opens there); "all" comes last.
+    const tabs: { value: OrderStatusValue | 'all'; label: string }[] = [
+        { value: 'paid', label: '発送待ち' },
+        ...statuses.filter((option) => option.value !== 'paid'),
+        { value: 'all', label: 'すべて' },
+    ];
     const [shipping, setShipping] = useState<number | null>(null);
     // Without a tracking number; it can still be added from the order page.
     const markShipped = (id: number) =>
@@ -57,40 +63,45 @@ export default function CreatorOrdersIndex({
                     aria-label="状態で絞り込む"
                     className="flex flex-wrap gap-1 border-b"
                 >
-                    {[{ value: null, label: 'すべて' }, ...statuses].map(
-                        (option) => (
-                            <Link
-                                key={option.value ?? 'all'}
-                                href={index({
-                                    query: option.value
-                                        ? { status: option.value }
-                                        : {},
-                                })}
-                                aria-current={
-                                    status === option.value ? 'page' : undefined
-                                }
+                    {tabs.map((option) => (
+                        <Link
+                            key={option.value}
+                            href={index({
+                                query:
+                                    option.value === 'paid'
+                                        ? {}
+                                        : { status: option.value },
+                            })}
+                            aria-current={
+                                status === option.value ? 'page' : undefined
+                            }
+                            className={cn(
+                                '-mb-px flex items-center gap-2 border-b-[3px] px-3 py-2.5 text-sm font-bold',
+                                status === option.value
+                                    ? 'border-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            {option.label}
+                            <span
                                 className={cn(
-                                    '-mb-px flex items-center gap-2 border-b-[3px] px-3 py-2.5 text-sm font-bold',
+                                    'min-w-6 rounded-full px-1.5 text-center text-xs',
                                     status === option.value
-                                        ? 'border-primary'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground',
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted',
                                 )}
                             >
-                                {option.label}
-                                <span
-                                    className={cn(
-                                        'min-w-6 rounded-full px-1.5 text-center text-xs',
-                                        status === option.value
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted',
-                                    )}
-                                >
-                                    {counts[option.value ?? 'all']}
-                                </span>
-                            </Link>
-                        ),
-                    )}
+                                {counts[option.value]}
+                            </span>
+                        </Link>
+                    ))}
                 </nav>
+
+                {status === 'paid' && (
+                    <p className="text-sm text-muted-foreground">
+                        支払いが終わり、発送を待っている注文です。古い順に並べています。
+                    </p>
+                )}
 
                 {orders.data.length === 0 ? (
                     <p className="text-sm text-muted-foreground">

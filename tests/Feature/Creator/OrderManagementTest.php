@@ -146,10 +146,11 @@ it('filters orders by status', function () {
         $this->get(route('creator.orders.index').$query)->assertOk()->viewData('page')['props']['orders']['data'],
     )->pluck('id')->all();
 
-    expect($ids())->toEqualCanonicalizing([$paid->id, $shipped->id, $refunded->id])
+    expect($ids())->toBe([$paid->id])
+        ->and($ids('?status=all'))->toEqualCanonicalizing([$paid->id, $shipped->id, $refunded->id])
         ->and($ids('?status=paid'))->toBe([$paid->id])
         ->and($ids('?status=pending'))->toBe([$pending->id])
-        ->and($ids('?status=bogus'))->toEqualCanonicalizing([$paid->id, $shipped->id, $refunded->id]);
+        ->and($ids('?status=bogus'))->toBe([$paid->id]);
 });
 
 it('counts orders per status and marks the rows that can be shipped from the list', function () {
@@ -168,12 +169,21 @@ it('counts orders per status and marks the rows that can be shipped from the lis
                 && collect($rows)->firstWhere('id', $digitalOnly->id)['can_ship'] === false));
 });
 
-it('paginates 20 per page, newest first', function () {
-    Order::factory()->count(21)->paid()->for($this->creator)->sequence(fn ($s) => ['created_at' => now()->subMinutes(30 - $s->index)])->create();
+it('paginates 20 per page, orders to ship oldest first and the others newest first', function () {
+    $orders = Order::factory()->count(21)->paid()->for($this->creator)->sequence(fn ($s) => ['created_at' => now()->subMinutes(30 - $s->index)])->create();
+    $shipped = Order::factory()->count(2)->shipped()->for($this->creator)->sequence(fn ($s) => ['created_at' => now()->subMinutes(5 - $s->index)])->create();
 
     $this->get(route('creator.orders.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'paid')
         ->has('orders.data', 20)
+        ->where('orders.data.0.id', $orders->first()->id)
         ->where('orders.last_page', 2));
+
+    $this->get(route('creator.orders.index', ['status' => 'shipped']))->assertInertia(fn (Assert $page) => $page
+        ->where('orders.data.0.id', $shipped->last()->id));
+
+    $this->get(route('creator.orders.index', ['status' => 'all']))->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'all'));
 });
 
 it('requires a creator', function () {
