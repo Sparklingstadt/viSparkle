@@ -20,7 +20,9 @@ class OrderController extends Controller
 
     public function index(Request $request): Response
     {
-        $status = OrderStatus::tryFrom((string) $request->query('status'));
+        // The list opens on the orders waiting to be shipped; "all" shows every order that was paid.
+        $all = $request->query('status') === 'all';
+        $status = $all ? null : (OrderStatus::tryFrom((string) $request->query('status')) ?? OrderStatus::Paid);
 
         $orders = $request->user()->creator->orders()
             ->when(
@@ -29,8 +31,12 @@ class OrderController extends Controller
                 fn ($query) => $query->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded]),
             )
             ->with(['items', 'user'])
-            ->latest()
-            ->latest('id')
+            // Orders to ship are worked through oldest first; the other lists show the newest first.
+            ->when(
+                $status === OrderStatus::Paid,
+                fn ($query) => $query->oldest()->oldest('id'),
+                fn ($query) => $query->latest()->latest('id'),
+            )
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Order $order) => [
@@ -59,7 +65,7 @@ class OrderController extends Controller
                 'all' => (int) collect([OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])->sum(fn (OrderStatus $case) => $counts[$case->value] ?? 0),
                 ...collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $case) => [$case->value => (int) ($counts[$case->value] ?? 0)])->all(),
             ],
-            'status' => $status?->value,
+            'status' => $status->value ?? 'all',
             'statuses' => collect(OrderStatus::cases())->map(fn (OrderStatus $case) => ['value' => $case->value, 'label' => $case->label()])->values(),
         ]);
     }
