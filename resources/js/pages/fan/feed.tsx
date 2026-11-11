@@ -22,7 +22,7 @@ export default function Feed({
 }: {
     posts: Paginated<PostSummary>;
     tab: FeedTab;
-    creators: (CreatorSummary & { supporting: boolean })[];
+    creators: (CreatorSummary & { supporting: boolean; has_new: boolean })[];
 }) {
     return (
         <>
@@ -82,7 +82,7 @@ export default function Feed({
                                 >
                                     <span
                                         className={cn(
-                                            'rounded-full p-0.5',
+                                            'relative rounded-full p-0.5',
                                             creator.supporting
                                                 ? 'ring-2 ring-support'
                                                 : 'ring-1 ring-border',
@@ -102,6 +102,13 @@ export default function Feed({
                                                 )}
                                             </AvatarFallback>
                                         </Avatar>
+                                        {creator.has_new && (
+                                            <span className="absolute top-0 right-0 size-3.5 rounded-full border-2 border-background bg-primary">
+                                                <span className="sr-only">
+                                                    新着あり
+                                                </span>
+                                            </span>
+                                        )}
                                     </span>
                                     <span className="line-clamp-2 text-xs">
                                         {creator.display_name}

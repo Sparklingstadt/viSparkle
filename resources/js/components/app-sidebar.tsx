@@ -73,6 +73,12 @@ const fanNavItems: NavItem[] = [
 ];
 
 const creatorNavItems: NavItem[] = [
+    // The creator's starting point: this month's figures and what to do next.
+    {
+        title: 'クリエイターのホーム',
+        href: creatorEarnings(),
+        icon: Wallet,
+    },
     {
         title: 'クリエイター管理',
         href: creatorProfile(),
@@ -102,11 +108,6 @@ const creatorNavItems: NavItem[] = [
         title: '支援者',
         href: creatorSupporters(),
         icon: Users,
-    },
-    {
-        title: '収益',
-        href: creatorEarnings(),
-        icon: Wallet,
     },
 ];
 

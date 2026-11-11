@@ -138,3 +138,21 @@ it('lists the supported creators first, then followed ones, without closed creat
             ->where('creators.2.slug', $followed->slug)
             ->where('creators.2.supporting', false));
 });
+
+it('marks the creators who published in the last three days', function () {
+    $fan = User::factory()->create();
+    $fresh = Creator::factory()->create(['display_name' => 'A']);
+    $fresh->follow($fan);
+    Post::factory()->for($fresh)->published()->create(['published_at' => now()->subDays(2)]);
+    $quiet = Creator::factory()->create(['display_name' => 'B']);
+    $quiet->follow($fan);
+    Post::factory()->for($quiet)->published()->create(['published_at' => now()->subDays(4)]);
+    Post::factory()->for($quiet)->published()->create(['published_at' => now()->subDay(), 'hidden_at' => now()]);
+    Post::factory()->for($quiet)->create(['published_at' => now()->subDay()]);
+
+    $this->actingAs($fan)->get(route('feed'))
+        ->assertInertia(fn ($page) => $page
+            ->where('creators.0.slug', $fresh->slug)
+            ->where('creators.0.has_new', true)
+            ->where('creators.1.has_new', false));
+});

@@ -82,12 +82,12 @@ export default function Earnings({
 
     return (
         <>
-            <Head title="収益" />
+            <Head title="クリエイターのホーム" />
 
             <div className="space-y-6 p-4">
                 <Heading
-                    title="収益"
-                    description={`運営手数料は売上の ${feePercent}% です。売上は返金分を除いた額です。`}
+                    title="クリエイターのホーム"
+                    description={`今月の数字とやることです。運営手数料は売上の ${feePercent}% で、売上は返金分を除いた額です。`}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -201,36 +201,41 @@ export default function Earnings({
                     </ul>
                 </section>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="text-left text-muted-foreground">
-                            <tr>
-                                <th className="py-2">月</th>
-                                <th className="text-right">売上（税込）</th>
-                                <th className="text-right">
-                                    運営手数料（目安）
-                                </th>
-                                <th className="text-right">受取額（目安）</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {months.map((row) => (
-                                <tr key={row.month}>
-                                    <td className="py-2">{row.month}</td>
-                                    <td className="text-right">
-                                        {formatYen(row.gross)}
-                                    </td>
-                                    <td className="text-right">
-                                        {formatYen(row.fee)}
-                                    </td>
-                                    <td className="text-right">
-                                        {formatYen(row.net)}
-                                    </td>
+                <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">月ごとの収益</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-left text-muted-foreground">
+                                <tr>
+                                    <th className="py-2">月</th>
+                                    <th className="text-right">売上（税込）</th>
+                                    <th className="text-right">
+                                        運営手数料（目安）
+                                    </th>
+                                    <th className="text-right">
+                                        受取額（目安）
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y">
+                                {months.map((row) => (
+                                    <tr key={row.month}>
+                                        <td className="py-2">{row.month}</td>
+                                        <td className="text-right">
+                                            {formatYen(row.gross)}
+                                        </td>
+                                        <td className="text-right">
+                                            {formatYen(row.fee)}
+                                        </td>
+                                        <td className="text-right">
+                                            {formatYen(row.net)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">ショップの売上</h2>
@@ -285,7 +290,7 @@ export default function Earnings({
 }
 
 Earnings.layout = {
-    breadcrumbs: [{ title: '収益', href: index() }],
+    breadcrumbs: [{ title: 'クリエイターのホーム', href: index() }],
 };
 
 const toneClass = {

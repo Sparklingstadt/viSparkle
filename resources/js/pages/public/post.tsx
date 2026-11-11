@@ -140,6 +140,20 @@ export default function PostPage({
 
                 {post.locked ? (
                     <>
+                        {/* Stands in for the first lines of the body, which is never sent to a viewer who can't read it. */}
+                        <div
+                            aria-hidden
+                            className="-mb-4 space-y-3.5 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+                        >
+                            {['w-full', 'w-11/12', 'w-full', 'w-3/4'].map(
+                                (width, index) => (
+                                    <div
+                                        key={index}
+                                        className={`h-3.5 rounded-full bg-muted-foreground/15 ${width}`}
+                                    />
+                                ),
+                            )}
+                        </div>
                         <LockedPost
                             requiredPrice={post.required_price}
                             supportPrice={viewerSupportPrice}

@@ -54,7 +54,12 @@ class DemoProductPainter
      */
     public function __construct(private string $slug, private array $palette)
     {
-        $this->motif = self::MOTIFS[$slug] ?? 'sparkle';
+        // The crowd creators (DemoCrowdSeeder) are named "<name>-<genre>"; their genre picks the motif.
+        $this->motif = self::MOTIFS[$slug] ?? match (true) {
+            str_ends_with($slug, '-photo') => 'camera',
+            str_ends_with($slug, '-craft') => 'sheep',
+            default => 'sparkle',
+        };
     }
 
     /**
@@ -90,6 +95,52 @@ class DemoProductPainter
         imagepng($out);
 
         return (string) ob_get_clean();
+    }
+
+    /**
+     * A 16:9 PNG cover for a post: a gradient in the creator's colours with their motif large on one side and two small
+     * ones tilted around it. The title seeds the layout, so every post of a creator looks a little different.
+     */
+    public function cover(string $title): string
+    {
+        [$width, $height] = [1280 * 2, 720 * 2];
+        [$main, $accent] = $this->palette;
+        $random = new Randomizer(new Mt19937(crc32("{$this->slug}/post/{$title}")));
+        $flipped = $random->getInt(0, 1) === 1;
+
+        $image = $this->layer($width, $height);
+        [$from, $to] = [$this->mix($main, '#ffffff', 0.55), $this->mix($accent, '#ffffff', 0.35)];
+
+        for ($x = 0; $x < $width; $x += 2) {
+            imagefilledrectangle($image, $x, 0, $x + 1, $height, $this->color($image, $this->mix($from, $to, $x / $width)));
+        }
+
+        $this->ground = $from;
+        $this->scatterOver($image, $random, $width, $height);
+
+        $side = $flipped ? 0.3 : 0.7;
+        $this->place($image, $this->rotate($this->motif([$main, $accent], 1000), $random->getInt(-12, 12)), (int) ($width * $side), (int) ($height * 0.52));
+
+        foreach ([[0.12, 0.25], [0.88, 0.78]] as [$x, $y]) {
+            $small = $this->rotate($this->motif([$accent, $main], 300), $random->getInt(-30, 30));
+            $this->place($image, $small, (int) ($width * ($flipped ? 1 - $x : $x)), (int) ($height * $y));
+        }
+
+        $out = imagecreatetruecolor(1280, 720);
+        imagecopyresampled($out, $image, 0, 0, 0, 0, 1280, 720, $width, $height);
+
+        ob_start();
+        imagepng($out);
+
+        return (string) ob_get_clean();
+    }
+
+    private function scatterOver(\GdImage $image, Randomizer $random, int $width, int $height): void
+    {
+        for ($i = 0; $i < 26; $i++) {
+            $d = $random->getInt(24, 120);
+            imagefilledellipse($image, $random->getInt(0, $width), $random->getInt(0, $height), $d, $d, $this->color($image, '#ffffff', 85));
+        }
     }
 
     private function scatter(\GdImage $image, Randomizer $random): void
@@ -557,6 +608,11 @@ class DemoProductPainter
 
     private function rotate(\GdImage $layer, float $angle): \GdImage
     {
+        // Nothing to do, and GD's imagerotate() can crash on a zero angle with nearest-neighbour interpolation.
+        if ($angle == 0.0) {
+            return $layer;
+        }
+
         // The picture is scaled down at the end anyway, so the quickest interpolation is enough.
         imagesetinterpolation($layer, IMG_NEAREST_NEIGHBOUR);
         $rotated = imagerotate($layer, $angle, (int) imagecolorallocatealpha($layer, 0, 0, 0, 127));
