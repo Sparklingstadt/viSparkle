@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Filesystem\BrowserSignedS3Adapter;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Support\Facades\Date;
@@ -68,6 +69,9 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // Outside production a relation read without eager loading throws, so N+1 queries surface in development and tests.
+        Model::preventLazyLoading(! app()->isProduction());
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
