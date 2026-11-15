@@ -10,7 +10,6 @@ use App\Billing\Status\CheckoutSessionStatus;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Models\Order;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -85,7 +84,7 @@ class OrderSync
             return $order;
         }
 
-        $order = $this->rememberPaymentIntent($order, $session);
+        $order = $this->orders->attachPaymentIntent($order, $session);
 
         if ($order->status !== OrderStatus::Canceled) {
             return $order;
@@ -126,22 +125,6 @@ class OrderSync
         $charge = $this->gateway->retrieveCharge($chargeId);
 
         return $charge->amountRefunded > 0 || $charge->disputed ? $this->orders->syncRefund($order, $charge) : $order;
-    }
-
-    /**
-     * Save the session's payment intent on a canceled order (it never got one), so it can be refunded.
-     */
-    private function rememberPaymentIntent(Order $order, CheckoutSessionData $session): Order
-    {
-        return DB::transaction(function () use ($order, $session) {
-            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-
-            if ($order->status === OrderStatus::Canceled && $order->stripe_payment_intent_id === null) {
-                $order->forceFill(['stripe_payment_intent_id' => $session->paymentIntentId])->save();
-            }
-
-            return $order;
-        });
     }
 
     /**
