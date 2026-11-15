@@ -3,7 +3,6 @@
 namespace App\Services\Billing;
 
 use App\Billing\BillingException;
-use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
 use App\Models\Payment;
@@ -18,12 +17,8 @@ use Illuminate\Support\Facades\Log;
  */
 class CreatorSuspension
 {
-    /** Stripe statuses of a subscription that can no longer charge. */
-    private const ENDED = ['canceled', 'incomplete_expired'];
-
     public function __construct(
-        private readonly PaymentGateway $gateway,
-        private readonly SubscriptionSync $sync,
+        private readonly SubscriptionCanceller $canceller,
         private readonly Refunds $refunds,
     ) {}
 
@@ -44,11 +39,11 @@ class CreatorSuspension
 
         $counts = ['cancelled' => 0, 'refunded' => 0, 'failed' => 0];
 
-        $supports = Support::active()->where('creator_id', $creator->id)->whereNotNull('stripe_subscription_id')->orderBy('id')->get();
+        $supports = Support::active()->billing()->where('creator_id', $creator->id)->orderBy('id')->get();
 
         foreach ($supports as $support) {
             try {
-                $this->cancelNow((string) $support->stripe_subscription_id);
+                $this->canceller->cancelNow((string) $support->stripe_subscription_id);
                 $counts['cancelled']++;
             } catch (BillingException $e) {
                 $counts['failed']++;
@@ -89,11 +84,11 @@ class CreatorSuspension
     {
         $counts = ['cancelled' => 0, 'failed' => 0];
 
-        $supports = Support::active()->where('user_id', $user->id)->whereNotNull('stripe_subscription_id')->orderBy('id')->get();
+        $supports = Support::active()->billing()->where('user_id', $user->id)->orderBy('id')->get();
 
         foreach ($supports as $support) {
             try {
-                $this->cancelNow((string) $support->stripe_subscription_id);
+                $this->canceller->cancelNow((string) $support->stripe_subscription_id);
                 $counts['cancelled']++;
             } catch (BillingException $e) {
                 $counts['failed']++;
@@ -102,23 +97,6 @@ class CreatorSuspension
         }
 
         return $counts;
-    }
-
-    /**
-     * @throws BillingException
-     */
-    private function cancelNow(string $subscriptionId): void
-    {
-        try {
-            $this->gateway->cancelSubscriptionNow($subscriptionId);
-        } catch (BillingException $e) {
-            // Stripe refuses to cancel a subscription that already ended (e.g. a rerun after a failed sync): carry on if so.
-            if (! in_array($this->gateway->retrieveSubscription($subscriptionId)->status, self::ENDED, true)) {
-                throw $e;
-            }
-        }
-
-        $this->sync->sync($subscriptionId);
     }
 
     private function logFailure(string $operation, Support $support, BillingException $e, ?Payment $payment = null): void

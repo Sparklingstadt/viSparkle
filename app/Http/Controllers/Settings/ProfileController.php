@@ -27,8 +27,8 @@ class ProfileController extends Controller
             'status' => $request->session()->get('status'),
             // Listed in the deletion dialog: these are cancelled at once when the account is deleted.
             'billingSupports' => Support::active()
+                ->billing()
                 ->where('user_id', $request->user()->id)
-                ->whereNotNull('stripe_subscription_id')
                 ->with('creator')
                 ->orderBy('id')
                 ->get()

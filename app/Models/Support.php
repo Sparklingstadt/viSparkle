@@ -59,6 +59,17 @@ class Support extends Model
         $query->where('status', SupportStatus::Active);
     }
 
+    /**
+     * Supports paid through a Stripe subscription.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function billing(Builder $query): void
+    {
+        $query->whereNotNull('stripe_subscription_id');
+    }
+
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
