@@ -1,8 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { CategoryLinks } from '@/components/category-links';
 import { PostCard } from '@/components/post-card';
 import { show } from '@/routes/post-categories';
 import type { CategorySummary, Paginated, PostSummary } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 export default function PostCategory({
     category,
@@ -40,16 +41,7 @@ export default function PostCategory({
                     </div>
                 )}
 
-                <div className="flex justify-between">
-                    {posts.prev_page_url ? (
-                        <Link href={posts.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {posts.next_page_url && (
-                        <Link href={posts.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={posts} />
             </div>
         </>
     );

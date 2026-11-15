@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import type { Paginated, PostStatus } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type Row = {
     id: number;
@@ -145,16 +146,7 @@ export default function PostsIndex({
                     </ul>
                 )}
 
-                <div className="flex justify-between">
-                    {posts.prev_page_url ? (
-                        <Link href={posts.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {posts.next_page_url && (
-                        <Link href={posts.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={posts} />
             </div>
         </>
     );

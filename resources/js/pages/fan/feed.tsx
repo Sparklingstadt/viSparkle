@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { feed, home } from '@/routes';
 import { show } from '@/routes/creators';
 import type { CreatorSummary, Paginated, PostSummary } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type FeedTab = 'all' | 'supporting';
 
@@ -154,16 +155,7 @@ export default function Feed({
                     </div>
                 )}
 
-                <div className="flex justify-between">
-                    {posts.prev_page_url ? (
-                        <Link href={posts.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {posts.next_page_url && (
-                        <Link href={posts.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={posts} />
             </div>
         </>
     );
