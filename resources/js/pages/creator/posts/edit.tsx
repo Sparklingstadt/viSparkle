@@ -1,31 +1,28 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Lock, Paperclip, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
-import PostFileController from '@/actions/App/Http/Controllers/Creator/PostFileController';
 import InputError from '@/components/input-error';
 import { PostEditor } from '@/components/tiptap/post-editor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatBytes, formatYen } from '@/lib/format';
 import { withoutUnknownImages } from '@/lib/tiptap';
-import { deletePostFile, uploadPostFile } from '@/lib/upload';
-import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import { show } from '@/routes/posts';
-import type {
-    CategoryOption,
-    EditorPost,
-    PostFileData,
-    TiptapNode,
-} from '@/types';
+import type { CategoryOption, EditorPost, TiptapNode } from '@/types';
 import { useConfirm } from '@/components/confirm-dialog';
 import { PostStatusBadge } from '@/components/post-status-badge';
 import { Textarea } from '@/components/ui/textarea';
 import { CategorySelect } from '@/components/category-select';
+import { AttachmentList } from '@/components/creator/post-form/attachment-list';
+import {
+    AudiencePicker,
+    type Audience,
+} from '@/components/creator/post-form/audience-picker';
+import { CoverPicker } from '@/components/creator/post-form/cover-picker';
+import { usePostFiles } from '@/hooks/use-post-files';
 
 type Action = 'save' | 'publish' | 'unpublish';
 
@@ -45,7 +42,7 @@ export default function PostEdit({
     creatorSlug,
 }: {
     post: EditorPost;
-    audiences: { price: number; plans: string[]; readers: number | null }[];
+    audiences: Audience[];
     categories: CategoryOption[];
     creatorSlug: string;
 }) {
@@ -58,46 +55,13 @@ export default function PostEdit({
         cover_file_id: post.cover_file_id,
         post_category_id: post.category_id ?? '',
     });
-    const [uploadedImages, setUploadedImages] = useState<PostFileData[]>([]);
-    const [uploadedAttachments, setUploadedAttachments] = useState<
-        PostFileData[]
-    >([]);
-    const [removedIds, setRemovedIds] = useState<number[]>([]);
-    const [uploading, setUploading] = useState(0);
-
-    const images = [...post.images, ...uploadedImages];
-    const attachments = [...post.attachments, ...uploadedAttachments].filter(
-        (file) => !removedIds.includes(file.id),
-    );
-    const imageUrls = Object.fromEntries(
-        images.map((image) => [image.id, image.url]),
-    );
-    const filesUrl = PostFileController.store.url(post.id);
-
-    const upload = async (
-        kind: PostFileData['kind'],
-        file: File,
-    ): Promise<PostFileData | null> => {
-        setUploading((n) => n + 1);
-
-        try {
-            return await uploadPostFile(filesUrl, kind, file);
-        } catch (error) {
-            toast.error(
-                `${file.name}: ${error instanceof Error ? error.message : 'アップロードに失敗しました。'}`,
-            );
-
-            return null;
-        } finally {
-            setUploading((n) => n - 1);
-        }
-    };
+    const files = usePostFiles(post);
 
     const submit = (action: Action) => {
         const cleaned = form.data.body
             ? withoutUnknownImages(
                   form.data.body,
-                  images.map((image) => image.id),
+                  files.images.map((image) => image.id),
               )
             : null;
 
@@ -114,41 +78,11 @@ export default function PostEdit({
         }));
         form.put(PostController.update.url(post.id), {
             preserveScroll: true,
-            onSuccess: () => {
-                setUploadedImages([]);
-                setUploadedAttachments([]);
-                setRemovedIds([]);
-            },
+            onSuccess: files.reset,
         });
     };
 
-    const removeAttachment = async (file: PostFileData) => {
-        if (
-            !(await confirm({
-                title: `${file.original_name} を削除しますか？`,
-                confirmLabel: '削除',
-                destructive: true,
-            }))
-        ) {
-            return;
-        }
-
-        try {
-            await deletePostFile(
-                PostFileController.destroy.url({
-                    post: post.id,
-                    file: file.id,
-                }),
-            );
-            setRemovedIds((ids) => [...ids, file.id]);
-        } catch (error) {
-            toast.error(
-                error instanceof Error ? error.message : '削除に失敗しました。',
-            );
-        }
-    };
-
-    const busy = form.processing || uploading > 0;
+    const busy = form.processing || files.uploading;
 
     return (
         <>
@@ -249,30 +183,11 @@ export default function PostEdit({
                             </Label>
                             <PostEditor
                                 initialContent={post.body}
-                                imageUrls={imageUrls}
+                                imageUrls={files.imageUrls}
                                 onChange={(doc) => form.setData('body', doc)}
-                                onUploadImage={async (file) => {
-                                    const uploaded = await upload(
-                                        'image',
-                                        file,
-                                    );
-
-                                    if (!uploaded) {
-                                        return null;
-                                    }
-
-                                    setUploadedImages((list) => [
-                                        ...list,
-                                        uploaded,
-                                    ]);
-
-                                    return {
-                                        id: uploaded.id,
-                                        url: uploaded.url,
-                                    };
-                                }}
+                                onUploadImage={files.uploadImage}
                             />
-                            {uploading > 0 && (
+                            {files.uploading && (
                                 <p className="text-sm text-muted-foreground">
                                     アップロード中…
                                 </p>
@@ -280,113 +195,25 @@ export default function PostEdit({
                             <InputError message={form.errors.body} />
                         </div>
 
-                        <section className="grid gap-2">
-                            <Label htmlFor="attachment">
-                                添付ファイル（支援者のみ）
-                            </Label>
-                            <ul className="space-y-1">
-                                {attachments.map((file) => (
-                                    <li
-                                        key={file.id}
-                                        className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
-                                    >
-                                        <span className="flex min-w-0 items-center gap-2">
-                                            <Paperclip className="size-4 shrink-0" />
-                                            <span className="truncate">
-                                                {file.original_name}
-                                            </span>
-                                            <span className="shrink-0 text-muted-foreground">
-                                                {formatBytes(file.size)}
-                                            </span>
-                                        </span>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            aria-label="削除"
-                                            onClick={() =>
-                                                void removeAttachment(file)
-                                            }
-                                        >
-                                            <Trash2 />
-                                        </Button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <Input
-                                id="attachment"
-                                type="file"
-                                multiple
-                                onChange={async (e) => {
-                                    const files = Array.from(
-                                        e.target.files ?? [],
-                                    );
-                                    e.target.value = '';
-
-                                    for (const file of files) {
-                                        const uploaded = await upload(
-                                            'attachment',
-                                            file,
-                                        );
-
-                                        if (uploaded) {
-                                            setUploadedAttachments((list) => [
-                                                ...list,
-                                                uploaded,
-                                            ]);
-                                        }
-                                    }
-                                }}
-                            />
-                        </section>
+                        <AttachmentList
+                            attachments={files.attachments}
+                            onAdd={(added) =>
+                                void files.uploadAttachments(added)
+                            }
+                            onRemove={(file) =>
+                                void files.removeAttachment(file)
+                            }
+                        />
                     </div>
                     <aside className="space-y-6">
-                        <fieldset className="grid gap-2">
-                            <legend className="mb-2 text-sm font-bold">
-                                読める人
-                            </legend>
-                            {audiences.map((audience) => (
-                                <label
-                                    key={audience.price}
-                                    className={cn(
-                                        'flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 transition-colors',
-                                        form.data.required_price ===
-                                            audience.price
-                                            ? 'border-2 border-primary bg-secondary'
-                                            : 'border hover:border-primary/50',
-                                    )}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="required_price"
-                                        value={audience.price}
-                                        checked={
-                                            form.data.required_price ===
-                                            audience.price
-                                        }
-                                        onChange={() =>
-                                            form.setData(
-                                                'required_price',
-                                                audience.price,
-                                            )
-                                        }
-                                        className="size-4 accent-primary"
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block text-sm font-bold">
-                                            {audience.price === 0
-                                                ? '全体公開'
-                                                : `${audience.plans.length > 0 ? `${audience.plans.join('・')} ` : ''}${formatYen(audience.price)} 以上`}
-                                        </span>
-                                        <span className="block text-xs text-muted-foreground">
-                                            {audience.readers === null
-                                                ? '誰でも読めます'
-                                                : `支援中の ${audience.readers} 人が読めます`}
-                                        </span>
-                                    </span>
-                                </label>
-                            ))}
-                            <InputError message={form.errors.required_price} />
-                        </fieldset>
+                        <AudiencePicker
+                            audiences={audiences}
+                            value={form.data.required_price}
+                            onChange={(price) =>
+                                form.setData('required_price', price)
+                            }
+                            error={form.errors.required_price}
+                        />
 
                         {categories.length > 0 && (
                             <div className="grid gap-2">
@@ -413,58 +240,12 @@ export default function PostEdit({
                             </div>
                         )}
 
-                        <section className="grid gap-2">
-                            <Label>カバー画像（本文中の画像から選択）</Label>
-                            <p className="text-xs text-muted-foreground">
-                                カバー画像の縮小版は、支援していない人にも表示されます（一覧ではぼかし表示）。限定公開したい画像は選ばないでください。
-                            </p>
-                            {images.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    本文に画像を追加すると選択できます。
-                                </p>
-                            ) : (
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            form.setData('cover_file_id', null)
-                                        }
-                                        className={cn(
-                                            'flex aspect-video items-center justify-center rounded-lg border text-xs',
-                                            form.data.cover_file_id === null &&
-                                                'ring-2 ring-primary',
-                                        )}
-                                    >
-                                        なし
-                                    </button>
-                                    {images.map((image) => (
-                                        <button
-                                            key={image.id}
-                                            type="button"
-                                            onClick={() =>
-                                                form.setData(
-                                                    'cover_file_id',
-                                                    image.id,
-                                                )
-                                            }
-                                            className={cn(
-                                                'aspect-video overflow-hidden rounded-lg border',
-                                                form.data.cover_file_id ===
-                                                    image.id &&
-                                                    'ring-2 ring-primary',
-                                            )}
-                                        >
-                                            <img
-                                                src={image.thumb_url}
-                                                alt=""
-                                                className="size-full object-cover"
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            <InputError message={form.errors.cover_file_id} />
-                        </section>
+                        <CoverPicker
+                            images={files.images}
+                            value={form.data.cover_file_id}
+                            onChange={(id) => form.setData('cover_file_id', id)}
+                            error={form.errors.cover_file_id}
+                        />
 
                         <div className="border-t pt-4">
                             <Button
