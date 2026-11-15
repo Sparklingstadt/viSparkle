@@ -94,10 +94,10 @@ it('hides other creators\' files', function () {
     $theirs = Product::factory()->digital()->create();
     $file = ProductFile::factory()->for($theirs)->create();
 
-    $this->post(route('creator.products.files.store', $theirs), ['file' => UploadedFile::fake()->create('a.zip', 1)])->assertForbidden();
-    $this->delete(route('creator.products.files.destroy', [$theirs, $file]))->assertForbidden();
-    $this->get(route('creator.products.files.download', [$theirs, $file]))->assertForbidden();
-    $this->put(route('creator.products.files.reorder', $theirs), ['ids' => [$file->id]])->assertForbidden();
+    $this->post(route('creator.products.files.store', $theirs), ['file' => UploadedFile::fake()->create('a.zip', 1)])->assertNotFound();
+    $this->delete(route('creator.products.files.destroy', [$theirs, $file]))->assertNotFound();
+    $this->get(route('creator.products.files.download', [$theirs, $file]))->assertNotFound();
+    $this->put(route('creator.products.files.reorder', $theirs), ['ids' => [$file->id]])->assertNotFound();
 
     // Another work's file through one's own work is not found.
     $this->delete(route('creator.products.files.destroy', [$this->work, $file]))->assertNotFound();

@@ -236,11 +236,11 @@ it('only reorders with exactly the products own image ids', function () {
     expect($product->images()->pluck('id')->all())->toBe([$a->id, $b->id]);
 });
 
-it('forbids editing another creators product', function (string $method, string $route, array $data) {
+it('reports another creators product as missing', function (string $method, string $route, array $data) {
     $product = Product::factory()->create();
     $image = $product->images()->create(['path' => 'creators/2/products/f.jpg', 'sort_order' => 0]);
 
-    $this->{$method}(route($route, ['product' => $product, 'image' => $image]), $data)->assertForbidden();
+    $this->{$method}(route($route, ['product' => $product, 'image' => $image]), $data)->assertNotFound();
 })->with([
     'edit' => ['get', 'creator.products.edit', []],
     'update' => ['put', 'creator.products.update', fn () => productPayload()],
@@ -261,7 +261,7 @@ it('does not delete an image that belongs to a different product', function () {
     $own = Product::factory()->for($this->creator)->create();
     $foreign = Product::factory()->create()->images()->create(['path' => 'creators/2/products/f.jpg', 'sort_order' => 0]);
 
-    $this->delete(route('creator.products.images.destroy', [$own, $foreign]))->assertForbidden();
+    $this->delete(route('creator.products.images.destroy', [$own, $foreign]))->assertNotFound();
 
     expect(ProductImage::find($foreign->id))->not->toBeNull();
     Storage::disk('public')->assertExists('creators/2/products/f.jpg');

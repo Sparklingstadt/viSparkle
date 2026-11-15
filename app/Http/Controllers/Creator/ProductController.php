@@ -108,7 +108,7 @@ class ProductController extends Controller
 
     public function edit(Request $request, Product $product): Response
     {
-        abort_unless($request->user()->can('update', $product), 403);
+        abort_unless($request->user()->can('manage', $product), 404);
 
         $reserved = OrderItem::query()
             ->whereIn('product_variant_id', $product->variants->modelKeys())
@@ -211,7 +211,7 @@ class ProductController extends Controller
 
     public function destroy(Request $request, Product $product): RedirectResponse
     {
-        abort_unless($request->user()->can('update', $product), 403);
+        abort_unless($request->user()->can('manage', $product), 404);
 
         $product->delete();
 
