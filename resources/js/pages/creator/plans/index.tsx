@@ -12,6 +12,7 @@ import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/plans';
 import type { PlanData } from '@/types';
 import { useConfirm } from '@/components/confirm-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type Limits = { min: number; max: number; count: number };
 
@@ -39,13 +40,12 @@ function PlanFields({
             </div>
             <div className="grid gap-2">
                 <Label htmlFor={`${prefix}-description`}>説明</Label>
-                <textarea
+                <Textarea
                     id={`${prefix}-description`}
                     name="description"
                     defaultValue={plan?.description ?? ''}
                     maxLength={1000}
                     rows={3}
-                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                 />
                 <InputError message={errors.description} />
             </div>

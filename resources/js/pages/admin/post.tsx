@@ -9,6 +9,8 @@ import { formatDate, formatYen } from '@/lib/format';
 import { index as reportsIndex } from '@/routes/admin/reports';
 import { update } from '@/routes/admin/posts';
 import type { PostStatus } from '@/types';
+import { PostStatusBadge } from '@/components/post-status-badge';
+import { Textarea } from '@/components/ui/textarea';
 
 type ModeratedPost = {
     id: number;
@@ -58,9 +60,7 @@ export default function AdminPost({
                         <span className="text-base font-medium">
                             {post.title}
                         </span>
-                        <Badge variant="outline">
-                            {post.status === 'published' ? '公開中' : '下書き'}
-                        </Badge>
+                        <PostStatusBadge status={post.status} />
                         {post.hidden && (
                             <Badge variant="destructive">非公開（運営）</Badge>
                         )}
@@ -125,13 +125,12 @@ export default function AdminPost({
                                     <Label htmlFor="hide-reason">
                                         非公開にする理由（作者に表示されます）
                                     </Label>
-                                    <textarea
+                                    <Textarea
                                         id="hide-reason"
                                         name="reason"
                                         rows={3}
                                         required
                                         maxLength={500}
-                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                     />
                                     <InputError message={errors.reason} />
                                 </div>

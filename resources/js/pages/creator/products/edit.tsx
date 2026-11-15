@@ -24,8 +24,10 @@ import { Label } from '@/components/ui/label';
 import { formatBytes } from '@/lib/format';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
-import type { ProductKind } from '@/types';
+import type { CategoryOption, ProductKind } from '@/types';
 import { useConfirm } from '@/components/confirm-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { CategorySelect } from '@/components/category-select';
 
 const MAX_IMAGES = 10;
 const MAX_VARIANTS = 20;
@@ -60,8 +62,6 @@ type EditableProduct = {
     images: ProductImage[];
     files: WorkFile[];
 };
-
-type CategoryOption = { id: number; name: string; archived: boolean };
 
 type VariantRow = { key: number; variant: EditableVariant | null };
 
@@ -544,13 +544,12 @@ export default function ProductEdit({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="description">説明</Label>
-                                <textarea
+                                <Textarea
                                     id="description"
                                     name="description"
                                     defaultValue={product?.description ?? ''}
                                     maxLength={5000}
                                     rows={6}
-                                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                                 />
                                 <InputError message={errors.description} />
                             </div>
@@ -573,26 +572,14 @@ export default function ProductEdit({
                                     <Label htmlFor="product_category_id">
                                         カテゴリ
                                     </Label>
-                                    <select
+                                    <CategorySelect
                                         id="product_category_id"
                                         name="product_category_id"
                                         defaultValue={
                                             product?.category_id ?? ''
                                         }
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-                                    >
-                                        <option value="">未設定</option>
-                                        {categories.map((category) => (
-                                            <option
-                                                key={category.id}
-                                                value={category.id}
-                                            >
-                                                {category.name}
-                                                {category.archived &&
-                                                    '（受付終了）'}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        categories={categories}
+                                    />
                                     <InputError
                                         message={errors.product_category_id}
                                     />

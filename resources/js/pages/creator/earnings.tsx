@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/earnings';
 import { index as orderIndex } from '@/routes/creator/orders';
 import { edit as editPost } from '@/routes/creator/posts';
+import { toneClass, type Tone } from '@/components/pill';
 
 type AccountStatus = 'none' | 'incomplete' | 'ready';
 
@@ -183,7 +184,7 @@ export default function Earnings({
                         {account.status === 'ready' && (
                             <TodoRow
                                 icon={<Check className="size-5" />}
-                                tone="done"
+                                tone="success"
                                 title="受取口座は登録済みです"
                                 description="入金の履歴や振込先の変更は Stripe のダッシュボードで行えます。"
                                 action={
@@ -293,12 +294,6 @@ Earnings.layout = {
     breadcrumbs: [{ title: 'クリエイターのホーム', href: index() }],
 };
 
-const toneClass = {
-    warn: 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-    primary: 'bg-secondary text-primary',
-    done: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-} as const;
-
 function TodoRow({
     icon,
     tone,
@@ -307,7 +302,7 @@ function TodoRow({
     action,
 }: {
     icon: React.ReactNode;
-    tone: keyof typeof toneClass;
+    tone: Tone;
     title: string;
     description?: string;
     action?: React.ReactNode;

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { formatDate, formatYen } from '@/lib/format';
 import { index as reportsIndex } from '@/routes/admin/reports';
 import { update } from '@/routes/admin/products';
+import { Textarea } from '@/components/ui/textarea';
 
 type ModeratedProduct = {
     id: number;
@@ -124,13 +125,12 @@ export default function AdminProduct({
                                     <Label htmlFor="hide-reason">
                                         非公開にする理由（作者に表示されます）
                                     </Label>
-                                    <textarea
+                                    <Textarea
                                         id="hide-reason"
                                         name="reason"
                                         rows={3}
                                         required
                                         maxLength={500}
-                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                     />
                                     <InputError message={errors.reason} />
                                 </div>

@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/creator/shop';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ShopSettings({
     shop,
@@ -57,13 +58,12 @@ export default function ShopSettings({
                                 <Label htmlFor="shop_notice">
                                     ショップのお知らせ
                                 </Label>
-                                <textarea
+                                <Textarea
                                     id="shop_notice"
                                     name="shop_notice"
                                     defaultValue={shop.shop_notice ?? ''}
                                     maxLength={2000}
                                     rows={5}
-                                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                                 />
                                 <InputError message={errors.shop_notice} />
                             </div>

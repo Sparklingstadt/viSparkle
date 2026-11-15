@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { index, update } from '@/routes/admin/reports';
 import type { Paginated } from '@/types';
 import { Pagination } from '@/components/pagination';
+import { Textarea } from '@/components/ui/textarea';
 
 type ReportStatus = 'open' | 'resolved' | 'dismissed';
 
@@ -207,12 +208,11 @@ export default function Reports({
                                             <Label htmlFor="report-note">
                                                 メモ（任意）
                                             </Label>
-                                            <textarea
+                                            <Textarea
                                                 id="report-note"
                                                 name="note"
                                                 rows={4}
                                                 maxLength={1000}
-                                                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                             />
                                             <InputError message={errors.note} />
                                             <InputError

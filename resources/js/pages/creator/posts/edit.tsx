@@ -7,7 +7,6 @@ import PostFileController from '@/actions/App/Http/Controllers/Creator/PostFileC
 import InputError from '@/components/input-error';
 import { PostEditor } from '@/components/tiptap/post-editor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,8 +16,16 @@ import { deletePostFile, uploadPostFile } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import { show } from '@/routes/posts';
-import type { EditorPost, PostFileData, TiptapNode } from '@/types';
+import type {
+    CategoryOption,
+    EditorPost,
+    PostFileData,
+    TiptapNode,
+} from '@/types';
 import { useConfirm } from '@/components/confirm-dialog';
+import { PostStatusBadge } from '@/components/post-status-badge';
+import { Textarea } from '@/components/ui/textarea';
+import { CategorySelect } from '@/components/category-select';
 
 type Action = 'save' | 'publish' | 'unpublish';
 
@@ -39,7 +46,7 @@ export default function PostEdit({
 }: {
     post: EditorPost;
     audiences: { price: number; plans: string[]; readers: number | null }[];
-    categories: { id: number; name: string; archived: boolean }[];
+    categories: CategoryOption[];
     creatorSlug: string;
 }) {
     const confirm = useConfirm();
@@ -158,15 +165,7 @@ export default function PostEdit({
                 )}
                 <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2">
-                        <Badge
-                            variant={
-                                post.status === 'published'
-                                    ? 'default'
-                                    : 'secondary'
-                            }
-                        >
-                            {post.status === 'published' ? '公開中' : '下書き'}
-                        </Badge>
+                        <PostStatusBadge status={post.status} />
                         {post.status === 'published' && (
                             <Link
                                 href={show({
@@ -231,7 +230,7 @@ export default function PostEdit({
                             <Label htmlFor="excerpt">
                                 冒頭（支援していない人にも見えます）
                             </Label>
-                            <textarea
+                            <Textarea
                                 id="excerpt"
                                 value={form.data.excerpt}
                                 maxLength={300}
@@ -239,7 +238,6 @@ export default function PostEdit({
                                 onChange={(e) =>
                                     form.setData('excerpt', e.target.value)
                                 }
-                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                             />
                             <InputError message={form.errors.excerpt} />
                         </div>
@@ -395,7 +393,7 @@ export default function PostEdit({
                                 <Label htmlFor="post_category_id">
                                     カテゴリ
                                 </Label>
-                                <select
+                                <CategorySelect
                                     id="post_category_id"
                                     value={form.data.post_category_id}
                                     onChange={(e) =>
@@ -406,20 +404,9 @@ export default function PostEdit({
                                                 : Number(e.target.value),
                                         )
                                     }
-                                    className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-                                >
-                                    <option value="">未設定</option>
-                                    {categories.map((category) => (
-                                        <option
-                                            key={category.id}
-                                            value={category.id}
-                                        >
-                                            {category.name}
-                                            {category.archived &&
-                                                '（受付終了）'}
-                                        </option>
-                                    ))}
-                                </select>
+                                    className="max-w-xs"
+                                    categories={categories}
+                                />
                                 <InputError
                                     message={form.errors.post_category_id}
                                 />
