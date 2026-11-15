@@ -4,7 +4,6 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Cart;
 use Illuminate\Validation\ValidationException;
@@ -166,19 +165,8 @@ it('shows only the buyers own cart', function () {
     $this->actingAs($this->buyer)->get(route('cart.index'))->assertInertia(fn (Assert $page) => $page->has('groups', 0));
 });
 
-/**
- * A published digital work of the creator with one file.
- */
-function cartWork(Creator $creator, int $price = 800): Product
-{
-    $work = Product::factory()->digital()->for($creator)->create(['price' => $price]);
-    ProductFile::factory()->for($work)->create();
-
-    return $work;
-}
-
 it('keeps a digital work at quantity one', function () {
-    $work = cartWork($this->creator);
+    $work = digitalWork($this->creator);
     $cart = app(Cart::class);
 
     $cart->add($this->buyer, $work->variants()->firstOrFail(), 3);
@@ -191,7 +179,7 @@ it('keeps a digital work at quantity one', function () {
 });
 
 it('refuses to add a purchased work', function () {
-    $work = cartWork($this->creator);
+    $work = digitalWork($this->creator);
     Order::factory()->paid()->withItem($work)->create(['user_id' => $this->buyer->id, 'creator_id' => $this->creator->id]);
 
     $this->actingAs($this->buyer)->post(route('cart.items.store'), ['product_variant_id' => $work->variants()->value('id'), 'quantity' => 1])
@@ -210,7 +198,7 @@ it('refuses to add a work without files', function () {
 });
 
 it('charges no shipping for a digital-only group', function () {
-    $work = cartWork($this->creator, 800);
+    $work = digitalWork($this->creator, ['price' => 800]);
     app(Cart::class)->add($this->buyer, $work->variants()->firstOrFail(), 1);
 
     $group = app(Cart::class)->groups($this->buyer)[0];
@@ -225,7 +213,7 @@ it('charges no shipping for a digital-only group', function () {
 
 it('charges shipping when a group mixes kinds', function () {
     $cart = app(Cart::class);
-    $cart->add($this->buyer, cartWork($this->creator, 800)->variants()->firstOrFail(), 1);
+    $cart->add($this->buyer, digitalWork($this->creator, ['price' => 800])->variants()->firstOrFail(), 1);
     $cart->add($this->buyer, Product::factory()->for($this->creator)->create(['price' => 1000])->variants()->firstOrFail(), 1);
 
     $group = $cart->groups($this->buyer)[0];
@@ -234,7 +222,7 @@ it('charges shipping when a group mixes kinds', function () {
 });
 
 it('refuses a cart group with an already purchased work', function () {
-    $work = cartWork($this->creator);
+    $work = digitalWork($this->creator);
     $cart = app(Cart::class);
     $cart->add($this->buyer, $work->variants()->firstOrFail(), 1);
 
@@ -246,7 +234,7 @@ it('refuses a cart group with an already purchased work', function () {
 });
 
 it('marks a group whose work lost its files as not purchasable', function () {
-    $work = cartWork($this->creator);
+    $work = digitalWork($this->creator);
     app(Cart::class)->add($this->buyer, $work->variants()->firstOrFail(), 1);
     $work->files()->delete();
 

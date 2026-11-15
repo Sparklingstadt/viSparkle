@@ -27,8 +27,7 @@ beforeEach(function () {
  */
 function syncReservedOrder(int $quantity = 2): array
 {
-    $cart = collect([CartItem::query()->create(['user_id' => test()->buyer->id, 'product_variant_id' => test()->product->variants()->value('id'), 'quantity' => $quantity])]);
-    $order = app(Orders::class)->reserve(test()->buyer, test()->creator, $cart);
+    $order = reserveOrder(test()->buyer, test()->creator, [[test()->product, $quantity]]);
 
     return [$order, fakeOrderCheckout(test()->gateway, $order)];
 }

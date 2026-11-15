@@ -11,7 +11,6 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Cart;
 use Illuminate\Contracts\Cache\Repository;
@@ -479,19 +478,8 @@ it('refuses when the previous checkout turns out to await a delayed payment', fu
     expect(Order::count())->toBe(1)->and(Order::sole()->status)->toBe(OrderStatus::Pending);
 });
 
-/**
- * A published digital work of the creator with one file.
- */
-function checkoutWork(Creator $creator, int $price = 800): Product
-{
-    $work = Product::factory()->digital()->for($creator)->create(['name' => 'イラスト集', 'price' => $price]);
-    ProductFile::factory()->for($work)->create();
-
-    return $work;
-}
-
 it('checks out a digital-only cart without an address', function () {
-    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+    app(Cart::class)->add($this->buyer, digitalWork($this->creator, ['name' => 'イラスト集'])->variants()->firstOrFail(), 1);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
     expect($this->gateway->sessionCollectsShipping($sessionId))->toBeFalse();
@@ -508,7 +496,7 @@ it('checks out a digital-only cart without an address', function () {
 });
 
 it('collects an address when the cart mixes kinds', function () {
-    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+    app(Cart::class)->add($this->buyer, digitalWork($this->creator, ['name' => 'イラスト集'])->variants()->firstOrFail(), 1);
     app(Cart::class)->add($this->buyer, $this->mug->variants()->firstOrFail(), 1);
     $sessionId = beginOrderCheckout($this->buyer, $this->creator);
 
@@ -521,7 +509,7 @@ it('collects an address when the cart mixes kinds', function () {
 });
 
 it('warns that digital works cannot be canceled', function () {
-    app(Cart::class)->add($this->buyer, checkoutWork($this->creator)->variants()->firstOrFail(), 1);
+    app(Cart::class)->add($this->buyer, digitalWork($this->creator, ['name' => 'イラスト集'])->variants()->firstOrFail(), 1);
 
     $this->actingAs($this->buyer)->get(route('cart.confirm', $this->creator))
         ->assertInertia(fn (Assert $page) => $page

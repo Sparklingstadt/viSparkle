@@ -5,7 +5,6 @@ use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Enums\SupportStatus;
 use App\Jobs\ProcessStripeEvent;
-use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Payment;
@@ -15,7 +14,6 @@ use App\Models\StripeEvent;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\SubscriptionSync;
-use App\Services\Shop\Orders;
 use App\Services\Shop\OrderSync;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
@@ -276,8 +274,7 @@ function webhookOrder(FakeGateway $gateway): array
     $creator = Creator::factory()->payable()->create(['shipping_fee' => 500]);
     $buyer = User::factory()->create();
     $product = Product::factory()->for($creator)->create(['price' => 1200, 'stock' => 5]);
-    $cart = collect([CartItem::query()->create(['user_id' => $buyer->id, 'product_variant_id' => $product->variants()->value('id'), 'quantity' => 2])]);
-    $order = app(Orders::class)->reserve($buyer, $creator, $cart);
+    $order = reserveOrder($buyer, $creator, [[$product, 2]]);
 
     return [$order, $product, fakeOrderCheckout($gateway, $order)];
 }

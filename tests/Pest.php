@@ -61,12 +61,17 @@ use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
+use App\Models\CartItem;
+use App\Models\Creator;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Plan;
+use App\Models\Product;
 use App\Models\User;
+use App\Services\Shop\Orders;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -243,4 +248,52 @@ function stripeSignature(string $payload, string $secret): string
     $timestamp = time();
 
     return "t={$timestamp},v1=".hash_hmac('sha256', "{$timestamp}.{$payload}", $secret);
+}
+
+/**
+ * Put the products in the buyer's cart, each at its first variant: `$lines` is a list of [Product, quantity].
+ *
+ * @param  list<array{0: Product, 1: int}>  $lines
+ * @return Collection<int, CartItem>
+ */
+function cartLines(User $buyer, array $lines): Collection
+{
+    return collect($lines)->map(fn (array $line) => CartItem::query()->create([
+        'user_id' => $buyer->id,
+        'product_variant_id' => $line[0]->variants()->value('id'),
+        'quantity' => $line[1],
+    ]));
+}
+
+/**
+ * Reserve a pending order of the products for the buyer, as the checkout does.
+ *
+ * @param  list<array{0: Product, 1: int}>  $lines
+ */
+function reserveOrder(User $buyer, Creator $creator, array $lines, int $supportAmount = 0): Order
+{
+    return app(Orders::class)->reserve($buyer, $creator, cartLines($buyer, $lines), $supportAmount);
+}
+
+/**
+ * Reserve the product for the test's buyer from the test's creator, pay on the test's fake gateway and mark the
+ * order paid, as the buyer's checkout would.
+ */
+function paidOrder(Product $product, int $quantity = 1, int $supportAmount = 0): Order
+{
+    $order = reserveOrder(test()->buyer, test()->creator, [[$product, $quantity]], $supportAmount);
+    $sessionId = fakeOrderCheckout(test()->gateway, $order);
+    test()->gateway->completePaymentCheckout($sessionId);
+
+    return app(Orders::class)->markPaid($order, test()->gateway->retrieveCheckoutSession($sessionId));
+}
+
+/**
+ * A listed digital work of the creator with one file, 800 yen unless the attributes say otherwise.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function digitalWork(Creator $creator, array $attributes = []): Product
+{
+    return Product::factory()->withFile()->for($creator)->create(['price' => 800, ...$attributes]);
 }
