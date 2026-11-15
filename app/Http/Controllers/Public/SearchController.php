@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
+use App\Support\Like;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -54,7 +55,7 @@ class SearchController extends Controller
      */
     private function creators(string $q): array
     {
-        return $this->matching(Creator::open(), ['display_name', 'bio'], $q)
+        return Creator::open()->whereAny(['display_name', 'bio'], 'like', Like::contains($q))
             ->latest('id')
             ->limit(self::MAX_RESULTS)
             ->get()
@@ -67,7 +68,7 @@ class SearchController extends Controller
      */
     private function products(string $q, ?ProductCategory $category): array
     {
-        return $this->matching(Product::listed(), ['name', 'description'], $q)
+        return Product::listed()->whereAny(['name', 'description'], 'like', Like::contains($q))
             ->when($category, fn (Builder $query, ProductCategory $category) => $query->inCategory($category))
             ->whereHas('creator', fn ($query) => $query->open())
             ->forCard()
@@ -85,7 +86,7 @@ class SearchController extends Controller
      */
     private function posts(Request $request, PostPresenter $presenter, string $q, ?PostCategory $postCategory): array
     {
-        $posts = $this->matching(Post::published()->visible(), ['title', 'excerpt'], $q)
+        $posts = Post::published()->visible()->whereAny(['title', 'excerpt'], 'like', Like::contains($q))
             ->when($postCategory, fn (Builder $query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->free()
             ->byActiveCreator()
@@ -96,23 +97,5 @@ class SearchController extends Controller
         $liked = PostLike::idsLikedBy($request->user(), $posts->modelKeys());
 
         return $posts->map(fn (Post $post) => $presenter->summary($post, $entitlement, $liked))->all();
-    }
-
-    /**
-     * @template TModel of \Illuminate\Database\Eloquent\Model
-     *
-     * @param  Builder<TModel>  $query
-     * @param  list<string>  $columns
-     * @return Builder<TModel>
-     */
-    private function matching(Builder $query, array $columns, string $q): Builder
-    {
-        $pattern = '%'.addcslashes($q, '\\%_').'%';
-
-        return $query->where(function (Builder $query) use ($columns, $pattern) {
-            foreach ($columns as $column) {
-                $query->orWhere($column, 'like', $pattern);
-            }
-        });
     }
 }

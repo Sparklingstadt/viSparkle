@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\UpdateUserSuspensionRequest;
 use App\Models\AdminAction;
 use App\Models\User;
 use App\Services\Billing\CreatorSuspension;
+use App\Support\Like;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,9 +22,8 @@ class UserController extends Controller
         $users = User::query()
             ->with('creator')
             ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
-                ->where('name', 'like', '%'.addcslashes($q, '%_\\').'%')
-                ->orWhere('email', 'like', '%'.addcslashes($q, '%_\\').'%')
-                ->orWhereHas('creator', fn ($c) => $c->where('slug', 'like', '%'.addcslashes($q, '%_\\').'%'))))
+                ->whereAny(['name', 'email'], 'like', Like::contains($q))
+                ->orWhereHas('creator', fn ($c) => $c->where('slug', 'like', Like::contains($q)))))
             ->orderByDesc('id')
             ->paginate(50)
             ->withQueryString();
