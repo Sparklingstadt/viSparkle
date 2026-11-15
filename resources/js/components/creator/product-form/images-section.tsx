@@ -7,9 +7,13 @@ import { useConfirmedDelete } from '@/hooks/use-confirmed-delete';
 import { saveSwapped } from '@/lib/reorder';
 import type { EditableProduct } from './types';
 
-const MAX_IMAGES = 10;
-
-export function ImagesSection({ product }: { product: EditableProduct }) {
+export function ImagesSection({
+    product,
+    imagesMax,
+}: {
+    product: EditableProduct;
+    imagesMax: number;
+}) {
     const confirmedDelete = useConfirmedDelete();
     const { images } = product;
 
@@ -25,7 +29,7 @@ export function ImagesSection({ product }: { product: EditableProduct }) {
         <section className="space-y-3">
             <Heading
                 variant="small"
-                title={`商品画像（${images.length}/${MAX_IMAGES}）`}
+                title={`商品画像（${images.length}/${imagesMax}）`}
             />
             <p className="text-xs text-muted-foreground">
                 先頭の画像が一覧に表示されます。
@@ -77,7 +81,7 @@ export function ImagesSection({ product }: { product: EditableProduct }) {
                     </div>
                 ))}
             </div>
-            {images.length < MAX_IMAGES && (
+            {images.length < imagesMax && (
                 <UploadField
                     form={ProductImageController.store.form(product.id)}
                     id="product-image"

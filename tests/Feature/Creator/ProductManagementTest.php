@@ -324,7 +324,8 @@ it('shows the kind and files on the edit page and in the list', function () {
             ->where('product.kind', 'digital')
             ->where('product.files.0.original_name', 'a.pdf')
             ->where('product.files.0.size', 300)
-            ->where('files_max', 10));
+            ->where('files_max', 10)
+            ->where('images_max', 10));
 
     $this->get(route('creator.products.index'))
         ->assertInertia(fn (Assert $page) => $page->where('products.0.kind', 'digital')->where('products.0.files_count', 1));

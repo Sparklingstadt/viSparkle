@@ -9,11 +9,14 @@ return [
     */
 
     'image_max_kb' => 10240,
+    // Images in a post body may be animated; covers, avatars and product images are stills.
     'image_mimes' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    'still_image_mimes' => ['jpg', 'jpeg', 'png', 'webp'],
     'attachment_max_kb' => 102400,
     'attachments_per_post' => 20,
     'images_per_post' => 100,
     'product_files_max' => 10,
+    'product_images_max' => 10,
     'image_max_edge' => 2560,
     'thumb_max_edge' => 640,
     // Decoding cost is width x height x 4 bytes; refuse anything larger before decoding.
@@ -29,6 +32,17 @@ return [
     'plan_min_price' => 100,
     'plan_max_price' => 50000,
     'plans_per_creator' => 10,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Shop
+    |--------------------------------------------------------------------------
+    */
+
+    'product_min_price' => 50,
+    'product_max_price' => 1_000_000,
+    // Also the largest quantity of one item in a cart.
+    'product_max_stock' => 99_999,
     'body_max_bytes' => 524288,
 
     /*

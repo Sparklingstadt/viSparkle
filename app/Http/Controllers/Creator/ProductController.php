@@ -24,8 +24,6 @@ use Inertia\Response;
 
 class ProductController extends Controller
 {
-    private const MAX_STOCK = 99_999;
-
     private const NEEDS_FILES = '公開するにはファイルを1件以上アップロードしてください';
 
     public function index(Request $request): Response
@@ -63,6 +61,7 @@ class ProductController extends Controller
             'categories' => ProductCategory::options(null),
             'can_publish' => $request->user()->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
+            'images_max' => (int) config('fanbox.product_images_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
         ]);
     }
@@ -148,6 +147,7 @@ class ProductController extends Controller
             'categories' => ProductCategory::options($product->product_category_id),
             'can_publish' => $product->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
+            'images_max' => (int) config('fanbox.product_images_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
         ]);
     }
@@ -200,7 +200,7 @@ class ProductController extends Controller
 
                 $variant = $current[(int) $row['id']];
                 $change = (int) $row['stock'] - (int) $row['stock_seen'];
-                $variant->update([...$attributes, 'stock' => max(0, min(self::MAX_STOCK, $variant->stock + $change))]);
+                $variant->update([...$attributes, 'stock' => max(0, min((int) config('fanbox.product_max_stock'), $variant->stock + $change))]);
             }
         });
 

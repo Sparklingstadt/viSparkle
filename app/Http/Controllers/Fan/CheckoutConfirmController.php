@@ -31,7 +31,7 @@ class CheckoutConfirmController extends Controller
             return to_route('creators.show', $creator);
         }
 
-        $day = now('Asia/Tokyo')->day;
+        $day = now()->day;
 
         return Inertia::render('fan/checkout-confirm', [
             'creator' => $creator->toSummary(),

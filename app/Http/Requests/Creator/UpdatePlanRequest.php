@@ -16,7 +16,7 @@ class UpdatePlanRequest extends FormRequest
             'name' => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_accepting' => ['boolean'],
-            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.config('fanbox.image_max_kb')],
+            'cover' => ['nullable', 'image', 'mimes:'.implode(',', config('fanbox.still_image_mimes')), 'max:'.config('fanbox.image_max_kb')],
         ];
     }
 

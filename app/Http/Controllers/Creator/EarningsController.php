@@ -109,7 +109,7 @@ class EarningsController extends Controller
     }
 
     /**
-     * The last twelve Asia/Tokyo calendar months ending with the current one, newest first, zero-filled.
+     * The last twelve calendar months (in the app's timezone, Asia/Tokyo) ending with the current one, newest first, zero-filled.
      * Sales are net of refunds; fees are estimated per payment (floor) on the net amount, like Stripe's per-invoice
      * application fee (a full refund also refunds the fee).
      *
@@ -117,7 +117,7 @@ class EarningsController extends Controller
      */
     private function months(Creator $creator): array
     {
-        $tz = 'Asia/Tokyo';
+        $tz = config('app.timezone');
         $thisMonth = Carbon::now($tz)->startOfMonth();
         $windowStart = $thisMonth->copy()->subMonthsNoOverflow(self::MONTHS - 1);
 
@@ -156,7 +156,7 @@ class EarningsController extends Controller
      */
     private function shopMonths(Creator $creator): array
     {
-        $tz = 'Asia/Tokyo';
+        $tz = config('app.timezone');
         $thisMonth = Carbon::now($tz)->startOfMonth();
         $windowStart = $thisMonth->copy()->subMonthsNoOverflow(self::MONTHS - 1);
 

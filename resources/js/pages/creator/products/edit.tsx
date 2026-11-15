@@ -25,12 +25,14 @@ export default function ProductEdit({
     categories,
     can_publish: canPublish,
     files_max: filesMax,
+    images_max: imagesMax,
     file_max_kb: fileMaxKb,
 }: {
     product: EditableProduct | null;
     categories: CategoryOption[];
     can_publish: boolean;
     files_max: number;
+    images_max: number;
     file_max_kb: number;
 }) {
     const confirm = useConfirm();
@@ -217,7 +219,10 @@ export default function ProductEdit({
                                 fileMaxKb={fileMaxKb}
                             />
                         )}
-                        <ImagesSection product={product} />
+                        <ImagesSection
+                            product={product}
+                            imagesMax={imagesMax}
+                        />
                         <div className="border-t pt-6">
                             <Button
                                 variant="destructive"

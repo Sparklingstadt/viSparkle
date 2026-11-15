@@ -22,7 +22,7 @@ class StorePlanRequest extends FormRequest
                 'between:'.config('fanbox.plan_min_price').','.config('fanbox.plan_max_price'),
                 Rule::unique('plans', 'price')->where('creator_id', $this->user()->creator->id),
             ],
-            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.config('fanbox.image_max_kb')],
+            'cover' => ['nullable', 'image', 'mimes:'.implode(',', config('fanbox.still_image_mimes')), 'max:'.config('fanbox.image_max_kb')],
         ];
     }
 
