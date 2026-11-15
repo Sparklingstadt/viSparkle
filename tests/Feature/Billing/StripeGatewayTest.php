@@ -8,6 +8,7 @@ use App\Billing\Data\ShippingDetails;
 use App\Billing\PaymentFailedException;
 use App\Billing\PaymentGateway;
 use App\Billing\StripeGateway;
+use App\Billing\StripeObjectMapper;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
@@ -131,7 +132,7 @@ it('changes the price without proration for a downgrade', function () {
 });
 
 it('reads the period end from the subscription item', function () {
-    $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom(stripeSubscriptionBody()));
+    $subscription = StripeObjectMapper::subscription(Subscription::constructFrom(stripeSubscriptionBody()));
 
     expect($subscription->currentPeriodEnd?->timestamp)->toBe(1793836800)
         ->and($subscription->currentPeriodEnd->timezone->getName())->toBe(config('app.timezone'))
@@ -149,14 +150,14 @@ it('falls back to the subscription period end and tolerates an expanded customer
     $body = stripeSubscriptionBody(['customer' => ['id' => 'cus_expanded', 'object' => 'customer'], 'current_period_end' => 1790000000]);
     unset($body['items']['data'][0]['current_period_end']);
 
-    $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom($body));
+    $subscription = StripeObjectMapper::subscription(Subscription::constructFrom($body));
 
     expect($subscription->currentPeriodEnd?->timestamp)->toBe(1790000000)
         ->and($subscription->customerId)->toBe('cus_expanded');
 });
 
 it('maps a subscription without items to null item fields', function () {
-    $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom([
+    $subscription = StripeObjectMapper::subscription(Subscription::constructFrom([
         'id' => 'sub_x', 'customer' => 'cus_x', 'status' => 'incomplete', 'cancel_at_period_end' => false,
         'metadata' => [], 'items' => ['object' => 'list', 'data' => []],
     ]));
@@ -168,7 +169,7 @@ it('maps a subscription without items to null item fields', function () {
 });
 
 it('reads the invoice subscription from the parent details', function () {
-    $invoice = StripeGateway::invoiceFrom(Invoice::constructFrom([
+    $invoice = StripeObjectMapper::invoice(Invoice::constructFrom([
         'id' => 'in_x', 'object' => 'invoice', 'customer' => 'cus_x', 'status' => 'paid', 'amount_paid' => 500,
         'parent' => ['type' => 'subscription_details', 'subscription_details' => ['subscription' => 'sub_x']],
         'status_transitions' => ['paid_at' => 1793836800],
@@ -184,7 +185,7 @@ it('reads the invoice subscription from the parent details', function () {
 });
 
 it('falls back to the legacy invoice subscription field', function () {
-    $invoice = StripeGateway::invoiceFrom(Invoice::constructFrom([
+    $invoice = StripeObjectMapper::invoice(Invoice::constructFrom([
         'id' => 'in_x', 'customer' => 'cus_x', 'status' => 'open', 'amount_paid' => 0,
         'subscription' => 'sub_legacy', 'status_transitions' => ['paid_at' => null],
     ]));
@@ -514,7 +515,7 @@ it('skips invoice payments that are not paid', function () {
 });
 
 it('maps the latest invoice of a subscription', function (mixed $latest) {
-    $subscription = StripeGateway::subscriptionFrom(Subscription::constructFrom(stripeSubscriptionBody(['latest_invoice' => $latest])));
+    $subscription = StripeObjectMapper::subscription(Subscription::constructFrom(stripeSubscriptionBody(['latest_invoice' => $latest])));
 
     expect($subscription->latestInvoiceId)->toBe('in_x');
 })->with(['id' => ['in_x'], 'expanded' => [['id' => 'in_x', 'object' => 'invoice']]]);
