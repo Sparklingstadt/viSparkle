@@ -250,6 +250,17 @@ it('answers the portal request of an inertia visit with a location redirect', fu
     expect($response->headers->get('X-Inertia-Location'))->toBe(route('supporting.index'));
 });
 
+it('shows a toast when stripe is unreachable while opening the portal', function () {
+    billingSupport($this->fan, $this->low);
+    $gateway = Mockery::mock(PaymentGateway::class);
+    $gateway->shouldReceive('createPortalSession')->andThrow(new BillingException('down'));
+    app()->instance(PaymentGateway::class, $gateway);
+
+    $this->actingAs($this->fan)->from(route('supporting.index'))->post(route('billing.portal'))
+        ->assertRedirect(route('supporting.index'))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
+});
+
 it('refuses the portal without a billing account', function () {
     $this->actingAs($this->fan)->from(route('supporting.index'))->post(route('billing.portal'))
         ->assertRedirect(route('supporting.index'))

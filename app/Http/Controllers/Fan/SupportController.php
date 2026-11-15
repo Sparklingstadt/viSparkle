@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Fan;
 
-use App\Billing\BillingException;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -82,22 +81,14 @@ class SupportController extends Controller
     }
 
     /**
-     * Run the operation and flash the toast it returns; a failing payment service becomes an error toast instead of a 500.
+     * Run the operation and flash the toast it returns (a failing payment service becomes an error toast through the
+     * exception handler in bootstrap/app.php).
      *
      * @param  callable(): string  $operation
      */
     private function manage(callable $operation): RedirectResponse
     {
-        try {
-            $message = $operation();
-        } catch (BillingException $e) {
-            report($e);
-            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
-
-            return back();
-        }
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $operation()]);
 
         return back();
     }
