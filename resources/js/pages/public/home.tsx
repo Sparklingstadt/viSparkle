@@ -17,6 +17,7 @@ import type {
     CreatorCard as CreatorCardData,
     PostSummary,
 } from '@/types';
+import { SegmentedTabs } from '@/components/segmented-tabs';
 
 type PostSort = 'new' | 'popular';
 
@@ -179,39 +180,20 @@ export default function Home({
                                 ? '人気の全体公開投稿'
                                 : '新着の全体公開投稿'}
                         </h2>
-                        <div
-                            className="flex gap-1 rounded-full bg-muted p-1"
-                            role="tablist"
-                        >
-                            {sortTabs.map((tab) => (
-                                <Button
-                                    key={tab.sort}
-                                    size="sm"
-                                    variant="ghost"
-                                    asChild
-                                    className={cn(
-                                        'text-muted-foreground',
-                                        tab.sort === sort &&
-                                            'bg-background text-foreground shadow-xs hover:bg-background',
-                                    )}
-                                >
-                                    <Link
-                                        href={home({
-                                            query:
-                                                tab.sort === 'new'
-                                                    ? { sort: 'new' }
-                                                    : {},
-                                        })}
-                                        role="tab"
-                                        aria-selected={tab.sort === sort}
-                                        preserveScroll
-                                        only={['posts', 'sort']}
-                                    >
-                                        {tab.label}
-                                    </Link>
-                                </Button>
-                            ))}
-                        </div>
+                        <SegmentedTabs
+                            tabs={sortTabs.map((tab) => ({
+                                key: tab.sort,
+                                label: tab.label,
+                                href: home.url({
+                                    query:
+                                        tab.sort === 'new'
+                                            ? { sort: 'new' }
+                                            : {},
+                                }),
+                                current: tab.sort === sort,
+                            }))}
+                            only={['posts', 'sort']}
+                        />
                     </div>
                     {postCategories.length > 0 && (
                         <CategoryLinks

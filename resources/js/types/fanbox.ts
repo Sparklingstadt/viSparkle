@@ -211,3 +211,5 @@ export type AdminCreatorRef = { name: string; slug: string };
 
 /** A choice of a category select, as IsCategory::options() builds it. */
 export type CategoryOption = { id: number; name: string; archived: boolean };
+
+export type ReportStatus = 'open' | 'resolved' | 'dismissed';
