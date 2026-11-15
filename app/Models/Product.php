@@ -62,6 +62,17 @@ class Product extends Model
         $query->where('is_published', true)->whereNull('hidden_at');
     }
 
+    /**
+     * Eager loads what a product card shows (ProductPresenter::card, toSummary).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function forCard(Builder $query): void
+    {
+        $query->with(['creator', 'images', 'variants']);
+    }
+
     /** @param  Builder<self>  $query */
     #[Scope]
     protected function inCategory(Builder $query, ProductCategory $category): void

@@ -24,8 +24,8 @@ class PostCategoryPageController extends Controller
         $posts = Post::published()
             ->visible()
             ->inCategory($category)
-            ->where('required_price', 0)
-            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
+            ->free()
+            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->paginate(20)
             ->withQueryString();
