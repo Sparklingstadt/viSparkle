@@ -25,6 +25,7 @@ import { formatBytes } from '@/lib/format';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
 import type { ProductKind } from '@/types';
+import { useConfirm } from '@/components/confirm-dialog';
 
 const MAX_IMAGES = 10;
 const MAX_VARIANTS = 20;
@@ -181,6 +182,7 @@ function FilesSection({
     filesMax: number;
     fileMaxKb: number;
 }) {
+    const confirm = useConfirm();
     const { files } = product;
 
     const move = (from: number, to: number) => {
@@ -262,9 +264,13 @@ function FilesSection({
                                 size="icon"
                                 variant="ghost"
                                 aria-label="削除"
-                                onClick={() => {
+                                onClick={async () => {
                                     if (
-                                        confirm('このファイルを削除しますか？')
+                                        await confirm({
+                                            title: 'このファイルを削除しますか？',
+                                            confirmLabel: '削除',
+                                            destructive: true,
+                                        })
                                     ) {
                                         router.delete(
                                             ProductFileController.destroy.url({
@@ -318,6 +324,7 @@ function FilesSection({
 }
 
 function ImagesSection({ product }: { product: EditableProduct }) {
+    const confirm = useConfirm();
     const { images } = product;
 
     const move = (from: number, to: number) => {
@@ -361,8 +368,14 @@ function ImagesSection({ product }: { product: EditableProduct }) {
                                 size="icon"
                                 variant="ghost"
                                 aria-label="削除"
-                                onClick={() => {
-                                    if (confirm('この画像を削除しますか？')) {
+                                onClick={async () => {
+                                    if (
+                                        await confirm({
+                                            title: 'この画像を削除しますか？',
+                                            confirmLabel: '削除',
+                                            destructive: true,
+                                        })
+                                    ) {
                                         router.delete(
                                             ProductImageController.destroy.url({
                                                 product: product.id,
@@ -435,6 +448,7 @@ export default function ProductEdit({
     files_max: number;
     file_max_kb: number;
 }) {
+    const confirm = useConfirm();
     // The kind is chosen once, when creating; an existing product only shows it.
     const [newKind, setNewKind] = useState<ProductKind>('physical');
     const kind = product?.kind ?? newKind;
@@ -635,8 +649,14 @@ export default function ProductEdit({
                         <div className="border-t pt-6">
                             <Button
                                 variant="destructive"
-                                onClick={() => {
-                                    if (confirm('この商品を削除しますか？')) {
+                                onClick={async () => {
+                                    if (
+                                        await confirm({
+                                            title: 'この商品を削除しますか？',
+                                            confirmLabel: '削除',
+                                            destructive: true,
+                                        })
+                                    ) {
                                         router.delete(
                                             ProductController.destroy.url(
                                                 product.id,

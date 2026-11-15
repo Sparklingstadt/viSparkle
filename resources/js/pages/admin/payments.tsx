@@ -22,6 +22,7 @@ import type { AdminCreatorRef, OrderStatusValue, Paginated } from '@/types';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { Pagination } from '@/components/pagination';
 import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Row = {
     id: number;
@@ -58,6 +59,7 @@ export default function Payments({
     orders: Paginated<OrderRow>;
     filters: { creator: string | null; user: string | null };
 }) {
+    const confirm = useConfirm();
     const [refunding, setRefunding] = useState<Row | null>(null);
     const [cancelSupport, setCancelSupport] = useState(false);
 
@@ -66,11 +68,13 @@ export default function Payments({
         setRefunding(payment);
     };
 
-    const refundOrderRow = (order: OrderRow) => {
+    const refundOrderRow = async (order: OrderRow) => {
         if (
-            !window.confirm(
-                `注文 #${order.id}（${formatYen(order.total)}）を返金しますか？`,
-            )
+            !(await confirm({
+                title: `注文 #${order.id}（${formatYen(order.total)}）を返金しますか？`,
+                confirmLabel: '返金する',
+                destructive: true,
+            }))
         ) {
             return;
         }

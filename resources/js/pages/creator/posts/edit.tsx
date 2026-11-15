@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import { show } from '@/routes/posts';
 import type { EditorPost, PostFileData, TiptapNode } from '@/types';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Action = 'save' | 'publish' | 'unpublish';
 
@@ -41,6 +42,7 @@ export default function PostEdit({
     categories: { id: number; name: string; archived: boolean }[];
     creatorSlug: string;
 }) {
+    const confirm = useConfirm();
     const form = useForm<FormData>({
         title: post.title,
         excerpt: post.excerpt ?? '',
@@ -114,7 +116,13 @@ export default function PostEdit({
     };
 
     const removeAttachment = async (file: PostFileData) => {
-        if (!confirm(`${file.original_name} を削除しますか？`)) {
+        if (
+            !(await confirm({
+                title: `${file.original_name} を削除しますか？`,
+                confirmLabel: '削除',
+                destructive: true,
+            }))
+        ) {
             return;
         }
 
@@ -476,11 +484,15 @@ export default function PostEdit({
                                 variant="ghost"
                                 className="text-destructive hover:text-destructive"
                                 disabled={busy}
-                                onClick={() => {
+                                onClick={async () => {
                                     if (
-                                        confirm(
-                                            'この投稿を削除しますか？添付ファイルも削除されます。',
-                                        )
+                                        await confirm({
+                                            title: 'この投稿を削除しますか？',
+                                            description:
+                                                '添付ファイルも削除されます。',
+                                            confirmLabel: '削除',
+                                            destructive: true,
+                                        })
                                     ) {
                                         router.delete(
                                             PostController.destroy.url(post.id),

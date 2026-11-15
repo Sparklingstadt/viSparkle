@@ -11,6 +11,7 @@ import { formatDate, formatYen } from '@/lib/format';
 import { index } from '@/routes/creator/orders';
 import type { OrderDetail } from '@/types';
 import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Order = OrderDetail & {
     buyer_name: string | null;
@@ -19,6 +20,7 @@ type Order = OrderDetail & {
 };
 
 export default function CreatorOrderShow({ order }: { order: Order }) {
+    const confirm = useConfirm();
     const form = useForm({ tracking_number: '' });
 
     return (
@@ -109,11 +111,14 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                     <div className="border-t pt-6">
                         <Button
                             variant="destructive"
-                            onClick={() => {
+                            onClick={async () => {
                                 if (
-                                    confirm(
-                                        'この注文を取り消して全額を返金しますか？在庫は戻ります。',
-                                    )
+                                    await confirm({
+                                        title: 'この注文を取り消して全額を返金しますか？',
+                                        description: '在庫は戻ります。',
+                                        confirmLabel: '取り消して返金',
+                                        destructive: true,
+                                    })
                                 ) {
                                     router.post(
                                         OrderController.refund.url(order.id),

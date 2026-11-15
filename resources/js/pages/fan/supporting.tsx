@@ -10,6 +10,7 @@ import { show } from '@/routes/creators';
 import { index } from '@/routes/supporting';
 import type { CreatorSummary } from '@/types';
 import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Row = {
     id: number;
@@ -27,6 +28,7 @@ type Row = {
 const openPortal = () => router.post(BillingPortalController.url());
 
 export default function Supporting({ supports }: { supports: Row[] }) {
+    const confirm = useConfirm();
     const [processingId, setProcessingId] = useState<number | null>(null);
 
     const request = (supportId: number) => ({
@@ -124,13 +126,18 @@ export default function Supporting({ supports }: { supports: Row[] }) {
                                             disabled={
                                                 processingId === support.id
                                             }
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 if (
-                                                    confirm(
-                                                        support.is_billing
-                                                            ? '支援を停止しますか？次回のお支払い日まで閲覧できます。'
-                                                            : '支援を停止しますか？',
-                                                    )
+                                                    await confirm({
+                                                        title: '支援を停止しますか？',
+                                                        description:
+                                                            support.is_billing
+                                                                ? '次回のお支払い日まで閲覧できます。'
+                                                                : undefined,
+                                                        confirmLabel:
+                                                            '支援を停止',
+                                                        destructive: true,
+                                                    })
                                                 ) {
                                                     router.delete(
                                                         SupportController.destroy.url(

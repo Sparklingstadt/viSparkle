@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { login } from '@/routes';
 import type { PlanData } from '@/types';
 import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
 export function SupportButton({
     creatorSlug,
@@ -26,6 +27,7 @@ export function SupportButton({
     acceptsSupports: boolean;
     closed: boolean;
 }) {
+    const confirm = useConfirm();
     const { auth } = usePage().props;
     const [processing, setProcessing] = useState(false);
 
@@ -80,8 +82,14 @@ export function SupportButton({
                             variant="ghost"
                             size="sm"
                             disabled={processing}
-                            onClick={() => {
-                                if (!confirm('支援を停止しますか？')) {
+                            onClick={async () => {
+                                if (
+                                    !(await confirm({
+                                        title: '支援を停止しますか？',
+                                        confirmLabel: '支援を停止',
+                                        destructive: true,
+                                    }))
+                                ) {
                                     return;
                                 }
 
@@ -154,17 +162,19 @@ export function SupportButton({
         <Button
             className="w-full"
             disabled={processing}
-            onClick={() => {
+            onClick={async () => {
                 if (viewerSupportId === null) {
                     return;
                 }
 
                 if (
-                    !confirm(
-                        isUpgrade
-                            ? 'このプランに変更しますか？差額（日割り）がすぐに請求されます。'
-                            : 'このプランに変更しますか？今月分の差額は返金されません。',
-                    )
+                    !(await confirm({
+                        title: 'このプランに変更しますか？',
+                        description: isUpgrade
+                            ? '差額（日割り）がすぐに請求されます。'
+                            : '今月分の差額は返金されません。',
+                        confirmLabel: 'プランを変更',
+                    }))
                 ) {
                     return;
                 }
