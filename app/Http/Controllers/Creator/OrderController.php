@@ -6,7 +6,7 @@ use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Presenters\OrderPresenter;
 use App\Services\Shop\Orders;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +15,10 @@ use Inertia\Response;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly Orders $orders) {}
+    public function __construct(
+        private readonly Orders $orders,
+        private readonly OrderPresenter $presenter,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -27,7 +30,7 @@ class OrderController extends Controller
             ->when(
                 $status,
                 fn ($query) => $query->where('status', $status),
-                fn ($query) => $query->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded]),
+                fn ($query) => $query->whereIn('status', OrderStatus::everPaid()),
             )
             ->with(['items', 'user'])
             // Orders to ship are worked through oldest first; the other lists show the newest first.
@@ -39,20 +42,11 @@ class OrderController extends Controller
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Order $order) => [
-                'id' => $order->id,
-                'status' => $order->status->value,
-                'status_label' => $order->statusLabel(),
-                'total' => $order->total,
+                ...$this->presenter->summary($order),
                 'support_amount' => $order->support_amount,
-                'created_at' => $order->created_at,
                 'buyer_name' => $order->user?->name,
                 'shipping_name' => $order->shipping_name,
-                'can_ship' => self::canShip($order),
-                'items' => $order->items->map(fn (OrderItem $item) => [
-                    'id' => $item->id,
-                    'product_name' => $item->product_name,
-                    'quantity' => $item->quantity,
-                ])->values(),
+                'can_ship' => $order->isShippable(),
             ]);
 
         $counts = $request->user()->creator->orders()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
@@ -61,7 +55,7 @@ class OrderController extends Controller
             'orders' => $orders,
             // "all" is what the list shows without a filter: the orders that were paid.
             'counts' => [
-                'all' => (int) collect([OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])->sum(fn (OrderStatus $case) => $counts[$case->value] ?? 0),
+                'all' => (int) collect(OrderStatus::everPaid())->sum(fn (OrderStatus $case) => $counts[$case->value] ?? 0),
                 ...collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $case) => [$case->value => (int) ($counts[$case->value] ?? 0)])->all(),
             ],
             'status' => $status->value ?? 'all',
@@ -77,42 +71,13 @@ class OrderController extends Controller
 
         return Inertia::render('creator/orders/show', [
             'order' => [
-                'id' => $order->id,
-                'status' => $order->status->value,
-                'status_label' => $order->statusLabel(),
-                'items' => $order->items->map(fn (OrderItem $item) => [
-                    'id' => $item->id,
-                    'product_name' => $item->product_name,
-                    'product_kind' => $item->product_kind->value,
-                    'unit_price' => $item->unit_price,
-                    'quantity' => $item->quantity,
-                ])->values(),
-                'has_physical' => $order->hasPhysical() || ! $order->hasDigital(),
-                'subtotal' => $order->subtotal,
-                'shipping_fee' => $order->shipping_fee,
-                'support_amount' => $order->support_amount,
-                'total' => $order->total,
+                ...$this->presenter->detail($order),
                 'buyer_name' => $order->user?->name,
-                'shipping_name' => $order->shipping_name,
-                'shipping_postal_code' => $order->shipping_postal_code,
-                'shipping_address' => $order->shipping_address,
-                'shipping_phone' => $order->shipping_phone,
-                'tracking_number' => $order->tracking_number,
-                'refunded_amount' => $order->refunded_amount,
-                'created_at' => $order->created_at,
-                'paid_at' => $order->paid_at,
-                'shipped_at' => $order->shipped_at,
                 // Digital-only orders have nothing to ship; an order with a digital work is refunded by an admin only.
-                'can_ship' => self::canShip($order),
-                'can_refund' => $order->status === OrderStatus::Paid && ! $order->hasDigital(),
+                'can_ship' => $order->isShippable(),
+                'can_refund' => $order->isRefundableBy(OrderCancelReason::Creator),
             ],
         ]);
-    }
-
-    /** Paid and holding goods (an order of only digital works has nothing to send). */
-    private static function canShip(Order $order): bool
-    {
-        return $order->status === OrderStatus::Paid && ($order->hasPhysical() || ! $order->hasDigital());
     }
 
     public function ship(Request $request, Order $order): RedirectResponse
@@ -132,11 +97,7 @@ class OrderController extends Controller
     {
         abort_unless($request->user()->can('manage', $order), 404);
 
-        // Only a paid order: once shipped the goods are out, so the refund is settled outside the app.
-        if ($order->refresh()->status !== OrderStatus::Paid) {
-            return back()->withErrors(['order' => 'この注文は返金できません。']);
-        }
-
+        // Orders::refund() refuses a shipped order or one with a digital work with a validation error (key `order`).
         $this->orders->refund($order, OrderCancelReason::Creator);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => '取り消して返金しました']);

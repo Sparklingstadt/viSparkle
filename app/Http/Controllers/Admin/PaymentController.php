@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\RefundPaymentRequest;
 use App\Models\AdminAction;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Presenters\OrderPresenter;
 use App\Services\Billing\Refunds;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ use Inertia\Response;
 
 class PaymentController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, OrderPresenter $presenter): Response
     {
         $creator = $this->filter($request, 'creator');
         $user = $this->filter($request, 'user');
@@ -47,25 +48,13 @@ class PaymentController extends Controller
 
         $orders = Order::query()
             ->with(['creator', 'user', 'items'])
-            ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Refunded])
+            ->whereIn('status', OrderStatus::everPaid())
             ->orderByDesc('paid_at')
             ->orderByDesc('id')
             ->paginate(50, pageName: 'orders_page')
             ->withQueryString();
 
-        $orders->through(fn (Order $order) => [
-            'id' => $order->id,
-            'paid_at' => $order->paid_at,
-            'creator' => $order->creator === null ? null : ['name' => $order->creator->display_name, 'slug' => $order->creator->slug],
-            'buyer' => $order->user === null ? null : ['name' => $order->user->name, 'email' => $order->user->email],
-            'total' => $order->total,
-            'has_digital' => $order->hasDigital(),
-            'has_physical' => $order->hasPhysical(),
-            'support_amount' => $order->support_amount,
-            'status' => $order->status->value,
-            'status_label' => $order->status->label(),
-            'refundable' => in_array($order->status, [OrderStatus::Paid, OrderStatus::Shipped], true),
-        ]);
+        $orders->through(fn (Order $order) => $presenter->adminRow($order));
 
         return Inertia::render('admin/payments', [
             'payments' => $payments,

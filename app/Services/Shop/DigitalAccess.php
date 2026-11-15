@@ -15,8 +15,6 @@ use App\Models\User;
  */
 class DigitalAccess
 {
-    private const PURCHASED = [OrderStatus::Paid, OrderStatus::Shipped];
-
     /**
      * Whether the user has a paid or shipped order holding the work.
      */
@@ -25,7 +23,7 @@ class DigitalAccess
         return OrderItem::query()
             ->where('product_id', $product->id)
             ->where('product_kind', ProductKind::Digital)
-            ->whereHas('order', fn ($order) => $order->where('user_id', $user->id)->whereIn('status', self::PURCHASED))
+            ->whereHas('order', fn ($order) => $order->where('user_id', $user->id)->whereIn('status', OrderStatus::purchased()))
             ->exists();
     }
 

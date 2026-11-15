@@ -10,6 +10,26 @@ enum OrderStatus: string
     case Canceled = 'canceled';
     case Refunded = 'refunded';
 
+    /**
+     * The order was paid for and stands: the buyer owns what it holds (sales, digital access).
+     *
+     * @return list<self>
+     */
+    public static function purchased(): array
+    {
+        return [self::Paid, self::Shipped];
+    }
+
+    /**
+     * The order was paid at some point, refunded since or not: the orders listed to the creator and the admin.
+     *
+     * @return list<self>
+     */
+    public static function everPaid(): array
+    {
+        return [self::Paid, self::Shipped, self::Refunded];
+    }
+
     public function label(): string
     {
         return match ($this) {

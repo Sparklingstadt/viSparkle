@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
@@ -44,6 +45,20 @@ class OrderFactory extends Factory
             'support_fee_percent' => (int) config('fanbox.billing.support_fee_percent'),
             'total' => $attributes['subtotal'] + $attributes['shipping_fee'] + $amount,
         ]);
+    }
+
+    /**
+     * An order holding one line of goods (its subtotal as the unit price), so it has something to ship.
+     */
+    public function withGoods(): static
+    {
+        return $this->afterCreating(fn (Order $order) => $order->items()->create([
+            'product_id' => null,
+            'product_name' => 'グッズ',
+            'product_kind' => ProductKind::Physical,
+            'unit_price' => $order->subtotal,
+            'quantity' => 1,
+        ]));
     }
 
     public function shipped(): static

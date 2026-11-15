@@ -87,7 +87,7 @@ class Order extends Model
      */
     public function statusLabel(): string
     {
-        return $this->status === OrderStatus::Paid && $this->hasDigital() && ! $this->hasPhysical()
+        return $this->status === OrderStatus::Paid && ! $this->needsShipping()
             ? '購入済み'
             : $this->status->label();
     }
@@ -112,6 +112,38 @@ class Order extends Model
     {
         $query->where('status', OrderStatus::Paid)
             ->whereHas('items', fn ($q) => $q->where('product_kind', ProductKind::Physical));
+    }
+
+    /** The order holds goods to send (an order of only digital works has nothing to ship). */
+    public function needsShipping(): bool
+    {
+        return $this->hasPhysical();
+    }
+
+    /** Paid and holding goods: the creator can mark it shipped. */
+    public function isShippable(): bool
+    {
+        return $this->status === OrderStatus::Paid && $this->needsShipping();
+    }
+
+    /**
+     * Whether $by may refund from the current status: a creator only before shipping, an admin (or Stripe) after it too.
+     * A canceled order is refunded only when the caller allows it (a payment that arrived after the cancellation).
+     */
+    public function hasRefundableStatusFor(OrderCancelReason $by, bool $allowCanceled = false): bool
+    {
+        return $this->status === OrderStatus::Paid
+            || ($this->status === OrderStatus::Shipped && $by !== OrderCancelReason::Creator)
+            || ($allowCanceled && $this->status === OrderStatus::Canceled);
+    }
+
+    /**
+     * Whether $by may refund the order now. A downloaded file cannot be given back, so only an admin refunds an order
+     * with a digital work (§6.4).
+     */
+    public function isRefundableBy(OrderCancelReason $by, bool $allowCanceled = false): bool
+    {
+        return $this->hasRefundableStatusFor($by, $allowCanceled) && ! ($by === OrderCancelReason::Creator && $this->hasDigital());
     }
 
     public function hasPhysical(): bool

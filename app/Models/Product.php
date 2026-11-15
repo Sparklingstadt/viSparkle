@@ -90,7 +90,7 @@ class Product extends Model
     {
         $query->withSum([
             'orderItems as sold_count' => fn ($q) => $q->whereHas('order', fn ($order) => $order
-                ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped])),
+                ->whereIn('status', OrderStatus::purchased())),
         ], 'quantity')
             ->orderByDesc('sold_count')
             ->orderByDesc('id');
