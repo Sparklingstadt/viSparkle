@@ -4,6 +4,8 @@ namespace App\Services\Billing;
 
 use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
+use App\Billing\Status\InvoiceStatus;
+use App\Billing\Status\SyncOutcome;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Log;
 
@@ -26,7 +28,7 @@ class PaymentRecorder
     {
         $invoice = $this->gateway->retrieveInvoice($invoiceId);
 
-        if ($invoice->status !== 'paid' || $invoice->amountPaid <= 0 || $invoice->subscriptionId === null) {
+        if ($invoice->status !== InvoiceStatus::Paid->value || $invoice->amountPaid <= 0 || $invoice->subscriptionId === null) {
             return null;
         }
 
@@ -37,7 +39,7 @@ class PaymentRecorder
             Log::warning('billing.payment_unattributed', [
                 'invoice' => $invoice->id,
                 'subscription' => $invoice->subscriptionId,
-                ...($this->subscriptions->lastOutcome() === 'orphan' ? ['orphan' => true] : []),
+                ...($this->subscriptions->lastOutcome() === SyncOutcome::Orphan ? ['orphan' => true] : []),
             ]);
 
             return null;

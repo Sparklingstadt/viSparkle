@@ -5,6 +5,8 @@ namespace App\Services\Shop;
 use App\Billing\BillingException;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\PaymentGateway;
+use App\Billing\Status\CheckoutPaymentStatus;
+use App\Billing\Status\CheckoutSessionStatus;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Models\Order;
@@ -38,9 +40,9 @@ class OrderSync
         }
 
         return match (true) {
-            $session->status === 'complete' && $session->paymentStatus === 'paid' => $this->paid($order, $session),
-            $session->status === 'complete' && $session->paymentStatus === 'unpaid' => $this->orders->recordAwaitingPayment($order, $session),
-            $session->status === 'expired' => $this->orders->cancel($order, OrderCancelReason::Expired),
+            $session->status === CheckoutSessionStatus::Complete->value && $session->paymentStatus === CheckoutPaymentStatus::Paid->value => $this->paid($order, $session),
+            $session->status === CheckoutSessionStatus::Complete->value && $session->paymentStatus === CheckoutPaymentStatus::Unpaid->value => $this->orders->recordAwaitingPayment($order, $session),
+            $session->status === CheckoutSessionStatus::Expired->value => $this->orders->cancel($order, OrderCancelReason::Expired),
             default => $order,
         };
     }
@@ -60,7 +62,7 @@ class OrderSync
         }
 
         // The session is the truth: if it says paid after all, never cancel a paid-for order.
-        if ($session->paymentStatus === 'paid') {
+        if ($session->paymentStatus === CheckoutPaymentStatus::Paid->value) {
             return $this->paid($order, $session);
         }
 

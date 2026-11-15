@@ -6,6 +6,8 @@ use App\Billing\BillingException;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\PaymentGateway;
+use App\Billing\Status\CheckoutSessionStatus;
+use App\Billing\Status\SyncOutcome;
 use App\Billing\StripeGateway;
 use App\Models\Plan;
 use App\Models\Support;
@@ -150,7 +152,7 @@ class CheckoutService
      */
     public function finish(CheckoutSessionData $session): ?Support
     {
-        if ($session->status !== 'complete' || $session->subscriptionId === null) {
+        if ($session->status !== CheckoutSessionStatus::Complete->value || $session->subscriptionId === null) {
             return null;
         }
 
@@ -172,7 +174,7 @@ class CheckoutService
      */
     public function finishedAsOrphan(): bool
     {
-        return $this->sync->lastOutcome() === 'orphan';
+        return $this->sync->lastOutcome() === SyncOutcome::Orphan;
     }
 
     private static function cacheKey(int $userId, int $creatorId): string
