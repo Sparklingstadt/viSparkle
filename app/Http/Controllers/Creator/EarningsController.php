@@ -8,9 +8,9 @@ use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Services\Billing\AccountSync;
+use App\Support\MonthWindow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -117,24 +117,17 @@ class EarningsController extends Controller
      */
     private function months(Creator $creator): array
     {
-        $tz = config('app.timezone');
-        $thisMonth = Carbon::now($tz)->startOfMonth();
-        $windowStart = $thisMonth->copy()->subMonthsNoOverflow(self::MONTHS - 1);
-
-        $keys = [];
-        for ($i = 0; $i < self::MONTHS; $i++) {
-            $keys[] = $thisMonth->copy()->subMonthsNoOverflow($i)->format('Y-m');
-        }
+        $window = MonthWindow::lastMonths(self::MONTHS);
 
         $payments = $creator->payments()
-            ->where('paid_at', '>=', $windowStart)
-            ->where('paid_at', '<', $thisMonth->copy()->addMonthNoOverflow())
+            ->where('paid_at', '>=', $window->start)
+            ->where('paid_at', '<', $window->end)
             ->get(['amount', 'refunded_amount', 'fee_percent', 'paid_at']);
 
         $gross = [];
         $fee = [];
         foreach ($payments as $payment) {
-            $key = $payment->paid_at->copy()->setTimezone($tz)->format('Y-m');
+            $key = $window->keyOf($payment->paid_at);
             $amount = $payment->netAmount();
             $gross[$key] = ($gross[$key] ?? 0) + $amount;
             $fee[$key] = ($fee[$key] ?? 0) + intdiv($amount * $payment->fee_percent, 100);
@@ -145,7 +138,7 @@ class EarningsController extends Controller
             'gross' => $gross[$key] ?? 0,
             'fee' => $fee[$key] ?? 0,
             'net' => ($gross[$key] ?? 0) - ($fee[$key] ?? 0),
-        ], $keys);
+        ], $window->keys());
     }
 
     /**
@@ -156,19 +149,12 @@ class EarningsController extends Controller
      */
     private function shopMonths(Creator $creator): array
     {
-        $tz = config('app.timezone');
-        $thisMonth = Carbon::now($tz)->startOfMonth();
-        $windowStart = $thisMonth->copy()->subMonthsNoOverflow(self::MONTHS - 1);
-
-        $keys = [];
-        for ($i = 0; $i < self::MONTHS; $i++) {
-            $keys[] = $thisMonth->copy()->subMonthsNoOverflow($i)->format('Y-m');
-        }
+        $window = MonthWindow::lastMonths(self::MONTHS);
 
         $orders = $creator->orders()
             ->whereNotNull('paid_at')
-            ->where('paid_at', '>=', $windowStart)
-            ->where('paid_at', '<', $thisMonth->copy()->addMonthNoOverflow())
+            ->where('paid_at', '>=', $window->start)
+            ->where('paid_at', '<', $window->end)
             ->get(['subtotal', 'shipping_fee', 'support_amount', 'total', 'refunded_amount', 'fee_percent', 'support_fee_percent', 'paid_at']);
 
         $count = [];
@@ -178,7 +164,7 @@ class EarningsController extends Controller
         $refunded = [];
         $net = [];
         foreach ($orders as $order) {
-            $key = $order->paid_at->copy()->setTimezone($tz)->format('Y-m');
+            $key = $window->keyOf($order->paid_at);
             $fee = $order->refunded_amount >= $order->total ? 0 : $order->platformFeeAmount();
             $count[$key] = ($count[$key] ?? 0) + 1;
             $sales[$key] = ($sales[$key] ?? 0) + $order->total;
@@ -199,6 +185,6 @@ class EarningsController extends Controller
             'net' => $net[$key] ?? 0,
             'supports' => $supports[$key] ?? 0,
             'support_amount' => $supportAmount[$key] ?? 0,
-        ], $keys);
+        ], $window->keys());
     }
 }
