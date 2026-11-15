@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import Heading from '@/components/heading';
@@ -10,6 +9,7 @@ import { formatDate, formatYen } from '@/lib/format';
 import { show } from '@/routes/creators';
 import { index } from '@/routes/supporting';
 import type { CreatorSummary } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
 type Row = {
     id: number;
@@ -33,8 +33,7 @@ export default function Supporting({ supports }: { supports: Row[] }) {
         preserveScroll: true,
         onStart: () => setProcessingId(supportId),
         onFinish: () => setProcessingId(null),
-        onError: (errors: Record<string, string>) =>
-            toast.error(errors.plan ?? '処理に失敗しました。'),
+        onError: toastErrors('plan'),
     });
 
     return (

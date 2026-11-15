@@ -3,17 +3,11 @@ import Heading from '@/components/heading';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { index, show } from '@/routes/orders';
-import type { CreatorSummary, OrderStatusValue, Paginated } from '@/types';
+import type { CreatorSummary, OrderSummary, Paginated } from '@/types';
 import { Pagination } from '@/components/pagination';
 
-type Row = {
-    id: number;
-    status: OrderStatusValue;
-    status_label: string;
-    total: number;
-    created_at: string;
+type Row = OrderSummary & {
     creator: CreatorSummary | null;
-    items: { id: number; product_name: string; quantity: number }[];
 };
 
 export default function OrdersIndex({ orders }: { orders: Paginated<Row> }) {

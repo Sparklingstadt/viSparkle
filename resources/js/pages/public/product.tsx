@@ -18,6 +18,7 @@ import { show as showCategory } from '@/routes/categories';
 import { show } from '@/routes/creators';
 import { show as showOrder } from '@/routes/orders';
 import type { CategorySummary, CreatorSummary, ProductKind } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
 export default function ProductPage({
     creator,
@@ -81,12 +82,7 @@ export default function ProductPage({
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
                 onSuccess: () => toast.success('カートに入れました。'),
-                onError: (errors) =>
-                    toast.error(
-                        errors.cart ??
-                            errors.quantity ??
-                            '処理に失敗しました。',
-                    ),
+                onError: toastErrors('cart', 'quantity'),
             },
         );
 

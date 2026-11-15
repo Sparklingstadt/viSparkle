@@ -1,11 +1,11 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import CheckoutConfirmController from '@/actions/App/Http/Controllers/Fan/CheckoutConfirmController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import { Button } from '@/components/ui/button';
 import { login } from '@/routes';
 import type { PlanData } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
 export function SupportButton({
     creatorSlug,
@@ -37,8 +37,7 @@ export function SupportButton({
         );
     }
 
-    const onError = (errors: Record<string, string>) =>
-        toast.error(errors.plan ?? '処理に失敗しました。');
+    const onError = toastErrors('plan');
 
     const request = {
         preserveScroll: true,

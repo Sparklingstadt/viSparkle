@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { formatYen } from '@/lib/format';
 import { show } from '@/routes/creators';
 import { terms, tokushoho } from '@/routes/legal';
 import type { CreatorSummary } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
 export default function CheckoutConfirm({
     creator,
@@ -35,8 +35,7 @@ export default function CheckoutConfirm({
             {
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
-                onError: (errors) =>
-                    toast.error(errors.plan ?? '処理に失敗しました。'),
+                onError: toastErrors('plan'),
             },
         );
 

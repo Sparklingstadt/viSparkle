@@ -1,5 +1,4 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { toast } from 'sonner';
 import OrderController from '@/actions/App/Http/Controllers/Creator/OrderController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -10,26 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate, formatYen } from '@/lib/format';
 import { index } from '@/routes/creator/orders';
-import type { OrderItemData, OrderStatusValue } from '@/types';
+import type { OrderDetail } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
-type Order = {
-    id: number;
-    status: OrderStatusValue;
-    status_label: string;
-    items: OrderItemData[];
-    has_physical: boolean;
-    subtotal: number;
-    shipping_fee: number;
-    support_amount: number;
-    total: number;
+type Order = OrderDetail & {
     buyer_name: string | null;
-    shipping_name: string | null;
-    shipping_postal_code: string | null;
-    shipping_address: string | null;
-    shipping_phone: string | null;
-    tracking_number: string | null;
-    refunded_amount: number;
-    created_at: string;
     can_ship: boolean;
     can_refund: boolean;
 };
@@ -96,10 +80,7 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                             event.preventDefault();
                             form.post(OrderController.ship.url(order.id), {
                                 preserveScroll: true,
-                                onError: (errors) =>
-                                    toast.error(
-                                        errors.order ?? '処理に失敗しました。',
-                                    ),
+                                onError: toastErrors('order'),
                             });
                         }}
                     >
@@ -139,11 +120,7 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                                         {},
                                         {
                                             preserveScroll: true,
-                                            onError: (errors) =>
-                                                toast.error(
-                                                    errors.order ??
-                                                        '処理に失敗しました。',
-                                                ),
+                                            onError: toastErrors('order'),
                                         },
                                     );
                                 }

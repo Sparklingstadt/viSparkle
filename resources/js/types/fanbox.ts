@@ -173,3 +173,38 @@ export type OrderItemData = {
     /** The buyer's files of a digital work (the buyer's order page only). */
     downloads?: OrderItemDownloads | null;
 };
+
+/** An order list row, as OrderPresenter::summary() builds it; each page adds its own keys. */
+export type OrderSummary = {
+    id: number;
+    status: OrderStatusValue;
+    status_label: string;
+    total: number;
+    created_at: string;
+    items: { id: number; product_name: string; quantity: number }[];
+};
+
+/** An order page, as OrderPresenter::detail() builds it; each page adds its own keys. */
+export type OrderDetail = {
+    id: number;
+    status: OrderStatusValue;
+    status_label: string;
+    items: OrderItemData[];
+    has_physical: boolean;
+    subtotal: number;
+    shipping_fee: number;
+    support_amount: number;
+    total: number;
+    shipping_name: string | null;
+    shipping_postal_code: string | null;
+    shipping_address: string | null;
+    shipping_phone: string | null;
+    tracking_number: string | null;
+    refunded_amount: number;
+    created_at: string;
+    paid_at: string | null;
+    shipped_at: string | null;
+};
+
+/** Who an admin list row points at. */
+export type AdminCreatorRef = { name: string; slug: string };

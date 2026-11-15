@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { formatYen } from '@/lib/format';
 import { index as cartIndex, checkout } from '@/routes/cart';
 import { tokushoho } from '@/routes/legal';
 import type { CartGroup, CreatorSummary } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
 type SupportOptions = { presets: number[]; min: number; max: number };
 
@@ -56,7 +56,7 @@ export default function CartConfirm({
                         return;
                     }
 
-                    toast.error(errors.cart ?? '処理に失敗しました。');
+                    toastErrors('cart')(errors);
                 },
             },
         );

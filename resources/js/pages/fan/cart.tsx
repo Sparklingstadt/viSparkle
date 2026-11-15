@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Info, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +11,9 @@ import { destroy, update } from '@/routes/cart/items';
 import { show } from '@/routes/creators';
 import { show as showProduct } from '@/routes/shop/products';
 import type { CartGroup, CartLine } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
 
-const onError = (errors: Record<string, string>) =>
-    toast.error(errors.cart ?? errors.quantity ?? '処理に失敗しました。');
+const onError = toastErrors('cart', 'quantity');
 
 function Line({ group, item }: { group: CartGroup; item: CartLine }) {
     const digital = item.kind === 'digital';
