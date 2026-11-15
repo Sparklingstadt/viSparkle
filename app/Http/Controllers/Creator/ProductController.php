@@ -60,7 +60,7 @@ class ProductController extends Controller
     {
         return Inertia::render('creator/products/edit', [
             'product' => null,
-            'categories' => self::categoryOptions(null),
+            'categories' => ProductCategory::options(null),
             'can_publish' => $request->user()->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
@@ -145,7 +145,7 @@ class ProductController extends Controller
                     'mime' => $file->mime,
                 ])->values(),
             ],
-            'categories' => self::categoryOptions($product->product_category_id),
+            'categories' => ProductCategory::options($product->product_category_id),
             'can_publish' => $product->creator->canAcceptSupports(),
             'files_max' => (int) config('fanbox.product_files_max'),
             'file_max_kb' => (int) config('fanbox.attachment_max_kb'),
@@ -218,28 +218,6 @@ class ProductController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => '商品を削除しました。']);
 
         return to_route('creator.products.index');
-    }
-
-    /**
-     * Active categories in order; a product whose category was archived since keeps it, listed last.
-     *
-     * @return list<array{id: int, name: string, archived: bool}>
-     */
-    private static function categoryOptions(?int $currentId): array
-    {
-        $options = ProductCategory::query()->active()->ordered()->get()
-            ->map(fn (ProductCategory $category) => ['id' => $category->id, 'name' => $category->name, 'archived' => false])
-            ->all();
-
-        $current = $currentId === null || in_array($currentId, array_column($options, 'id'), true)
-            ? null
-            : ProductCategory::query()->find($currentId);
-
-        if ($current !== null) {
-            $options[] = ['id' => $current->id, 'name' => $current->name, 'archived' => true];
-        }
-
-        return array_values($options);
     }
 
     /**

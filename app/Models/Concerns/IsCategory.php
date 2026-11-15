@@ -64,6 +64,29 @@ trait IsCategory
     }
 
     /**
+     * The choices of a category select: active categories in order, plus the current one listed last when it was
+     * archived since (so an existing post or product keeps it).
+     *
+     * @return list<array{id: int, name: string, archived: bool}>
+     */
+    public static function options(?int $currentId): array
+    {
+        $options = static::query()->active()->ordered()->get()
+            ->map(fn (self $category) => ['id' => $category->id, 'name' => $category->name, 'archived' => false])
+            ->all();
+
+        $current = $currentId === null || in_array($currentId, array_column($options, 'id'), true)
+            ? null
+            : static::query()->find($currentId);
+
+        if ($current !== null) {
+            $options[] = ['id' => $current->id, 'name' => $current->name, 'archived' => true];
+        }
+
+        return array_values($options);
+    }
+
+    /**
      * @return array{id: int, name: string, slug: string}
      */
     public function toSummary(): array
