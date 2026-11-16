@@ -22,8 +22,6 @@ function subscribeFake(FakeGateway $gateway, Plan $plan, ?User $user = null): Su
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: $gateway->createCustomer($user),
         priceId: $price->priceId,
-        destinationAccountId: $gateway->createConnectAccount($plan->creator),
-        feePercent: 10,
         metadata: ['user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
@@ -123,24 +121,11 @@ it('returns the same price for the same plan', function () {
         ->and($first->productId)->toStartWith('prod_fake_');
 });
 
-it('marks an account payable after onboarding and exposes simple links', function () {
-    $gateway = fakeBilling();
-    $accountId = $gateway->createConnectAccount(Creator::factory()->create());
-
-    expect($gateway->retrieveAccount($accountId)->payoutsEnabled)->toBeFalse();
-    expect($gateway->createAccountOnboardingLink($accountId, 'https://app.test/refresh', 'https://app.test/return'))->toBe('https://app.test/return');
-
-    $account = $gateway->retrieveAccount($accountId);
-    expect($account->payoutsEnabled)->toBeTrue()
-        ->and($account->detailsSubmitted)->toBeTrue()
-        ->and($gateway->createDashboardLoginLink($accountId))->toEndWith('/creator/earnings');
-});
-
 it('tracks checkout session state and unknown ids', function () {
     $gateway = fakeBilling();
     $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
     $user = User::factory()->create();
-    $request = new CheckoutRequest($gateway->createCustomer($user), $gateway->ensurePrice($plan)->priceId, 'acct_x', 10, [], 'https://a.test/s', 'https://a.test/c', now()->toImmutable()->addMinutes(30));
+    $request = new CheckoutRequest($gateway->createCustomer($user), $gateway->ensurePrice($plan)->priceId, [], 'https://a.test/s', 'https://a.test/c', now()->toImmutable()->addMinutes(30));
 
     $session = $gateway->createCheckoutSession($request);
     expect($session->status)->toBe('open')

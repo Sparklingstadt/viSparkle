@@ -41,12 +41,6 @@ it('frees the slot when a support ends', function () {
     expect(Support::active()->count())->toBe(1);
 });
 
-it('reports whether a creator can accept supports', function () {
-    expect(Creator::factory()->create()->canAcceptSupports())->toBeFalse()
-        ->and(Creator::factory()->payable()->create()->canAcceptSupports())->toBeTrue()
-        ->and(Creator::factory()->payable()->create(['payouts_enabled' => false])->canAcceptSupports())->toBeFalse();
-});
-
 it('reports whether a support is billed through Stripe', function () {
     expect(Support::factory()->create()->isBilling())->toBeFalse()
         ->and(Support::factory()->billing()->create()->isBilling())->toBeTrue();

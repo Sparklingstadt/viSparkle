@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->payable()->create();
+    $this->creator = Creator::factory()->create();
     $this->plan = Plan::factory()->for($this->creator)->price(1000)->create();
     $this->fan = User::factory()->create();
 });
@@ -88,19 +88,6 @@ it('tells the fan when payment is not complete', function () {
     expect(Support::count())->toBe(0);
 });
 
-it('tells the fan the payment will be refunded when the creator closed during checkout', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
-    $subscription = $this->gateway->completeCheckout($sessionId);
-    $this->creator->forceFill(['closed_at' => now()])->save();
-
-    $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]))
-        ->assertRedirect(route('creators.show', $this->creator))
-        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'このお申し込みは受け付けられませんでした。お支払いは返金されます。']);
-
-    expect(Support::count())->toBe(0)
-        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
-});
-
 it('rejects completing someone elses session', function () {
     $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
     $this->gateway->completeCheckout($sessionId);
@@ -115,21 +102,6 @@ it('rejects completing someone elses session', function () {
 it('requires login and a session id to complete', function () {
     $this->get(route('supports.checkout.complete', ['session_id' => 'cs_x']))->assertRedirect(route('login'));
     $this->actingAs($this->fan)->get(route('supports.checkout.complete'))->assertNotFound();
-});
-
-it('refuses creators who cannot accept supports', function () {
-    $creator = Creator::factory()->create();
-    $plan = Plan::factory()->for($creator)->create();
-
-    $this->actingAs($this->fan)->post(checkoutRoute($creator, $plan))
-        ->assertSessionHasErrors(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
-
-    $unverified = Creator::factory()->create();
-    $unverified->forceFill(['stripe_account_id' => 'acct_fake_x', 'payouts_enabled' => false])->save();
-    $this->actingAs($this->fan)->post(checkoutRoute($unverified, Plan::factory()->for($unverified)->create()))
-        ->assertSessionHasErrors('plan');
-
-    expect(Support::count())->toBe(0);
 });
 
 it('refuses a second checkout while supporting', function () {
@@ -176,8 +148,6 @@ it('sends the metadata, destination and expiry to the gateway', function () {
 
     expect($captured)->toBeInstanceOf(CheckoutRequest::class)
         ->and($captured->metadata)->toBe(['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
-        ->and($captured->destinationAccountId)->toBe($this->creator->stripe_account_id)
-        ->and($captured->feePercent)->toBe(10)
         ->and($captured->cancelUrl)->toBe(route('creators.show', $this->creator))
         ->and($captured->successUrl)->toBe(route('supports.checkout.complete').'?session_id={CHECKOUT_SESSION_ID}')
         // One minute past the configured 30 so Stripe's own clock still sees at least 30 minutes.
@@ -284,10 +254,6 @@ it('hides another users fake checkout session', function () {
 it('requires login for the fake checkout page', function () {
     $this->get(route('dev.fake-checkout.show', 'cs_x'))->assertRedirect(route('login'));
     $this->post(route('dev.fake-checkout.pay', 'cs_x'))->assertRedirect(route('login'));
-});
-
-it('answers can-accept-supports for a fresh creator model', function () {
-    expect((new Creator)->canAcceptSupports())->toBeFalse();
 });
 
 it('limits the checkout return separately, at 30 a minute', function () {

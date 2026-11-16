@@ -2,15 +2,12 @@
 
 namespace App\Billing;
 
-use App\Billing\Data\AccountData;
-use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -85,8 +82,6 @@ class StripeGateway implements PaymentGateway
             'cancel_url' => $request->cancelUrl,
             'metadata' => $request->metadata,
             'subscription_data' => [
-                'application_fee_percent' => $request->feePercent,
-                'transfer_data' => ['destination' => $request->destinationAccountId],
                 'metadata' => $request->metadata,
             ],
         ]));
@@ -154,53 +149,6 @@ class StripeGateway implements PaymentGateway
         return $session->url;
     }
 
-    public function createConnectAccount(Creator $creator): string
-    {
-        // Stripe no longer allows v1 account creation for new Connect integrations. A v2 "recipient" account with
-        // the Express dashboard receives our destination-charge transfers; the platform carries fees and losses
-        // (as recommended for destination charges). v1 retrieve and login links still work on these accounts.
-        $account = $this->call(fn () => $this->client->v2->core->accounts->create([
-            'contact_email' => $creator->user->email,
-            'display_name' => $creator->display_name,
-            'identity' => ['country' => 'jp'],
-            'dashboard' => 'express',
-            'defaults' => ['responsibilities' => ['fees_collector' => 'application', 'losses_collector' => 'application']],
-            'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
-            'metadata' => ['creator_id' => (string) $creator->id],
-        ], ['idempotency_key' => $this->idempotencyKey("creator-{$creator->id}-account-v2")]));
-
-        return $account->id;
-    }
-
-    public function createAccountOnboardingLink(string $accountId, string $refreshUrl, string $returnUrl): string
-    {
-        $link = $this->call(fn () => $this->client->v2->core->accountLinks->create([
-            'account' => $accountId,
-            'use_case' => [
-                'type' => 'account_onboarding',
-                'account_onboarding' => ['refresh_url' => $refreshUrl, 'return_url' => $returnUrl],
-            ],
-        ]));
-
-        return $link->url;
-    }
-
-    public function createDashboardLoginLink(string $accountId): string
-    {
-        return $this->call(fn () => $this->client->accounts->createLoginLink($accountId))->url;
-    }
-
-    public function retrieveAccount(string $accountId): AccountData
-    {
-        $account = $this->call(fn () => $this->client->accounts->retrieve($accountId))->toArray();
-
-        return new AccountData(
-            id: (string) $account['id'],
-            payoutsEnabled: ($account['payouts_enabled'] ?? false) === true && ($account['capabilities']['transfers'] ?? null) === 'active',
-            detailsSubmitted: ($account['details_submitted'] ?? false) === true,
-        );
-    }
-
     public function retrieveInvoice(string $id): InvoiceData
     {
         return self::invoiceFrom($this->call(fn () => $this->client->invoices->retrieve($id)));
@@ -210,80 +158,13 @@ class StripeGateway implements PaymentGateway
     {
         $target = $this->refundTarget($invoiceId);
 
-        // No amount: a full refund. The transfer reversal and fee refund are proportional, so both come back in full too.
+        // No amount: a full refund.
         $refund = $this->call(fn () => $this->client->refunds->create([
             ...$target,
-            'reverse_transfer' => true,
-            'refund_application_fee' => true,
             'metadata' => ['invoice' => $invoiceId],
         ], ['idempotency_key' => $this->idempotencyKey("refund-invoice-{$invoiceId}")]))->toArray();
 
         return new RefundData((string) $refund['id'], (int) ($refund['amount'] ?? 0));
-    }
-
-    /**
-     * Charges no longer carry their invoice in newer API versions; it is found through the invoice payment of the
-     * charge's PaymentIntent. The legacy `invoice` field is read first when present.
-     */
-    public function retrieveCharge(string $chargeId): ChargeData
-    {
-        $charge = $this->call(fn () => $this->client->charges->retrieve($chargeId))->toArray();
-        $invoiceId = self::idOf($charge['invoice'] ?? null);
-        $paymentIntentId = self::idOf($charge['payment_intent'] ?? null);
-
-        if ($invoiceId === null && $paymentIntentId !== null) {
-            $payments = $this->call(fn () => $this->client->invoicePayments->all([
-                'payment' => ['type' => 'payment_intent', 'payment_intent' => $paymentIntentId],
-            ]))->toArray();
-            $invoiceId = self::idOf($payments['data'][0]['invoice'] ?? null);
-        }
-
-        return new ChargeData(
-            id: (string) $charge['id'],
-            invoiceId: $invoiceId,
-            amountRefunded: (int) ($charge['amount_refunded'] ?? 0),
-            disputed: ($charge['disputed'] ?? false) === true,
-            paymentIntentId: $paymentIntentId,
-        );
-    }
-
-    public static function subscriptionFrom(Subscription $subscription): SubscriptionData
-    {
-        $data = $subscription->toArray();
-        $item = $data['items']['data'][0] ?? null;
-        $periodEnd = $item['current_period_end'] ?? $data['current_period_end'] ?? null;
-
-        return new SubscriptionData(
-            id: (string) $data['id'],
-            customerId: self::idOf($data['customer'] ?? null) ?? '',
-            status: (string) ($data['status'] ?? ''),
-            itemId: isset($item['id']) ? (string) $item['id'] : null,
-            priceId: isset($item['price']['id']) ? (string) $item['price']['id'] : null,
-            unitAmount: isset($item['price']['unit_amount']) ? (int) $item['price']['unit_amount'] : null,
-            currentPeriodEnd: $periodEnd === null ? null : CarbonImmutable::createFromTimestamp((int) $periodEnd, config('app.timezone')),
-            cancelAtPeriodEnd: ($data['cancel_at_period_end'] ?? false) === true,
-            metadata: self::stringMap($data['metadata'] ?? []),
-            latestInvoiceId: self::idOf($data['latest_invoice'] ?? null),
-        );
-    }
-
-    /**
-     * The subscription moved under parent.subscription_details in newer API versions; the old field is the fallback.
-     */
-    public static function invoiceFrom(Invoice $invoice): InvoiceData
-    {
-        $data = $invoice->toArray();
-        $paidAt = $data['status_transitions']['paid_at'] ?? null;
-        $subscription = $data['parent']['subscription_details']['subscription'] ?? $data['subscription'] ?? null;
-
-        return new InvoiceData(
-            id: (string) $data['id'],
-            subscriptionId: self::idOf($subscription),
-            customerId: self::idOf($data['customer'] ?? null) ?? '',
-            status: (string) ($data['status'] ?? ''),
-            amountPaid: (int) ($data['amount_paid'] ?? 0),
-            paidAt: $paidAt === null ? null : CarbonImmutable::createFromTimestamp((int) $paidAt, config('app.timezone')),
-        );
     }
 
     /**
@@ -333,6 +214,45 @@ class StripeGateway implements PaymentGateway
         $chargeId = self::idOf($payment['charge'] ?? null);
 
         return $chargeId === null ? null : ['charge' => $chargeId];
+    }
+
+    public static function subscriptionFrom(Subscription $subscription): SubscriptionData
+    {
+        $data = $subscription->toArray();
+        $item = $data['items']['data'][0] ?? null;
+        $periodEnd = $item['current_period_end'] ?? $data['current_period_end'] ?? null;
+
+        return new SubscriptionData(
+            id: (string) $data['id'],
+            customerId: self::idOf($data['customer'] ?? null) ?? '',
+            status: (string) ($data['status'] ?? ''),
+            itemId: isset($item['id']) ? (string) $item['id'] : null,
+            priceId: isset($item['price']['id']) ? (string) $item['price']['id'] : null,
+            unitAmount: isset($item['price']['unit_amount']) ? (int) $item['price']['unit_amount'] : null,
+            currentPeriodEnd: $periodEnd === null ? null : CarbonImmutable::createFromTimestamp((int) $periodEnd, config('app.timezone')),
+            cancelAtPeriodEnd: ($data['cancel_at_period_end'] ?? false) === true,
+            metadata: self::stringMap($data['metadata'] ?? []),
+            latestInvoiceId: self::idOf($data['latest_invoice'] ?? null),
+        );
+    }
+
+    /**
+     * The subscription moved under parent.subscription_details in newer API versions; the old field is the fallback.
+     */
+    public static function invoiceFrom(Invoice $invoice): InvoiceData
+    {
+        $data = $invoice->toArray();
+        $paidAt = $data['status_transitions']['paid_at'] ?? null;
+        $subscription = $data['parent']['subscription_details']['subscription'] ?? $data['subscription'] ?? null;
+
+        return new InvoiceData(
+            id: (string) $data['id'],
+            subscriptionId: self::idOf($subscription),
+            customerId: self::idOf($data['customer'] ?? null) ?? '',
+            status: (string) ($data['status'] ?? ''),
+            amountPaid: (int) ($data['amount_paid'] ?? 0),
+            paidAt: $paidAt === null ? null : CarbonImmutable::createFromTimestamp((int) $paidAt, config('app.timezone')),
+        );
     }
 
     private static function sessionFrom(StripeObject $session): CheckoutSessionData

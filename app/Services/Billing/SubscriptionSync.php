@@ -128,9 +128,9 @@ class SubscriptionSync
             return $this->mismatch($data, $support);
         }
 
-        // A new, charging subscription for a creator who can no longer take supports.
+        // A new, charging subscription for a creator who no longer exists.
         if ($orphanable) {
-            $reason = $this->closedCreatorReason((int) $ids['creator_id']);
+            $reason = Creator::query()->whereKey((int) $ids['creator_id'])->exists() ? null : 'creator_missing';
 
             if ($reason !== null) {
                 return ['orphan' => $reason];
@@ -255,17 +255,6 @@ class SubscriptionSync
             ->where(fn ($query) => $query->whereNull('stripe_subscription_id')->orWhere('stripe_subscription_id', '!=', $exceptSubscriptionId))
             ->lockForUpdate()
             ->first();
-    }
-
-    private function closedCreatorReason(int $creatorId): ?string
-    {
-        $creator = Creator::query()->whereKey($creatorId)->first();
-
-        return match (true) {
-            $creator === null => 'creator_missing',
-            $creator->isClosed() => 'creator_closed',
-            default => null,
-        };
     }
 
     /**

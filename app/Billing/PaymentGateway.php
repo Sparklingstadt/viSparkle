@@ -2,15 +2,12 @@
 
 namespace App\Billing;
 
-use App\Billing\Data\AccountData;
-use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 
@@ -46,22 +43,11 @@ interface PaymentGateway
     /** Return the URL of the customer portal; the user comes back to $returnUrl. */
     public function createPortalSession(string $customerId, string $returnUrl): string;
 
-    /** Create a connected account for the creator and return its id (the caller stores it). */
-    public function createConnectAccount(Creator $creator): string;
-
-    public function createAccountOnboardingLink(string $accountId, string $refreshUrl, string $returnUrl): string;
-
-    public function createDashboardLoginLink(string $accountId): string;
-
-    public function retrieveAccount(string $accountId): AccountData;
-
     public function retrieveInvoice(string $id): InvoiceData;
 
     /**
-     * Refund the invoice's payment in full, taking back the creator's transfer and the platform fee.
+     * Refund the invoice's payment in full (a subscription that must not become a support).
      * Retrying the same invoice is idempotent at the provider for a while; an already refunded payment throws.
      */
     public function refundInvoice(string $invoiceId): RefundData;
-
-    public function retrieveCharge(string $chargeId): ChargeData;
 }

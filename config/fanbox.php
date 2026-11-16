@@ -52,11 +52,9 @@ return [
         // stripe | fake. Production defaults to stripe so a build step without BILLING_DRIVER still boots;
         // choosing fake in production explicitly is refused by BillingServiceProvider.
         'driver' => env('BILLING_DRIVER', env('APP_ENV') === 'production' ? 'stripe' : 'fake'),
-        'platform_fee_percent' => (int) env('BILLING_PLATFORM_FEE_PERCENT', 10),
         'stripe' => [
             'secret' => env('STRIPE_SECRET'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
-            'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET'),
         ],
         'checkout_expires_minutes' => 30,
         // Prefix for Stripe idempotency keys, so environments sharing one Stripe account (e.g. local and production on

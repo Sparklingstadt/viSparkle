@@ -1,5 +1,6 @@
 <?php
 
+use App\Billing\BillingException;
 use App\Billing\Data\SubscriptionData;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->payable()->create();
+    $this->creator = Creator::factory()->create();
     $this->plan = Plan::factory()->for($this->creator)->price(500)->create();
     $this->fan = User::factory()->create();
 });
@@ -298,27 +299,16 @@ it('cancels a new subscription whose user was deleted', function () {
     Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === 'user_missing')->once();
 });
 
-it('cancels a new subscription for a closed creator', function () {
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $this->creator->forceFill(['closed_at' => now()])->save();
-    Log::spy();
-
-    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
-        ->and(Support::query()->count())->toBe(0)
-        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
-    Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === 'creator_closed')->once();
-});
-
 it('refunds the paid invoice of an orphan subscription', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $this->creator->forceFill(['closed_at' => now()])->save();
+    $this->fan->delete();
     $sync = app(SubscriptionSync::class);
 
     expect($sync->sync($subscription->id))->toBeNull()
         ->and($sync->lastOutcome())->toBe('orphan');
 
-    $charge = $this->gateway->retrieveCharge($this->gateway->chargeIdForInvoice((string) $subscription->latestInvoiceId));
-    expect($charge->amountRefunded)->toBe(500);
+    // The fake refuses a second refund, so this throwing shows the sync already refunded the invoice.
+    expect(fn () => $this->gateway->refundInvoice((string) $subscription->latestInvoiceId))->toThrow(BillingException::class);
 });
 
 it('logs a failed orphan refund without throwing', function () {
@@ -341,14 +331,6 @@ it('reports the outcome of the last sync', function () {
     expect($sync->lastOutcome())->toBeNull();
     $sync->sync($subscription->id);
     expect($sync->lastOutcome())->toBe('synced');
-});
-
-it('keeps syncing an existing support after its creator closed', function () {
-    $support = app(SubscriptionSync::class)->sync(fakeCheckout($this->gateway, $this->plan, $this->fan)->id);
-    $this->creator->forceFill(['closed_at' => now()])->save();
-
-    expect(app(SubscriptionSync::class)->sync((string) $support->stripe_subscription_id)->status)->toBe(SupportStatus::Active)
-        ->and($this->gateway->cancelledNow())->toBe([]);
 });
 
 it('ignores a subscription stamped by another environment', function () {

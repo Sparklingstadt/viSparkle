@@ -26,7 +26,6 @@ class ProfileController extends Controller
                 'bio' => $creator->bio,
                 'avatar_url' => $creator->avatarUrl(),
                 'header_url' => $creator->headerUrl(),
-                'closed' => $creator->isClosed(),
             ],
         ]);
     }

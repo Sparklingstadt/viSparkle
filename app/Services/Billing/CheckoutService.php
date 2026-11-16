@@ -60,8 +60,6 @@ class CheckoutService
         $session = $this->gateway->createCheckoutSession(new CheckoutRequest(
             customerId: $customerId,
             priceId: $price->priceId,
-            destinationAccountId: (string) $creator->stripe_account_id,
-            feePercent: (int) config('fanbox.billing.platform_fee_percent'),
             metadata: [
                 // Which environment created it: test-mode accounts are shared, so others' subscriptions reach our webhooks too.
                 'app' => (string) config('fanbox.billing.idempotency_prefix'),
@@ -100,14 +98,6 @@ class CheckoutService
 
         if ($creator->user_id === $user->id) {
             throw ValidationException::withMessages(['plan' => '自分自身を支援することはできません。']);
-        }
-
-        if ($creator->isClosed()) {
-            throw ValidationException::withMessages(['plan' => 'このクリエイターは活動を終了しました。']);
-        }
-
-        if (! $creator->canAcceptSupports()) {
-            throw ValidationException::withMessages(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
         }
 
         if (! $plan->is_accepting) {

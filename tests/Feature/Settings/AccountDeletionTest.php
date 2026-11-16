@@ -13,7 +13,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->payable()->create(['display_name' => '星野']);
+    $this->creator = Creator::factory()->create(['display_name' => '星野']);
     $this->plan = Plan::factory()->for($this->creator)->price(1000)->create();
     $this->fan = User::factory()->create();
 });
@@ -42,7 +42,7 @@ it('lists the billing supports in the deletion dialog', function () {
 
 it('cancels billing supports immediately and deletes the user', function () {
     $renewing = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
-    $otherCreator = Creator::factory()->payable()->create();
+    $otherCreator = Creator::factory()->create();
     $cancelling = syncedBillingSupport($this->gateway, Plan::factory()->for($otherCreator)->create(), $this->fan);
     $this->gateway->setCancelAtPeriodEnd((string) $cancelling->stripe_subscription_id, true);
 
@@ -80,7 +80,7 @@ it('aborts deletion when stripe fails', function () {
 
 it('keeps the user when a later cancellation fails, and deletes on retry', function () {
     $first = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
-    $second = syncedBillingSupport($this->gateway, Plan::factory()->for(Creator::factory()->payable())->create(), $this->fan);
+    $second = syncedBillingSupport($this->gateway, Plan::factory()->for(Creator::factory())->create(), $this->fan);
 
     $fake = $this->gateway;
     $failing = Mockery::mock($fake)->makePartial();

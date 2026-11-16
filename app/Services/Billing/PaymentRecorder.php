@@ -48,7 +48,6 @@ class PaymentRecorder
             'user_id' => $support->user_id,
             'creator_id' => $support->creator_id,
             'amount' => $invoice->amountPaid,
-            'fee_percent' => config('fanbox.billing.platform_fee_percent'),
             'paid_at' => $invoice->paidAt ?? now(),
         ]);
     }

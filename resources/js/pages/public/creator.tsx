@@ -18,8 +18,6 @@ export default function CreatorPage({
     viewerPlanId,
     viewerSupportId,
     viewerSupportCancelling,
-    acceptsSupports,
-    closed,
 }: {
     creator: CreatorProfile & { id: number };
     plans: PlanData[];
@@ -29,8 +27,6 @@ export default function CreatorPage({
     viewerPlanId: number | null;
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
-    acceptsSupports: boolean;
-    closed: boolean;
 }) {
     const acceptingPlans = plans.filter((plan) => plan.is_accepting);
     const cheapestPlan = acceptingPlans.reduce<PlanData | null>(
@@ -46,11 +42,7 @@ export default function CreatorPage({
             : null;
     // A visitor who could start supporting right now gets a "支援する" next to the name and, on phones, a bar fixed to the bottom.
     const showSupportBar =
-        !isOwner &&
-        !closed &&
-        acceptsSupports &&
-        viewerSupportId === null &&
-        acceptingPlans.length > 0;
+        !isOwner && viewerSupportId === null && acceptingPlans.length > 0;
 
     return (
         <>
@@ -70,12 +62,6 @@ export default function CreatorPage({
                     />
                 </div>
 
-                {closed && (
-                    <p className="rounded-md border bg-muted p-4 text-sm">
-                        このクリエイターは活動を終了しました。
-                    </p>
-                )}
-
                 <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
                     <section
                         id="plans"
@@ -94,11 +80,7 @@ export default function CreatorPage({
                                         plan={plan}
                                         featured={plan.id === featuredPlanId}
                                         action={
-                                            // A closed creator takes no new supports; current supporters can still manage theirs.
-                                            isOwner ||
-                                            (closed &&
-                                                viewerSupportId ===
-                                                    null) ? null : (
+                                            isOwner ? null : (
                                                 <SupportButton
                                                     creatorSlug={creator.slug}
                                                     plan={plan}
@@ -112,10 +94,6 @@ export default function CreatorPage({
                                                     viewerSupportCancelling={
                                                         viewerSupportCancelling
                                                     }
-                                                    acceptsSupports={
-                                                        acceptsSupports
-                                                    }
-                                                    closed={closed}
                                                 />
                                             )
                                         }

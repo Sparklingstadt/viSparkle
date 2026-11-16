@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Database\Factories\CreatorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Scope;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,13 +19,6 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $bio
  * @property string|null $avatar_path
  * @property string|null $header_path
- * @property string|null $stripe_account_id
- * @property bool $payouts_enabled
- * @property bool $details_submitted
- * @property Carbon|null $closed_at
- * @property string|null $shop_notice
- * @property string|null $shop_contact_email
- * @property bool $accepts_support
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -36,28 +27,6 @@ class Creator extends Model
 {
     /** @use HasFactory<CreatorFactory> */
     use HasFactory;
-
-    protected function casts(): array
-    {
-        return [
-            'payouts_enabled' => 'boolean',
-            'details_submitted' => 'boolean',
-            'closed_at' => 'datetime',
-            'accepts_support' => 'boolean',
-        ];
-    }
-
-    /** @param  Builder<self>  $query */
-    #[Scope]
-    protected function open(Builder $query): void
-    {
-        $query->whereNull('closed_at');
-    }
-
-    public function isClosed(): bool
-    {
-        return $this->closed_at !== null;
-    }
 
     public function getRouteKeyName(): string
     {
@@ -98,11 +67,6 @@ class Creator extends Model
     public function toSummary(): array
     {
         return ['slug' => $this->slug, 'display_name' => $this->display_name, 'avatar_url' => $this->avatarUrl()];
-    }
-
-    public function canAcceptSupports(): bool
-    {
-        return $this->stripe_account_id !== null && (bool) $this->payouts_enabled;
     }
 
     /** @return BelongsTo<User, $this> */

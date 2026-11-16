@@ -16,15 +16,11 @@ use Illuminate\Support\Carbon;
  * @property int $creator_id
  * @property string $stripe_invoice_id
  * @property int $amount
- * @property int $fee_percent
  * @property Carbon $paid_at
- * @property int $refunded_amount
- * @property Carbon|null $refunded_at
- * @property Carbon|null $disputed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['support_id', 'user_id', 'creator_id', 'stripe_invoice_id', 'amount', 'fee_percent', 'paid_at'])]
+#[Fillable(['support_id', 'user_id', 'creator_id', 'stripe_invoice_id', 'amount', 'paid_at'])]
 class Payment extends Model
 {
     /** @use HasFactory<PaymentFactory> */
@@ -34,17 +30,8 @@ class Payment extends Model
     {
         return [
             'amount' => 'integer',
-            'fee_percent' => 'integer',
             'paid_at' => 'datetime',
-            'refunded_amount' => 'integer',
-            'refunded_at' => 'datetime',
-            'disputed_at' => 'datetime',
         ];
-    }
-
-    public function netAmount(): int
-    {
-        return $this->amount - (int) $this->refunded_amount;
     }
 
     /** @return BelongsTo<Creator, $this> */

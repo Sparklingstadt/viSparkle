@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Billing\FakeGateway;
 use App\Enums\PostStatus;
 use App\Models\Creator;
 use App\Models\User;
@@ -14,9 +13,6 @@ use Illuminate\Support\Str;
 /**
  * Ten demo creators with plans, posts and images. Locally their accounts use the password "password"; in
  * production each gets a long random password nobody knows, so the pages show but nobody can log in as them.
- * Locally (fake billing) eight of them get a fake payout account so their plans can be supported; the other two
- * stay "準備中". In production none has a payout account, since a made-up Stripe account would break checkout;
- * `php artisan visparkle:demo-payout-accounts` opens real Stripe test-mode accounts for the eight instead.
  *
  * Uses no model factories (Faker is a dev dependency), so it also runs on production:
  *   php artisan db:seed --class=DemoCreatorsSeeder --force
@@ -117,11 +113,6 @@ class DemoCreatorsSeeder extends Seeder
     ];
 
     /**
-     * Demo creators left without a payout account, so their plans show as not yet accepting supports (2 of 10).
-     */
-    private const NOT_ACCEPTING_SUPPORTS = ['kuroneko-manga', 'hiro-3d'];
-
-    /**
      * Two colours per creator (avatar background / header gradient), keyed by slug.
      *
      * @var array<string, array{string, string}>
@@ -141,7 +132,7 @@ class DemoCreatorsSeeder extends Seeder
     ];
 
     /**
-     * Safe to re-run: existing creators keep their plans and posts and only get missing images and payout accounts.
+     * Safe to re-run: existing creators keep their plans and posts and only get missing images.
      */
     public function run(): void
     {
@@ -159,10 +150,6 @@ class DemoCreatorsSeeder extends Seeder
 
         foreach (Creator::whereIn('slug', array_keys(self::PALETTES))->get() as $creator) {
             $this->paintImages($creator, self::PALETTES[$creator->slug]);
-        }
-
-        if (config('fanbox.billing.driver') === 'fake' && ! app()->isProduction()) {
-            $this->openFakePayoutAccounts();
         }
 
     }
@@ -202,25 +189,6 @@ class DemoCreatorsSeeder extends Seeder
     public static function slugs(): array
     {
         return array_column(self::CREATORS, 0);
-    }
-
-    /**
-     * Slugs of the demo creators meant to accept supports.
-     *
-     * @return list<string>
-     */
-    public static function acceptingSupports(): array
-    {
-        return array_values(array_diff(array_column(self::CREATORS, 0), self::NOT_ACCEPTING_SUPPORTS));
-    }
-
-    private function openFakePayoutAccounts(): void
-    {
-        foreach (Creator::whereIn('slug', self::acceptingSupports())->get() as $creator) {
-            $accountId = "acct_fake_{$creator->slug}";
-            $creator->forceFill(['stripe_account_id' => $accountId, 'payouts_enabled' => true, 'details_submitted' => true])->save();
-            app(FakeGateway::class)->setAccount($accountId, true, true);
-        }
     }
 
     /**

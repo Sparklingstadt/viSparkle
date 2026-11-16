@@ -35,7 +35,7 @@ class FakeCheckoutController extends Controller
 
         $subscription = $gateway->completeCheckout($session);
 
-        // Stand in for the invoice.paid webhook, so local earnings show the first payment.
+        // Stand in for the invoice.paid webhook, so the first payment is recorded locally.
         $invoiceId = $gateway->latestInvoiceId($subscription->id);
 
         if ($invoiceId !== null) {

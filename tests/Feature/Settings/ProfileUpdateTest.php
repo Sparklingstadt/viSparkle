@@ -102,7 +102,7 @@ class ProfileUpdateTest extends TestCase
 
     public function test_creator_with_active_supporters_cannot_delete_their_account()
     {
-        $creator = Creator::factory()->payable()->create();
+        $creator = Creator::factory()->create();
         $plan = Plan::factory()->create(['creator_id' => $creator->id]);
         Support::factory()->forPlan($plan)->billing()->create();
 

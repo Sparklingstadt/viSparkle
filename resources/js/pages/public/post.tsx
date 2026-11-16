@@ -28,8 +28,6 @@ export default function PostPage({
     viewerPlanId,
     viewerSupportId,
     viewerSupportCancelling,
-    acceptsSupports,
-    closed,
 }: {
     post: PostDetail;
     creator: CreatorProfile & { id: number };
@@ -40,8 +38,6 @@ export default function PostPage({
     viewerPlanId: number | null;
     viewerSupportId: number | null;
     viewerSupportCancelling: boolean;
-    acceptsSupports: boolean;
-    closed: boolean;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -154,10 +150,6 @@ export default function PostPage({
                                                     viewerSupportCancelling={
                                                         viewerSupportCancelling
                                                     }
-                                                    acceptsSupports={
-                                                        acceptsSupports
-                                                    }
-                                                    closed={closed}
                                                 />
                                             }
                                         />

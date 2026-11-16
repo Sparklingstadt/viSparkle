@@ -2,15 +2,12 @@
 
 namespace App\Billing;
 
-use App\Billing\Data\AccountData;
-use App\Billing\Data\ChargeData;
 use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\Data\InvoiceData;
 use App\Billing\Data\PriceRef;
 use App\Billing\Data\RefundData;
 use App\Billing\Data\SubscriptionData;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -27,8 +24,6 @@ use Illuminate\Support\Str;
  *     sessions: array<string, array<string, mixed>>,
  *     subscriptions: array<string, array<string, mixed>>,
  *     invoices: array<string, array<string, mixed>>,
- *     charges: array<string, array{invoice_id: string|null, amount: int, amount_refunded: int, disputed: bool, payment_intent_id?: string}>,
- *     accounts: array<string, array{payouts_enabled: bool, details_submitted: bool}>,
  *     cancelledNow: list<string>,
  *     failPayments: bool,
  * }
@@ -172,40 +167,6 @@ class FakeGateway implements PaymentGateway
         return $returnUrl;
     }
 
-    public function createConnectAccount(Creator $creator): string
-    {
-        $state = $this->state();
-        $id = $this->newId('acct');
-        $state['accounts'][$id] = ['payouts_enabled' => false, 'details_submitted' => false];
-        $this->save($state);
-
-        return $id;
-    }
-
-    public function createAccountOnboardingLink(string $accountId, string $refreshUrl, string $returnUrl): string
-    {
-        $state = $this->state();
-        $this->account($state, $accountId);
-        $state['accounts'][$accountId] = ['payouts_enabled' => true, 'details_submitted' => true];
-        $this->save($state);
-
-        return $returnUrl;
-    }
-
-    public function createDashboardLoginLink(string $accountId): string
-    {
-        $this->account($this->state(), $accountId);
-
-        return url('/creator/earnings');
-    }
-
-    public function retrieveAccount(string $accountId): AccountData
-    {
-        $account = $this->account($this->state(), $accountId);
-
-        return new AccountData($accountId, $account['payouts_enabled'], $account['details_submitted']);
-    }
-
     public function retrieveInvoice(string $id): InvoiceData
     {
         return $this->invoiceData($this->invoice($this->state(), $id));
@@ -225,22 +186,9 @@ class FakeGateway implements PaymentGateway
         }
 
         $state['invoices'][$invoiceId]['refunded'] = true;
-        $chargeId = $invoice['charge_id'] ?? null;
-
-        if (is_string($chargeId) && isset($state['charges'][$chargeId])) {
-            $state['charges'][$chargeId]['amount_refunded'] = $state['charges'][$chargeId]['amount'];
-        }
-
         $this->save($state);
 
         return new RefundData($this->newId('re'), (int) $invoice['amount_paid']);
-    }
-
-    public function retrieveCharge(string $chargeId): ChargeData
-    {
-        $charge = $this->charge($this->state(), $chargeId);
-
-        return new ChargeData($chargeId, $charge['invoice_id'], $charge['amount_refunded'], $charge['disputed'], $charge['payment_intent_id'] ?? null);
     }
 
     /*
@@ -334,16 +282,6 @@ class FakeGateway implements PaymentGateway
     }
 
     /**
-     * Set the state of a connected account, registering it when unknown (e.g. the seeded demo creator's).
-     */
-    public function setAccount(string $accountId, bool $payoutsEnabled, bool $detailsSubmitted): void
-    {
-        $state = $this->state();
-        $state['accounts'][$accountId] = ['payouts_enabled' => $payoutsEnabled, 'details_submitted' => $detailsSubmitted];
-        $this->save($state);
-    }
-
-    /**
      * What the dev checkout page shows for a session, or null when it does not exist.
      *
      * @return array{amount: int, plan_id: int, user_id: string|null, status: string, success_url: string, cancel_url: string, }|null
@@ -374,26 +312,6 @@ class FakeGateway implements PaymentGateway
     }
 
     /**
-     * The fake charge created for a paid invoice.
-     */
-    public function chargeIdForInvoice(string $invoiceId): string
-    {
-        $chargeId = $this->invoice($this->state(), $invoiceId)['charge_id'] ?? null;
-
-        return is_string($chargeId) ? $chargeId : throw new BillingException("Invoice {$invoiceId} has no charge.");
-    }
-
-    /**
-     * Simulate the cardholder disputing the charge with their bank.
-     */
-    public function markDisputed(string $chargeId): void
-    {
-        $state = $this->state();
-        $state['charges'][$chargeId] = ['disputed' => true] + $this->charge($state, $chargeId);
-        $this->save($state);
-    }
-
-    /**
      * @return list<string>
      */
     public function cancelledNow(): array
@@ -419,8 +337,6 @@ class FakeGateway implements PaymentGateway
             'sessions' => [],
             'subscriptions' => [],
             'invoices' => [],
-            'charges' => [],
-            'accounts' => [],
             'cancelledNow' => [],
             'failPayments' => false,
         ] : $state;
@@ -485,32 +401,13 @@ class FakeGateway implements PaymentGateway
     }
 
     /**
-     * @param  State  $state
-     * @return array{invoice_id: string|null, amount: int, amount_refunded: int, disputed: bool, payment_intent_id?: string}
-     */
-    private function charge(array $state, string $id): array
-    {
-        return $state['charges'][$id] ?? throw new BillingException("Unknown charge {$id}.");
-    }
-
-    /**
-     * @param  State  $state
-     * @return array{payouts_enabled: bool, details_submitted: bool}
-     */
-    private function account(array $state, string $id): array
-    {
-        return $state['accounts'][$id] ?? throw new BillingException("Unknown account {$id}.");
-    }
-
-    /**
-     * Add a paid invoice with its charge (and mark it as the subscription's latest) to the given state; the caller saves.
+     * Add a paid invoice (and mark it as the subscription's latest) to the given state; the caller saves.
      *
      * @param  State  $state
      */
     private function addInvoice(array &$state, string $subscriptionId, string $customerId, int $amount): string
     {
         $id = $this->newId('in');
-        $chargeId = $this->newId('ch');
         $state['invoices'][$id] = [
             'id' => $id,
             'subscription_id' => $subscriptionId,
@@ -518,10 +415,7 @@ class FakeGateway implements PaymentGateway
             'status' => 'paid',
             'amount_paid' => $amount,
             'paid_at' => CarbonImmutable::now()->getTimestamp(),
-            'charge_id' => $chargeId,
-            'refunded' => false,
         ];
-        $state['charges'][$chargeId] = ['invoice_id' => $id, 'amount' => $amount, 'amount_refunded' => 0, 'disputed' => false];
         $state['subscriptions'][$subscriptionId]['latest_invoice_id'] = $id;
 
         return $id;

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     fakeBilling();
-    $this->creator = Creator::factory()->payable()->create();
+    $this->creator = Creator::factory()->create();
     $this->plan = Plan::factory()->for($this->creator)->price(1000)->create();
     $this->fan = User::factory()->create();
 });
@@ -75,13 +75,12 @@ it('redirects back to the creator page with a toast when the support cannot begi
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => $message]);
 })->with([
     'own creator' => [fn ($t) => $t->creator->forceFill(['user_id' => $t->fan->id])->save(), '自分自身を支援することはできません。'],
-    'not payable' => [fn ($t) => $t->creator->forceFill(['stripe_account_id' => null])->save(), 'このクリエイターは現在支援を受け付けていません。'],
     'not accepting' => [fn ($t) => $t->plan->forceFill(['is_accepting' => false])->save(), 'このプランは現在受付を停止しています。'],
     'already supporting' => [fn ($t) => Support::factory()->for($t->fan)->forPlan($t->plan)->active()->create(), 'すでに支援中です。プランの変更は「このプランに変更」から行ってください。'],
 ]);
 
 it('returns 404 for a plan of another creator', function () {
-    $other = Plan::factory()->for(Creator::factory()->payable()->create())->create();
+    $other = Plan::factory()->for(Creator::factory()->create())->create();
 
     $this->actingAs($this->fan)->get(confirmRoute($this->creator, $other))->assertNotFound();
 });

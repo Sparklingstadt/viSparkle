@@ -45,7 +45,7 @@ function stripeSubscriptionBody(array $overrides = []): array
     ], $overrides);
 }
 
-it('creates a destination-charge checkout session', function () {
+it('creates a subscription checkout session paid to our own account', function () {
     $this->http->queue([
         'id' => 'cs_x', 'object' => 'checkout.session', 'url' => 'https://checkout.stripe.test/cs_x',
         'status' => 'open', 'subscription' => null, 'customer' => 'cus_x', 'metadata' => ['plan_id' => '7'],
@@ -54,8 +54,6 @@ it('creates a destination-charge checkout session', function () {
     $session = $this->gateway->createCheckoutSession(new CheckoutRequest(
         customerId: 'cus_x',
         priceId: 'price_x',
-        destinationAccountId: 'acct_x',
-        feePercent: 10,
         metadata: ['plan_id' => '7'],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
@@ -72,8 +70,8 @@ it('creates a destination-charge checkout session', function () {
         ->and($request['params']['expires_at'])->toBe(1793836800)
         ->and($request['params']['line_items'][0]['price'])->toBe('price_x')
         ->and($request['params']['line_items'][0]['quantity'])->toBe(1)
-        ->and($request['params']['subscription_data']['application_fee_percent'])->toBe(10)
-        ->and($request['params']['subscription_data']['transfer_data']['destination'])->toBe('acct_x')
+        ->and($request['params']['subscription_data'])->not->toHaveKey('application_fee_percent')
+        ->and($request['params']['subscription_data'])->not->toHaveKey('transfer_data')
         ->and($request['params']['subscription_data']['metadata'])->toBe(['plan_id' => '7'])
         ->and($request['params']['metadata'])->toBe(['plan_id' => '7'])
         ->and($request['params']['success_url'])->toBe('https://app.test/success')
@@ -278,77 +276,27 @@ it('creates a customer with an idempotency key', function () {
         ->and($this->http->header(0, 'Idempotency-Key'))->toBe("test.app:user-{$user->id}-customer");
 });
 
-it('creates a connect account for the creator', function () {
-    $creator = Creator::factory()->create();
-    $this->http->queue(['id' => 'acct_x', 'object' => 'v2.core.account']);
-
-    expect($this->gateway->createConnectAccount($creator))->toBe('acct_x');
-
-    $request = $this->http->requests[0];
-    expect($request['path'])->toBe('/v2/core/accounts')
-        ->and($request['params'])->toMatchArray([
-            'contact_email' => $creator->user->email,
-            'display_name' => $creator->display_name,
-            'identity' => ['country' => 'jp'],
-            'dashboard' => 'express',
-            'defaults' => ['responsibilities' => ['fees_collector' => 'application', 'losses_collector' => 'application']],
-            'configuration' => ['recipient' => ['capabilities' => ['stripe_balance' => ['stripe_transfers' => ['requested' => true]]]]],
-            'metadata' => ['creator_id' => (string) $creator->id],
-        ])
-        ->and($this->http->header(0, 'Idempotency-Key'))->toBe("test.app:creator-{$creator->id}-account-v2");
-});
-
 it('logs stripe notices instead of failing the call', function () {
     Log::spy();
-    $creator = Creator::factory()->create();
-    $this->http->queue(['id' => 'acct_x', 'object' => 'account'], headers: ['Stripe-Notice' => 'We recommend building your integration using Accounts v2.']);
+    $user = User::factory()->create();
+    $this->http->queue(['id' => 'cus_x', 'object' => 'customer'], headers: ['Stripe-Notice' => 'This API version will be retired soon.']);
 
-    expect($this->gateway->createConnectAccount($creator))->toBe('acct_x');
+    expect($this->gateway->createCustomer($user))->toBe('cus_x');
 
     Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message, array $context) => $message === 'billing.stripe_notice' && str_contains($context['message'], 'Accounts v2'))
+        ->withArgs(fn (string $message, array $context) => $message === 'billing.stripe_notice' && str_contains($context['message'], 'retired soon'))
         ->once();
 });
 
-it('returns onboarding, dashboard and portal URLs', function () {
-    $this->http->queue(['object' => 'v2.core.account_link', 'url' => 'https://connect.stripe.test/onboard'])
-        ->queue(['object' => 'login_link', 'url' => 'https://connect.stripe.test/dashboard'])
-        ->queue(['object' => 'billing_portal.session', 'url' => 'https://billing.stripe.test/portal']);
+it('returns the portal URL', function () {
+    $this->http->queue(['object' => 'billing_portal.session', 'url' => 'https://billing.stripe.test/portal']);
 
-    expect($this->gateway->createAccountOnboardingLink('acct_x', 'https://app.test/refresh', 'https://app.test/return'))->toBe('https://connect.stripe.test/onboard')
-        ->and($this->gateway->createDashboardLoginLink('acct_x'))->toBe('https://connect.stripe.test/dashboard')
-        ->and($this->gateway->createPortalSession('cus_x', 'https://app.test/back'))->toBe('https://billing.stripe.test/portal');
+    expect($this->gateway->createPortalSession('cus_x', 'https://app.test/back'))->toBe('https://billing.stripe.test/portal');
 
-    [$link, $login, $portal] = $this->http->requests;
-    expect($link['path'])->toBe('/v2/core/account_links')
-        ->and($link['params'])->toMatchArray([
-            'account' => 'acct_x',
-            'use_case' => [
-                'type' => 'account_onboarding',
-                'account_onboarding' => ['refresh_url' => 'https://app.test/refresh', 'return_url' => 'https://app.test/return'],
-            ],
-        ])
-        ->and($login['path'])->toBe('/v1/accounts/acct_x/login_links')
-        ->and($portal['path'])->toBe('/v1/billing_portal/sessions')
+    $portal = $this->http->requests[0];
+    expect($portal['path'])->toBe('/v1/billing_portal/sessions')
         ->and($portal['params'])->toMatchArray(['customer' => 'cus_x', 'return_url' => 'https://app.test/back']);
 });
-
-it('only enables payouts when transfers is active', function (bool $payouts, string $transfers, bool $expected) {
-    $this->http->queue([
-        'id' => 'acct_x', 'object' => 'account', 'payouts_enabled' => $payouts,
-        'details_submitted' => true, 'capabilities' => ['transfers' => $transfers],
-    ]);
-
-    $account = $this->gateway->retrieveAccount('acct_x');
-
-    expect($account->id)->toBe('acct_x')
-        ->and($account->payoutsEnabled)->toBe($expected)
-        ->and($account->detailsSubmitted)->toBeTrue();
-})->with([
-    'both ready' => [true, 'active', true],
-    'transfers pending' => [true, 'pending', false],
-    'payouts disabled' => [false, 'active', false],
-]);
 
 it('cancels, schedules cancellation and expires through the matching endpoints', function () {
     $this->http->queue(stripeSubscriptionBody(['status' => 'canceled']))
@@ -399,7 +347,7 @@ function stripeInvoicePayment(array $overrides = []): array
     ], $overrides);
 }
 
-it('refunds the invoice payment in full, reversing the transfer and the application fee', function () {
+it('refunds the invoice payment in full, with no transfer to reverse', function () {
     $this->http->queue(stripeInvoicePaymentsBody([stripeInvoicePayment()]))
         ->queue(['id' => 're_x', 'object' => 'refund', 'amount' => 500, 'charge' => 'ch_x', 'payment_intent' => 'pi_x', 'status' => 'succeeded']);
 
@@ -413,11 +361,11 @@ it('refunds the invoice payment in full, reversing the transfer and the applicat
         ->and($create['path'])->toBe('/v1/refunds')
         ->and($create['params'])->toMatchArray([
             'payment_intent' => 'pi_x',
-            'reverse_transfer' => 'true',
-            'refund_application_fee' => 'true',
             'metadata' => ['invoice' => 'in_x'],
         ])
         ->and($create['params'])->not->toHaveKey('amount')
+        ->and($create['params'])->not->toHaveKey('reverse_transfer')
+        ->and($create['params'])->not->toHaveKey('refund_application_fee')
         ->and($this->http->header(1, 'Idempotency-Key'))->toBe('test.app:refund-invoice-in_x')
         ->and($refund->id)->toBe('re_x')
         ->and($refund->amount)->toBe(500);
@@ -429,7 +377,7 @@ it('refunds an invoice paid by a bare charge', function () {
 
     $this->gateway->refundInvoice('in_x');
 
-    expect($this->http->requests[1]['params'])->toMatchArray(['charge' => 'ch_x', 'reverse_transfer' => 'true'])
+    expect($this->http->requests[1]['params'])->toMatchArray(['charge' => 'ch_x'])
         ->and($this->http->requests[1]['params'])->not->toHaveKey('payment_intent');
 });
 
@@ -459,46 +407,6 @@ it('wraps an already refunded charge as a billing error', function () {
     expect(fn () => $this->gateway->refundInvoice('in_x'))->toThrow(BillingException::class, 'already been refunded');
 });
 
-it('retrieves a charge and finds its invoice through the payment intent', function () {
-    $this->http->queue([
-        'id' => 'ch_x', 'object' => 'charge', 'amount' => 500, 'amount_refunded' => 200,
-        'disputed' => true, 'payment_intent' => 'pi_x', 'refunded' => false,
-    ])->queue(stripeInvoicePaymentsBody([stripeInvoicePayment(['invoice' => 'in_x'])]));
-
-    $charge = $this->gateway->retrieveCharge('ch_x');
-
-    [$get, $lookup] = $this->http->requests;
-    expect($get['path'])->toBe('/v1/charges/ch_x')
-        ->and($lookup['path'])->toBe('/v1/invoice_payments')
-        ->and($lookup['params'])->toMatchArray(['payment' => ['type' => 'payment_intent', 'payment_intent' => 'pi_x']])
-        ->and($charge->id)->toBe('ch_x')
-        ->and($charge->invoiceId)->toBe('in_x')
-        ->and($charge->amountRefunded)->toBe(200)
-        ->and($charge->disputed)->toBeTrue();
-});
-
-it('reads the legacy charge invoice field without a lookup', function () {
-    $this->http->queue([
-        'id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'disputed' => false,
-        'payment_intent' => 'pi_x', 'invoice' => 'in_legacy',
-    ]);
-
-    $charge = $this->gateway->retrieveCharge('ch_x');
-
-    expect($this->http->requests)->toHaveCount(1)
-        ->and($charge->invoiceId)->toBe('in_legacy')
-        ->and($charge->disputed)->toBeFalse();
-});
-
-it('maps a charge that is not for an invoice', function (?string $paymentIntent) {
-    $this->http->queue(['id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'payment_intent' => $paymentIntent]);
-    if ($paymentIntent !== null) {
-        $this->http->queue(stripeInvoicePaymentsBody([]));
-    }
-
-    expect($this->gateway->retrieveCharge('ch_x')->invoiceId)->toBeNull();
-})->with(['no payment intent' => [null], 'payment intent without invoice' => ['pi_x']]);
-
 it('skips invoice payments that are not paid', function () {
     $this->http->queue(stripeInvoicePaymentsBody([
         stripeInvoicePayment(['id' => 'inpay_failed', 'status' => 'canceled', 'payment' => ['payment_intent' => 'pi_failed']]),
@@ -515,9 +423,3 @@ it('maps the latest invoice of a subscription', function (mixed $latest) {
 
     expect($subscription->latestInvoiceId)->toBe('in_x');
 })->with(['id' => ['in_x'], 'expanded' => [['id' => 'in_x', 'object' => 'invoice']]]);
-
-it('reads the payment intent of a charge', function () {
-    $this->http->queue(['id' => 'ch_x', 'object' => 'charge', 'amount_refunded' => 0, 'disputed' => false, 'payment_intent' => 'pi_x', 'invoice' => 'in_x']);
-
-    expect($this->gateway->retrieveCharge('ch_x')->paymentIntentId)->toBe('pi_x');
-});

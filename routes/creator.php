@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Creator\ClosureController;
 use App\Http\Controllers\Creator\CreatorRegistrationController;
 use App\Http\Controllers\Creator\PlanController;
 use App\Http\Controllers\Creator\PostController;
@@ -16,9 +15,6 @@ Route::middleware(['auth', 'verified'])->prefix('creator')->name('creator.')->gr
     Route::middleware('creator')->group(function () {
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::post('profile', [ProfileController::class, 'update'])->name('profile.update');
-
-        Route::post('closure', [ClosureController::class, 'store'])->name('closure.store');
-        Route::delete('closure', [ClosureController::class, 'destroy'])->name('closure.destroy');
 
         Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
         Route::post('plans', [PlanController::class, 'store'])->name('plans.store');

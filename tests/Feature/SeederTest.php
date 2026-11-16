@@ -10,7 +10,7 @@ beforeEach(fn () => fakePrivateDisk());
 
 it('seeds demo accounts, plans and posts', function () {
     Storage::fake('public');
-    $gateway = fakeBilling();
+    fakeBilling();
     $this->seed();
 
     $creator = Creator::where('slug', 'demo-creator')->sole();
@@ -18,8 +18,6 @@ it('seeds demo accounts, plans and posts', function () {
     expect(User::where('email', 'fan@example.com')->sole()->email_verified_at)->not->toBeNull()
         ->and($creator->user->email)->toBe('creator@example.com')
         ->and($creator->plans()->pluck('price')->all())->toBe([300, 500, 1000])
-        ->and($creator->canAcceptSupports())->toBeTrue()
-        ->and($gateway->retrieveAccount('acct_fake_demo')->payoutsEnabled)->toBeTrue()
         ->and($creator->posts()->published()->pluck('required_price')->sort()->values()->all())->toBe([0, 300, 1000]);
 });
 
@@ -42,18 +40,6 @@ it('seeds ten more demo creators with 1-3 plans and 2-5 posts each', function ()
             // Every locked post must be unlockable by one of the creator's plans.
             ->and($creator->posts->pluck('required_price')->diff([0, ...$prices])->all())->toBe([]);
     }
-});
-
-it('lets eight of the ten demo creators accept supports locally', function () {
-    Storage::fake('public');
-    $gateway = fakeBilling();
-    $this->seed();
-
-    $others = Creator::where('slug', '!=', 'demo-creator')->get();
-
-    expect($others->filter->canAcceptSupports()->count())->toBe(8)
-        ->and($others->reject->canAcceptSupports()->pluck('slug')->sort()->values()->all())->toBe(['hiro-3d', 'kuroneko-manga'])
-        ->and($gateway->retrieveAccount('acct_fake_sakura-illust')->payoutsEnabled)->toBeTrue();
 });
 
 it('gives every demo creator an avatar and a header image', function () {
@@ -82,7 +68,6 @@ it('gives demo accounts an unknown password in production', function () {
     $user = User::where('email', 'sakura-illust@example.com')->sole();
 
     expect(Creator::count())->toBe(10)
-        ->and(Creator::whereNotNull('stripe_account_id')->count())->toBe(0)
         ->and(Hash::check('password', $user->password))->toBeFalse()
         ->and($user->email_verified_at)->not->toBeNull();
 });

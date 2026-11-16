@@ -14,7 +14,7 @@ use App\Services\Entitlement;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->payable()->create();
+    $this->creator = Creator::factory()->create();
     $this->low = Plan::factory()->for($this->creator)->price(1000)->create();
     $this->high = Plan::factory()->for($this->creator)->price(3000)->create();
     $this->fan = User::factory()->create();

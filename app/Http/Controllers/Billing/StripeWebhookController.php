@@ -13,24 +13,13 @@ use Stripe\Webhook;
 
 class StripeWebhookController extends Controller
 {
-    /** Events about the platform's own objects (checkout, subscriptions, invoices, charges). */
-    public function platform(Request $request): Response
+    /** Events about our Stripe account's objects (checkout, subscriptions, invoices). */
+    public function __invoke(Request $request): Response
     {
-        return $this->receive($request, 'webhook_secret');
-    }
-
-    /** Events about connected accounts. */
-    public function connect(Request $request): Response
-    {
-        return $this->receive($request, 'connect_webhook_secret');
-    }
-
-    private function receive(Request $request, string $secretKey): Response
-    {
-        $secret = config("fanbox.billing.stripe.{$secretKey}");
+        $secret = config('fanbox.billing.stripe.webhook_secret');
 
         if (! is_string($secret) || $secret === '') {
-            Log::error('billing.webhook_secret_missing', ['key' => $secretKey]);
+            Log::error('billing.webhook_secret_missing');
 
             return response('', 500);
         }
@@ -60,20 +49,12 @@ class StripeWebhookController extends Controller
         $object = $payload['data']['object'] ?? [];
         $objectId = $object['id'] ?? null;
         $subscriptionId = $event->type === 'checkout.session.completed' ? ($object['subscription'] ?? null) : null;
-        $accountId = $payload['account'] ?? null;
-        $chargeId = match ($event->type) {
-            'charge.refunded' => $objectId,
-            'charge.dispute.created' => $object['charge'] ?? null, // the object is the dispute
-            default => null,
-        };
 
         ProcessStripeEvent::dispatch(
             $event->id,
             $event->type,
             is_string($objectId) ? $objectId : null,
             is_string($subscriptionId) ? $subscriptionId : null,
-            is_string($accountId) ? $accountId : null,
-            is_string($chargeId) ? $chargeId : null,
         );
 
         return response('', 200);

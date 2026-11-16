@@ -178,8 +178,6 @@ function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $meta
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: (string) $user->stripe_customer_id,
         priceId: $gateway->ensurePrice($plan)->priceId,
-        destinationAccountId: (string) $plan->creator->stripe_account_id,
-        feePercent: 10,
         metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',

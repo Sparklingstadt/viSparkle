@@ -12,12 +12,6 @@ return new class extends Migration
             $table->string('stripe_customer_id')->nullable()->unique();
         });
 
-        Schema::table('creators', function (Blueprint $table) {
-            $table->string('stripe_account_id')->nullable()->unique();
-            $table->boolean('payouts_enabled')->default(false);
-            $table->boolean('details_submitted')->default(false);
-        });
-
         Schema::table('plans', function (Blueprint $table) {
             $table->string('stripe_product_id')->nullable();
             $table->string('stripe_price_id')->nullable()->unique();
@@ -45,10 +39,6 @@ return new class extends Migration
 
         Schema::table('plans', function (Blueprint $table) {
             $table->dropColumn(['stripe_price_id', 'stripe_product_id']);
-        });
-
-        Schema::table('creators', function (Blueprint $table) {
-            $table->dropColumn(['details_submitted', 'payouts_enabled', 'stripe_account_id']);
         });
 
         Schema::table('users', function (Blueprint $table) {

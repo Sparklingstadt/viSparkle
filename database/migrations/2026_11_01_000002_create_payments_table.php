@@ -15,7 +15,6 @@ return new class extends Migration
             $table->foreignId('creator_id')->constrained()->cascadeOnDelete();
             $table->string('stripe_invoice_id')->unique();
             $table->unsignedInteger('amount');
-            $table->unsignedTinyInteger('fee_percent');
             $table->dateTime('paid_at');
             $table->timestamps();
 
