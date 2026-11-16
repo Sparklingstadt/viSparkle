@@ -2,6 +2,7 @@
 
 namespace App\Services\Shop;
 
+use App\Billing\AppStamp;
 use App\Billing\BillingException;
 use App\Billing\Data\CheckoutSessionData;
 use App\Billing\PaymentGateway;
@@ -132,7 +133,7 @@ class OrderSync
      */
     private function orderOf(CheckoutSessionData $session): ?Order
     {
-        if (($session->metadata['app'] ?? null) !== config('fanbox.billing.idempotency_prefix')) {
+        if (! AppStamp::isOurs($session->metadata)) {
             return null;
         }
 

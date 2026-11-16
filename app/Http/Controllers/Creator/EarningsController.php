@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Creator;
 
 use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
+use App\Enums\PayoutAccountStatus;
 use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
@@ -27,7 +28,7 @@ class EarningsController extends Controller
         $creator = $request->user()->creator;
 
         return Inertia::render('creator/earnings', [
-            'account' => ['status' => $this->accountStatus($creator)],
+            'account' => ['status' => PayoutAccountStatus::of($creator)],
             'feePercent' => (int) config('fanbox.billing.platform_fee_percent'),
             'activeSupporters' => $creator->supports()->active()->count(),
             'months' => $this->months($creator),
@@ -97,15 +98,6 @@ class EarningsController extends Controller
         abort_if($accountId === null, 404);
 
         return Inertia::location($gateway->createDashboardLoginLink($accountId));
-    }
-
-    private function accountStatus(Creator $creator): string
-    {
-        if ($creator->stripe_account_id === null) {
-            return 'none';
-        }
-
-        return $creator->canAcceptSupports() ? 'ready' : 'incomplete';
     }
 
     /**
