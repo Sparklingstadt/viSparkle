@@ -57,22 +57,15 @@ class EarningsController extends Controller
     {
         $creator = $request->user()->creator;
 
-        try {
-            if ($creator->stripe_account_id === null) {
-                $creator->forceFill(['stripe_account_id' => $gateway->createConnectAccount($creator)])->save();
-            }
-
-            return Inertia::location($gateway->createAccountOnboardingLink(
-                (string) $creator->stripe_account_id,
-                route('creator.earnings.index'),
-                route('creator.earnings.onboarding.return'),
-            ));
-        } catch (BillingException $e) {
-            report($e);
-            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
-
-            return back();
+        if ($creator->stripe_account_id === null) {
+            $creator->forceFill(['stripe_account_id' => $gateway->createConnectAccount($creator)])->save();
         }
+
+        return Inertia::location($gateway->createAccountOnboardingLink(
+            (string) $creator->stripe_account_id,
+            route('creator.earnings.index'),
+            route('creator.earnings.onboarding.return'),
+        ));
     }
 
     public function onboardingReturn(Request $request, AccountSync $sync): RedirectResponse
@@ -103,14 +96,7 @@ class EarningsController extends Controller
 
         abort_if($accountId === null, 404);
 
-        try {
-            return Inertia::location($gateway->createDashboardLoginLink($accountId));
-        } catch (BillingException $e) {
-            report($e);
-            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
-
-            return back();
-        }
+        return Inertia::location($gateway->createDashboardLoginLink($accountId));
     }
 
     private function accountStatus(Creator $creator): string

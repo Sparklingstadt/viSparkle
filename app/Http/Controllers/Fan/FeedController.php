@@ -11,6 +11,7 @@ use App\Models\PostLike;
 use App\Models\Support;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,14 +31,14 @@ class FeedController extends Controller
         // "all" adds the free posts of followed creators; a supported creator shows every post, followed or not.
         $posts = Post::published()
             ->visible()
-            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
+            ->byActiveCreator()
             ->when(
                 $tab === 'all',
-                fn ($query) => $query->where(fn ($query) => $query
+                fn (Builder $query) => $query->where(fn (Builder $query) => $query
                     ->whereIn('creator_id', $supported)
-                    ->orWhere(fn ($query) => $query
+                    ->orWhere(fn (Builder $query) => $query
                         ->whereIn('creator_id', Follow::query()->where('user_id', $user->id)->select('creator_id'))
-                        ->where('required_price', 0))),
+                        ->free())),
                 fn ($query) => $query->whereIn('creator_id', $supported),
             )
             ->with(['creator', 'cover'])
@@ -55,7 +56,7 @@ class FeedController extends Controller
                 ->orWhereIn('id', Follow::query()->where('user_id', $user->id)->select('creator_id')))
             ->withExists(['posts as has_new' => fn ($query) => $query
                 ->where('status', PostStatus::Published)
-                ->whereNull('hidden_at')
+                ->visible()
                 ->whereBetween('published_at', [now()->subDays(self::NEW_POST_DAYS), now()])])
             ->orderBy('display_name')
             ->get()

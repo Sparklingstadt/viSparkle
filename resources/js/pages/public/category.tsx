@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { CategoryLinks } from '@/components/category-links';
 import { ProductCard } from '@/components/product-card';
 import { show } from '@/routes/categories';
@@ -8,6 +8,7 @@ import type {
     Paginated,
     ShopProductSummary,
 } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 export default function Category({
     category,
@@ -45,16 +46,7 @@ export default function Category({
                     </div>
                 )}
 
-                <div className="flex justify-between">
-                    {products.prev_page_url ? (
-                        <Link href={products.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {products.next_page_url && (
-                        <Link href={products.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={products} />
             </div>
         </>
     );

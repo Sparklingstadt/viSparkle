@@ -70,7 +70,7 @@ class SearchController extends Controller
         return $this->matching(Product::listed(), ['name', 'description'], $q)
             ->when($category, fn (Builder $query, ProductCategory $category) => $query->inCategory($category))
             ->whereHas('creator', fn ($query) => $query->open())
-            ->with(['creator', 'images', 'variants'])
+            ->forCard()
             ->latest('id')
             ->limit(self::MAX_RESULTS)
             ->get()
@@ -87,8 +87,8 @@ class SearchController extends Controller
     {
         $posts = $this->matching(Post::published()->visible(), ['title', 'excerpt'], $q)
             ->when($postCategory, fn (Builder $query, PostCategory $postCategory) => $query->inCategory($postCategory))
-            ->where('required_price', 0)
-            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
+            ->free()
+            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->limit(self::MAX_RESULTS)
             ->get();

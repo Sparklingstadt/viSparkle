@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/format';
 import { index, update } from '@/routes/admin/users';
 import type { Paginated } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type Row = {
     id: number;
@@ -178,16 +179,7 @@ export default function Users({
                     </ul>
                 )}
 
-                <div className="flex justify-between">
-                    {users.prev_page_url ? (
-                        <Link href={users.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {users.next_page_url && (
-                        <Link href={users.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={users} />
             </div>
 
             <Dialog

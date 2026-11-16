@@ -458,7 +458,7 @@ it('keeps a previous order whose checkout was paid but not yet synced', function
 
     beginOrderCheckout($this->buyer, $this->creator);
 
-    $orders = Order::orderBy('id')->get();
+    $orders = Order::with('items')->orderBy('id')->get();
     expect($orders)->toHaveCount(2)
         ->and($orders[0]->status)->toBe(OrderStatus::Paid)
         ->and($orders[1]->status)->toBe(OrderStatus::Pending)

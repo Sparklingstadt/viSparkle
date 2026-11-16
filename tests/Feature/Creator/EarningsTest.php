@@ -1,5 +1,7 @@
 <?php
 
+use App\Billing\BillingException;
+use App\Billing\PaymentGateway;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Payment;
@@ -150,6 +152,22 @@ it('opens the dashboard for a creator with an account', function () {
 
     $this->actingAs($creator->user)->post(route('creator.earnings.dashboard'))
         ->assertRedirect(url('/creator/earnings'));
+});
+
+it('shows a toast when stripe is unreachable while opening onboarding or the dashboard', function () {
+    $creator = Creator::factory()->payable()->create();
+    $gateway = Mockery::mock(PaymentGateway::class);
+    $gateway->shouldReceive('createAccountOnboardingLink')->andThrow(new BillingException('down'));
+    $gateway->shouldReceive('createDashboardLoginLink')->andThrow(new BillingException('down'));
+    app()->instance(PaymentGateway::class, $gateway);
+    $toast = ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。'];
+
+    $this->actingAs($creator->user)->from(route('creator.earnings.index'))->post(route('creator.earnings.onboarding'))
+        ->assertRedirect(route('creator.earnings.index'))
+        ->assertSessionHas('inertia.flash_data.toast', $toast);
+    $this->actingAs($creator->user)->from(route('creator.earnings.index'))->post(route('creator.earnings.dashboard'))
+        ->assertRedirect(route('creator.earnings.index'))
+        ->assertSessionHas('inertia.flash_data.toast', $toast);
 });
 
 it('hides the dashboard link without an account', function () {

@@ -42,8 +42,8 @@ class CreatorClosure
         $failed = 0;
 
         $supports = Support::active()
+            ->billing()
             ->where('creator_id', $creator->id)
-            ->whereNotNull('stripe_subscription_id')
             ->where('cancel_at_period_end', false)
             ->get();
 

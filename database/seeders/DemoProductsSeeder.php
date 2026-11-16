@@ -66,7 +66,7 @@ class DemoProductsSeeder extends Seeder
             $this->stock($creator);
         }
 
-        foreach (Creator::whereIn('slug', $slugs)->get() as $creator) {
+        foreach (Creator::whereIn('slug', $slugs)->with('products')->get() as $creator) {
             $this->paintImages($creator);
             $this->spreadDates($creator);
         }

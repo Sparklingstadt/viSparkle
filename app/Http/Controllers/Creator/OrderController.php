@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Creator;
 
-use App\Billing\BillingException;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
@@ -133,19 +132,12 @@ class OrderController extends Controller
     {
         abort_unless($request->user()->can('manage', $order), 404);
 
-        try {
-            // Only a paid order: once shipped the goods are out, so the refund is settled outside the app.
-            if ($order->refresh()->status !== OrderStatus::Paid) {
-                return back()->withErrors(['order' => 'この注文は返金できません。']);
-            }
-
-            $this->orders->refund($order, OrderCancelReason::Creator);
-        } catch (BillingException $e) {
-            report($e);
-            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
-
-            return back();
+        // Only a paid order: once shipped the goods are out, so the refund is settled outside the app.
+        if ($order->refresh()->status !== OrderStatus::Paid) {
+            return back()->withErrors(['order' => 'この注文は返金できません。']);
         }
+
+        $this->orders->refund($order, OrderCancelReason::Creator);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => '取り消して返金しました']);
 

@@ -1,8 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { formatDate, formatYen } from '@/lib/format';
 import { index } from '@/routes/creator/supporters';
 import type { Paginated, PlanData } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type Row = {
     id: number;
@@ -82,16 +83,7 @@ export default function Supporters({
                     </table>
                 )}
 
-                <div className="flex justify-between">
-                    {supporters.prev_page_url ? (
-                        <Link href={supporters.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {supporters.next_page_url && (
-                        <Link href={supporters.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={supporters} />
             </div>
         </>
     );

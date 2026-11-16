@@ -93,7 +93,7 @@ class PostController extends Controller
             ],
             'priceOptions' => UpdatePostRequest::priceOptions($post),
             'audiences' => $this->audiences($post),
-            'categories' => self::categoryOptions($post->post_category_id),
+            'categories' => PostCategory::options($post->post_category_id),
             'creatorSlug' => $request->user()->creator->slug,
         ]);
     }
@@ -167,28 +167,6 @@ class PostController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => '投稿を削除しました。']);
 
         return to_route('creator.posts.index');
-    }
-
-    /**
-     * Active categories in order; a post whose category was archived since keeps it, listed last.
-     *
-     * @return list<array{id: int, name: string, archived: bool}>
-     */
-    private static function categoryOptions(?int $currentId): array
-    {
-        $options = PostCategory::query()->active()->ordered()->get()
-            ->map(fn (PostCategory $category) => ['id' => $category->id, 'name' => $category->name, 'archived' => false])
-            ->all();
-
-        $current = $currentId === null || in_array($currentId, array_column($options, 'id'), true)
-            ? null
-            : PostCategory::query()->find($currentId);
-
-        if ($current !== null) {
-            $options[] = ['id' => $current->id, 'name' => $current->name, 'archived' => true];
-        }
-
-        return array_values($options);
     }
 
     private function pruneUnreferencedImages(Post $post): void

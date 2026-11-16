@@ -8,6 +8,7 @@ import {
 import { home } from '@/routes';
 import { index } from '@/routes/liked-products';
 import type { Paginated } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 export default function LikedProducts({
     products,
@@ -48,16 +49,7 @@ export default function LikedProducts({
                     </div>
                 )}
 
-                <div className="flex justify-between">
-                    {products.prev_page_url ? (
-                        <Link href={products.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {products.next_page_url && (
-                        <Link href={products.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={products} />
             </div>
         </>
     );

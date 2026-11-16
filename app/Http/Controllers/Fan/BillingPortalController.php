@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Fan;
 
-use App\Billing\BillingException;
 use App\Billing\PaymentGateway;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -24,13 +23,6 @@ class BillingPortalController extends Controller
             return back();
         }
 
-        try {
-            return Inertia::location($gateway->createPortalSession($customerId, route('supporting.index')));
-        } catch (BillingException $e) {
-            report($e);
-            Inertia::flash('toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
-
-            return back();
-        }
+        return Inertia::location($gateway->createPortalSession($customerId, route('supporting.index')));
     }
 }

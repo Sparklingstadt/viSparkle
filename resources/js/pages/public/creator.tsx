@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { Pagination } from '@/components/pagination';
 
 type ShopSort = 'new' | 'popular';
 
@@ -353,20 +354,7 @@ export default function CreatorPage({
                                         ))}
                                     </div>
                                 )}
-                                <div className="flex justify-between">
-                                    {posts.prev_page_url ? (
-                                        <Link href={posts.prev_page_url}>
-                                            ← 前へ
-                                        </Link>
-                                    ) : (
-                                        <span />
-                                    )}
-                                    {posts.next_page_url && (
-                                        <Link href={posts.next_page_url}>
-                                            次へ →
-                                        </Link>
-                                    )}
-                                </div>
+                                <Pagination page={posts} />
                             </section>
                         )}
                     </div>

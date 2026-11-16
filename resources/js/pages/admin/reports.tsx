@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index, update } from '@/routes/admin/reports';
 import type { Paginated } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type ReportStatus = 'open' | 'resolved' | 'dismissed';
 
@@ -170,16 +171,7 @@ export default function Reports({
                     </ul>
                 )}
 
-                <div className="flex justify-between">
-                    {reports.prev_page_url ? (
-                        <Link href={reports.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {reports.next_page_url && (
-                        <Link href={reports.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={reports} />
             </div>
 
             <Dialog

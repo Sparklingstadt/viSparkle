@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductLike;
 use App\Presenters\PostPresenter;
+use App\Presenters\ProductPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,15 +19,15 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
-    public function __invoke(Request $request, PostPresenter $presenter): Response
+    public function __invoke(Request $request, PostPresenter $presenter, ProductPresenter $productPresenter): Response
     {
         $entitlement = Entitlement::for($request->user());
         $sort = $request->query('sort') === 'new' ? 'new' : 'popular';
 
         $posts = ($sort === 'popular' ? Post::popular() : Post::published())
             ->visible()
-            ->where('required_price', 0)
-            ->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'))
+            ->free()
+            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->limit(8)
             ->get();
@@ -35,7 +36,7 @@ class HomeController extends Controller
 
         $products = Product::listed()
             ->whereHas('creator', fn ($query) => $query->open())
-            ->with(['creator', 'images', 'variants'])
+            ->forCard()
             ->latest()
             ->latest('id')
             ->limit(12)
@@ -45,16 +46,11 @@ class HomeController extends Controller
             ->popular()
             ->whereHas('creator', fn ($query) => $query->open())
             ->whereNotIn('id', $products->modelKeys())
-            ->with(['creator', 'images', 'variants'])
+            ->forCard()
             ->limit(12)
             ->get();
         $likedProducts = ProductLike::idsLikedBy($request->user(), [...$products->modelKeys(), ...$recommendedProducts->modelKeys()]);
-        $carouselItem = fn (Product $product) => [
-            ...$product->toSummary(),
-            'creator' => $product->creator->toSummary(),
-            'liked' => isset($likedProducts[$product->id]),
-            'can_like' => $product->creator->user_id !== $request->user()?->id,
-        ];
+        $carouselItem = fn (Product $product) => $productPresenter->card($product, $request->user(), $likedProducts);
         $popularCreators = Creator::weeklyPopular()->withMinPlanPrice()->limit(25)->get()->map->toCard();
 
         return Inertia::render('public/home', [

@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/creator/profile';
+import { show } from '@/routes/creators';
 import type { CreatorProfile } from '@/types';
 
 export default function CreatorProfileEdit({
@@ -30,11 +31,11 @@ export default function CreatorProfileEdit({
             <div className="mx-auto w-full max-w-2xl space-y-6 p-4">
                 <Heading
                     title="プロフィール編集"
-                    description={`ページURL: /@${creator.slug}`}
+                    description={`ページURL: ${show.url(creator.slug)}`}
                 />
 
                 <Link
-                    href={`/@${creator.slug}`}
+                    href={show(creator.slug)}
                     className="text-sm underline underline-offset-4"
                 >
                     自分のページを見る

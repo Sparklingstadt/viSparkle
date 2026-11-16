@@ -4,6 +4,7 @@ import { OrderStatusBadge } from '@/components/order-status-badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { index, show } from '@/routes/orders';
 import type { CreatorSummary, OrderStatusValue, Paginated } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type Row = {
     id: number;
@@ -65,16 +66,7 @@ export default function OrdersIndex({ orders }: { orders: Paginated<Row> }) {
                     </ul>
                 )}
 
-                <div className="flex justify-between">
-                    {orders.prev_page_url ? (
-                        <Link href={orders.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {orders.next_page_url && (
-                        <Link href={orders.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={orders} />
             </div>
         </>
     );

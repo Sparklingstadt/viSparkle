@@ -16,6 +16,7 @@ import { withoutUnknownImages } from '@/lib/tiptap';
 import { deletePostFile, uploadPostFile } from '@/lib/upload';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
+import { show } from '@/routes/posts';
 import type { EditorPost, PostFileData, TiptapNode } from '@/types';
 
 type Action = 'save' | 'publish' | 'unpublish';
@@ -160,7 +161,10 @@ export default function PostEdit({
                         </Badge>
                         {post.status === 'published' && (
                             <Link
-                                href={`/@${creatorSlug}/posts/${post.id}`}
+                                href={show({
+                                    creator: creatorSlug,
+                                    post: post.id,
+                                })}
                                 className="text-sm underline underline-offset-4"
                             >
                                 公開ページを見る

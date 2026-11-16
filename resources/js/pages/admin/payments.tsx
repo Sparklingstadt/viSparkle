@@ -20,6 +20,7 @@ import { formatDate, formatYen } from '@/lib/format';
 import { refund as refundOrder } from '@/routes/admin/orders';
 import { index, refund } from '@/routes/admin/payments';
 import type { Paginated } from '@/types';
+import { Pagination } from '@/components/pagination';
 
 type Row = {
     id: number;
@@ -189,16 +190,7 @@ export default function Payments({
                     </ul>
                 )}
 
-                <div className="flex justify-between">
-                    {payments.prev_page_url ? (
-                        <Link href={payments.prev_page_url}>← 前へ</Link>
-                    ) : (
-                        <span />
-                    )}
-                    {payments.next_page_url && (
-                        <Link href={payments.next_page_url}>次へ →</Link>
-                    )}
-                </div>
+                <Pagination page={payments} />
 
                 <section className="space-y-3">
                     <h2 className="font-medium">ショップの注文</h2>
@@ -272,16 +264,7 @@ export default function Payments({
                         </ul>
                     )}
 
-                    <div className="flex justify-between">
-                        {orders.prev_page_url ? (
-                            <Link href={orders.prev_page_url}>← 前へ</Link>
-                        ) : (
-                            <span />
-                        )}
-                        {orders.next_page_url && (
-                            <Link href={orders.next_page_url}>次へ →</Link>
-                        )}
-                    </div>
+                    <Pagination page={orders} />
                 </section>
             </div>
 

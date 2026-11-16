@@ -114,6 +114,28 @@ class Post extends Model
     }
 
     /**
+     * Posts whose author is not suspended.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function byActiveCreator(Builder $query): void
+    {
+        $query->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'));
+    }
+
+    /**
+     * Posts anyone can read (no plan required).
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function free(Builder $query): void
+    {
+        $query->where('required_price', 0);
+    }
+
+    /**
      * Idempotent: like_count only moves when the row is actually added.
      */
     public function like(User $user): void
