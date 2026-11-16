@@ -14,23 +14,23 @@
 ## 目標・非目標・やってはいけないこと
 
 - **目標**
-  - 支援の流れ（プラン選択 → Stripe Checkout → Webhook で支援が有効になる → 限定投稿が読める → 解約・再開・プラン変更）が、縮小後も今と同じように動く。
-  - 外した機能のコードが、ルート・画面・モデル・列・設定・テスト・シードのどこにも残らない。
-  - テスト（Pest）、型チェック（`types:check`）、PHPStan、Pint がすべて通る。
+    - 支援の流れ（プラン選択 → Stripe Checkout → Webhook で支援が有効になる → 限定投稿が読める → 解約・再開・プラン変更）が、縮小後も今と同じように動く。
+    - 外した機能のコードが、ルート・画面・モデル・列・設定・テスト・シードのどこにも残らない。
+    - テスト（Pest）、型チェック（`types:check`）、PHPStan、Pint がすべて通る。
 - **非目標**
-  - 新しい機能の追加や、見た目の作り直し。今のデザイン（#50〜#51）はそのまま使う。
-  - 外した機能を、設定で切り替えられる形で残すこと。
+    - 新しい機能の追加や、見た目の作り直し。今のデザイン（#50〜#51）はそのまま使う。
+    - 外した機能を、設定で切り替えられる形で残すこと。
 - **やってはいけないこと**
-  - 使われないコードや列を「念のため」残すこと。読む量が減らなければ縮小の意味がない。
-  - 支援・閲覧権限まわりの安全策（署名付き URL、EXIF 除去、Tiptap の許可リスト検証、Webhook の署名検証と冪等処理、同じユーザーの二重支援を防ぐ一意制約）を弱めること。
+    - 使われないコードや列を「念のため」残すこと。読む量が減らなければ縮小の意味がない。
+    - 支援・閲覧権限まわりの安全策（署名付き URL、EXIF 除去、Tiptap の許可リスト検証、Webhook の署名検証と冪等処理、同じユーザーの二重支援を防ぐ一意制約）を弱めること。
 
 ## 進め方の検討（Approaches）
 
-| 案 | 内容 | 判断 |
-| --- | --- | --- |
-| 1. 最新コードから削る | 今のブランチで外す機能を削除し、残りを一人用に書き換える | **採用**。最近のデザイン・セキュリティ修正・リファクタリングが残り、戻すときに `main` の履歴と比べやすい |
-| 2. 古い時点から分岐する | コア完成時点（`69d1210`）や決済導入時点（`25468a7`）から一人化する | 不採用。その後の 90 近いコミットぶんの修正が失われ、読みたい「今のコード」から離れる |
-| 3. 作り直す | 新規に書き、元のコードは参考にする | 不採用。「今あるコードを読んで理解する」目的に合わない |
+| 案                      | 内容                                                               | 判断                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| 1. 最新コードから削る   | 今のブランチで外す機能を削除し、残りを一人用に書き換える           | **採用**。最近のデザイン・セキュリティ修正・リファクタリングが残り、戻すときに `main` の履歴と比べやすい |
+| 2. 古い時点から分岐する | コア完成時点（`69d1210`）や決済導入時点（`25468a7`）から一人化する | 不採用。その後の 90 近いコミットぶんの修正が失われ、読みたい「今のコード」から離れる                     |
+| 3. 作り直す             | 新規に書き、元のコードは参考にする                                 | 不採用。「今あるコードを読んで理解する」目的に合わない                                                   |
 
 範囲は「B: 複数クリエイターの部分と、中核以外の機能を両方外す」を持ち主が選んだ。
 
@@ -38,12 +38,12 @@
 
 ### 残す機能
 
-| 区分 | 機能 |
-| --- | --- |
-| 公開 | トップ（クリエイターの紹介 + プラン一覧 + 投稿一覧）、投稿詳細（閲覧制御つき）、投稿の添付ファイル取得、法的表記（特商法・利用規約・プライバシーポリシー） |
-| ファン | 会員登録・ログイン（スターターキットのまま。パスキー・2 段階認証を含む）、アカウント設定、支援の開始（確認画面 → Checkout → 完了画面）、支援中の管理（プラン変更・解約・再開）、Stripe の請求ポータル |
-| クリエイター（持ち主） | プランの作成・編集・削除、投稿の作成・編集・公開・削除と画像・添付のアップロード、支援者一覧 |
-| 裏側 | Stripe Webhook（サブスクリプションと請求書）、開発用の偽決済（`BILLING_DRIVER=fake`）、孤児ファイルの掃除、ストレージ初期化 |
+| 区分                   | 機能                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 公開                   | トップ（クリエイターの紹介 + プラン一覧 + 投稿一覧）、投稿詳細（閲覧制御つき）、投稿の添付ファイル取得、法的表記（特商法・利用規約・プライバシーポリシー）                                            |
+| ファン                 | 会員登録・ログイン（スターターキットのまま。パスキー・2 段階認証を含む）、アカウント設定、支援の開始（確認画面 → Checkout → 完了画面）、支援中の管理（プラン変更・解約・再開）、Stripe の請求ポータル |
+| クリエイター（持ち主） | プランの作成・編集・削除、投稿の作成・編集・公開・削除と画像・添付のアップロード、支援者一覧                                                                                                          |
+| 裏側                   | Stripe Webhook（サブスクリプションと請求書）、開発用の偽決済（`BILLING_DRIVER=fake`）、孤児ファイルの掃除、ストレージ初期化                                                                           |
 
 ### 外す機能
 
@@ -53,24 +53,24 @@
 
 - `creators` テーブルはなくす。プラン・投稿・支援・支払いから `creator_id` を外す。クリエイターは一人しかいないので、「誰の」を記録する必要がない。
 - 持ち主のアカウントは `users.is_creator`（真偽値）で見分ける。今の `is_admin` は置き換える。管理画面がなくなり、持ち主＝クリエイターになるため。
-  - 付け外しは Artisan コマンド `visparkle:creator {email} [--revoke]` で行う（今の `ManageAdmin` の置き換え）。
-  - `/creator/*` のルートは `creator` ミドルウェア（`EnsureUserIsCreator`）で守る。中身は `is_creator` の確認に変える。
+    - 付け外しは Artisan コマンド `visparkle:creator {email} [--revoke]` で行う（今の `ManageAdmin` の置き換え）。
+    - `/creator/*` のルートは `creator` ミドルウェア（`EnsureUserIsCreator`）で守る。中身は `is_creator` の確認に変える。
 - トップに出す名前・紹介文は設定ファイル（`config/visparkle.php` の `creator.name` と `creator.bio`、`.env` から読む）に置く。アイコンとヘッダー画像は `public/` の固定ファイルにする。プロフィール編集画面は作らない。
 
 ### URL
 
-| URL | 中身 |
-| --- | --- |
-| `/` | トップ（今の `/@slug` のクリエイターページに当たる） |
-| `/posts/{post}` | 投稿詳細 |
-| `/posts/{post}/files/{file}` | 添付ファイル（署名付き URL へ転送） |
-| `/plans/{plan}/confirm`、`POST /plans/{plan}/support` | 支援の確認と開始 |
-| `/supports/checkout/complete`、`PUT/DELETE /supports/{support}`、`POST /supports/{support}/resume` | 完了画面と支援の操作（今と同じ） |
-| `/supporting` | 支援中の管理（今と同じ） |
-| `POST /billing/portal` | 請求ポータル（今と同じ） |
-| `/creator/plans`、`/creator/posts`、`/creator/supporters` | 持ち主用の画面 |
-| `/legal/*` | 法的表記 |
-| `POST /stripe/webhook` | Webhook（Connect 用の `/stripe/connect-webhook` はなくす） |
+| URL                                                                                                | 中身                                                       |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `/`                                                                                                | トップ（今の `/@slug` のクリエイターページに当たる）       |
+| `/posts/{post}`                                                                                    | 投稿詳細                                                   |
+| `/posts/{post}/files/{file}`                                                                       | 添付ファイル（署名付き URL へ転送）                        |
+| `/plans/{plan}/confirm`、`POST /plans/{plan}/support`                                              | 支援の確認と開始                                           |
+| `/supports/checkout/complete`、`PUT/DELETE /supports/{support}`、`POST /supports/{support}/resume` | 完了画面と支援の操作（今と同じ）                           |
+| `/supporting`                                                                                      | 支援中の管理（今と同じ）                                   |
+| `POST /billing/portal`                                                                             | 請求ポータル（今と同じ）                                   |
+| `/creator/plans`、`/creator/posts`、`/creator/supporters`                                          | 持ち主用の画面                                             |
+| `/legal/*`                                                                                         | 法的表記                                                   |
+| `POST /stripe/webhook`                                                                             | Webhook（Connect 用の `/stripe/connect-webhook` はなくす） |
 
 `/dashboard` は `/` へ転送する（フィードがなくなるため）。
 
@@ -78,15 +78,15 @@
 
 既存のマイグレーションは、縮小後の最終形を直接作るように**書き直す**。テーブルごとに 1 ファイルにまとめ、「作ってから列を足す」履歴は残さない。Laravel 標準のもの（users、cache、jobs、passkeys、2 段階認証の列）はそのまま残し、`users` への追加列は users のマイグレーションに直接書く。
 
-| テーブル | 列（id・timestamps は省略） |
-| --- | --- |
-| `users` | 標準の列 + `is_creator`、`stripe_customer_id`（一意） |
-| `plans` | `name`、`description`、`price`（一意）、`cover_path`、`is_accepting`、`sort`、`stripe_product_id`、`stripe_price_id`（一意） |
-| `supports` | `user_id`、`plan_id`（null 可）、`price`、`status`、`started_at`、`ended_at`、`stripe_subscription_id`（一意）、`stripe_status`、`current_period_end`、`cancel_at_period_end`、`current_key`（有効な支援はユーザーごとに一つ。`status = 'active'` のときだけ `user_id` を入れる仮想列に一意制約） |
-| `posts` | `title`、`body`、`excerpt`、`cover_file_id`、`required_price`、`status`、`published_at` |
-| `post_files` | 今と同じ |
-| `payments` | `support_id`、`user_id`、`stripe_invoice_id`（一意）、`amount`、`paid_at` |
-| `stripe_events` | 今と同じ |
+| テーブル        | 列（id・timestamps は省略）                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | 標準の列 + `is_creator`、`stripe_customer_id`（一意）                                                                                                                                                                                                                                             |
+| `plans`         | `name`、`description`、`price`（一意）、`cover_path`、`is_accepting`、`sort`、`stripe_product_id`、`stripe_price_id`（一意）                                                                                                                                                                      |
+| `supports`      | `user_id`、`plan_id`（null 可）、`price`、`status`、`started_at`、`ended_at`、`stripe_subscription_id`（一意）、`stripe_status`、`current_period_end`、`cancel_at_period_end`、`current_key`（有効な支援はユーザーごとに一つ。`status = 'active'` のときだけ `user_id` を入れる仮想列に一意制約） |
+| `posts`         | `title`、`body`、`excerpt`、`cover_file_id`、`required_price`、`status`、`published_at`                                                                                                                                                                                                           |
+| `post_files`    | 今と同じ                                                                                                                                                                                                                                                                                          |
+| `payments`      | `support_id`、`user_id`、`stripe_invoice_id`（一意）、`amount`、`paid_at`                                                                                                                                                                                                                         |
+| `stripe_events` | 今と同じ                                                                                                                                                                                                                                                                                          |
 
 外す列: `posts.view_count`、`posts.hidden_at`、`posts.hidden_reason`、カテゴリ、`payments.creator_id`、`payments.fee_percent`、返金・異議申し立ての列、`users.is_admin`、`users.suspended_*`、`users.terms_*`。
 
