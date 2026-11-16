@@ -1,9 +1,8 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { FilePlus2, Heart } from 'lucide-react';
+import { FilePlus2 } from 'lucide-react';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
 import { AccessBadge } from '@/components/access-badge';
 import Heading from '@/components/heading';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -18,8 +17,6 @@ type Row = {
     required_price: number;
     published_at: string | null;
     updated_at: string;
-    hidden: boolean;
-    like_count: number;
 };
 
 type StatusFilter = 'published' | 'draft' | null;
@@ -118,11 +115,6 @@ export default function PostsIndex({
                                             <AccessBadge
                                                 price={post.required_price}
                                             />
-                                            {post.hidden && (
-                                                <Badge variant="destructive">
-                                                    非公開（運営）
-                                                </Badge>
-                                            )}
                                             <span>
                                                 {post.status === 'published'
                                                     ? `公開日 ${formatDate(post.published_at)}`
@@ -130,13 +122,6 @@ export default function PostsIndex({
                                             </span>
                                         </div>
                                     </div>
-                                    <span
-                                        className="flex w-14 items-center gap-1 text-sm font-bold text-support"
-                                        aria-label={`いいね ${post.like_count}件`}
-                                    >
-                                        <Heart className="size-3.5 fill-current" />
-                                        {post.like_count}
-                                    </span>
                                     <span className="inline-flex h-9 items-center rounded-full border px-4 text-sm font-bold">
                                         編集
                                     </span>

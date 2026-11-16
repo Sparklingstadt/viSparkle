@@ -2,20 +2,20 @@
 
 use App\Enums\PostFileKind;
 use App\Enums\PostStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\PostFile;
 use App\Models\Support;
+use App\Models\User;
 use App\Services\PostFileStorer;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     fakePrivateDisk();
-    $this->creator = Creator::factory()->create();
-    Plan::factory()->for($this->creator)->price(500)->create();
-    $this->actingAs($this->creator->user);
+    $this->creator = User::factory()->creator()->create();
+    Plan::factory()->price(500)->create();
+    $this->actingAs($this->creator);
 });
 
 function storedImage(Post $post): PostFile
@@ -28,19 +28,17 @@ function savePayload(array $overrides = []): array
     return ['action' => 'save', 'title' => 'タイトル', 'excerpt' => null, 'body' => null, 'required_price' => 0, 'cover_file_id' => null, ...$overrides];
 }
 
-it('lists own posts only', function () {
-    Post::factory()->for($this->creator)->count(2)->create();
-    Post::factory()->create();
+it('lists the posts', function () {
+    Post::factory()->count(2)->create();
 
     $this->get(route('creator.posts.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('creator/posts/index')->has('posts.data', 2));
 });
 
-it('filters own posts by status and counts each status', function () {
-    Post::factory()->for($this->creator)->published()->count(2)->create();
-    $draft = Post::factory()->for($this->creator)->draft()->create();
-    Post::factory()->draft()->create();
+it('filters posts by status and counts each status', function () {
+    Post::factory()->published()->count(2)->create();
+    $draft = Post::factory()->draft()->create();
 
     $this->get(route('creator.posts.index', ['status' => 'draft']))
         ->assertInertia(fn (Assert $page) => $page
@@ -56,13 +54,13 @@ it('filters own posts by status and counts each status', function () {
 it('creates an empty draft and redirects to the editor', function () {
     $response = $this->post(route('creator.posts.store'));
 
-    $post = $this->creator->posts()->sole();
+    $post = Post::query()->sole();
     $response->assertRedirect(route('creator.posts.edit', $post));
     expect($post->status)->toBe(PostStatus::Draft)->and($post->title)->toBe('無題');
 });
 
 it('shows the editor with price options', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
     $image = storedImage($post);
 
     $this->get(route('creator.posts.edit', $post))
@@ -75,7 +73,7 @@ it('shows the editor with price options', function () {
 });
 
 it('saves a draft', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->put(route('creator.posts.update', $post), savePayload(['title' => '下書き', 'excerpt' => 'あらすじ']))
         ->assertRedirect(route('creator.posts.edit', $post));
@@ -84,7 +82,7 @@ it('saves a draft', function () {
 });
 
 it('falls back to 無題 for an empty draft title', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->put(route('creator.posts.update', $post), savePayload(['title' => '']));
 
@@ -92,14 +90,14 @@ it('falls back to 無題 for an empty draft title', function () {
 });
 
 it('requires a title to publish', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->put(route('creator.posts.update', $post), savePayload(['action' => 'publish', 'title' => '']))
         ->assertSessionHasErrors('title');
 });
 
 it('records published_at only on first publish', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->travelTo(now()->subDay());
     $this->put(route('creator.posts.update', $post), savePayload(['action' => 'publish']));
@@ -114,8 +112,8 @@ it('records published_at only on first publish', function () {
         ->and($post->fresh()->published_at->equalTo($first))->toBeTrue();
 });
 
-it('validates required_price against own plans', function (int $price, bool $ok) {
-    $post = Post::factory()->for($this->creator)->create();
+it('validates required_price against the plans', function (int $price, bool $ok) {
+    $post = Post::factory()->create();
 
     $response = $this->put(route('creator.posts.update', $post), savePayload(['required_price' => $price]));
 
@@ -127,12 +125,12 @@ it('validates required_price against own plans', function (int $price, bool $ok)
 ]);
 
 it('tells the editor which plans and how many supporters each audience covers', function () {
-    $this->creator->plans()->first()->update(['name' => 'しっかり応援']);
-    $small = Plan::factory()->for($this->creator)->price(300)->create(['name' => 'ちょっと応援']);
+    Plan::query()->first()->update(['name' => 'しっかり応援']);
+    $small = Plan::factory()->price(300)->create(['name' => 'ちょっと応援']);
     Support::factory()->forPlan($small)->active()->create();
-    Support::factory()->forPlan($this->creator->plans()->where('price', 500)->firstOrFail())->active()->count(2)->create();
+    Support::factory()->forPlan(Plan::query()->where('price', 500)->firstOrFail())->active()->count(2)->create();
     Support::factory()->forPlan($small)->ended()->create();
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->get(route('creator.posts.edit', $post))
         ->assertInertia(fn (Assert $page) => $page->where('audiences', [
@@ -143,38 +141,38 @@ it('tells the editor which plans and how many supporters each audience covers', 
 });
 
 it('keeps an existing required_price selectable after its plan is gone', function () {
-    $post = Post::factory()->for($this->creator)->requiring(500)->create();
-    $this->creator->plans()->delete();
+    $post = Post::factory()->requiring(500)->create();
+    Plan::query()->delete();
 
     $this->put(route('creator.posts.update', $post), savePayload(['required_price' => 500]))->assertSessionHasNoErrors();
     $this->get(route('creator.posts.edit', $post))->assertInertia(fn (Assert $page) => $page->where('priceOptions', [0, 500]));
 });
 
 it('validates the body', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
 
     $this->put(route('creator.posts.update', $post), savePayload(['body' => ttDoc(['type' => 'iframe'])]))
         ->assertSessionHasErrors('body');
 });
 
 it('rejects a body referencing another posts image', function () {
-    $post = Post::factory()->for($this->creator)->create();
-    $foreign = storedImage(Post::factory()->for($this->creator)->create());
+    $post = Post::factory()->create();
+    $foreign = storedImage(Post::factory()->create());
 
     $this->put(route('creator.posts.update', $post), savePayload(['body' => ttDoc(ttImage($foreign->id))]))
         ->assertSessionHasErrors('body');
 });
 
 it('rejects a cover that is not this posts image', function () {
-    $post = Post::factory()->for($this->creator)->create();
-    $foreign = storedImage(Post::factory()->for($this->creator)->create());
+    $post = Post::factory()->create();
+    $foreign = storedImage(Post::factory()->create());
 
     $this->put(route('creator.posts.update', $post), savePayload(['cover_file_id' => $foreign->id]))
         ->assertSessionHasErrors('cover_file_id');
 });
 
 it('prunes images no longer referenced but keeps the cover and attachments', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
     [$kept, $dropped, $cover] = [storedImage($post), storedImage($post), storedImage($post)];
     $attachment = PostFile::factory()->for($post)->attachment()->create();
 
@@ -190,7 +188,7 @@ it('prunes images no longer referenced but keeps the cover and attachments', fun
 });
 
 it('deletes a post with its files', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
     $image = storedImage($post);
 
     $this->delete(route('creator.posts.destroy', $post))->assertRedirect(route('creator.posts.index'));
@@ -199,19 +197,8 @@ it('deletes a post with its files', function () {
     Storage::disk('private')->assertMissing([$image->path, $image->thumb_path]);
 });
 
-it('returns 404 for another creators post', function (string $method, string $route) {
-    $post = Post::factory()->create();
-
-    $this->{$method}(route($route, $post), savePayload())->assertNotFound();
-})->with([
-    'edit' => ['get', 'creator.posts.edit'],
-    'update' => ['put', 'creator.posts.update'],
-    'destroy' => ['delete', 'creator.posts.destroy'],
-    'upload' => ['post', 'creator.posts.files.store'],
-]);
-
 it('preserves whitespace in body text nodes', function () {
-    $post = Post::factory()->for($this->creator)->create();
+    $post = Post::factory()->create();
     $body = ttDoc(ttParagraph(
         ttText('太字', [['type' => 'bold']]),
         ttText(' '),

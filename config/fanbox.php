@@ -13,7 +13,6 @@ return [
     'attachment_max_kb' => 102400,
     'attachments_per_post' => 20,
     'images_per_post' => 100,
-    'product_files_max' => 10,
     'image_max_edge' => 2560,
     'thumb_max_edge' => 640,
     // Decoding cost is width x height x 4 bytes; refuse anything larger before decoding.
@@ -28,20 +27,8 @@ return [
 
     'plan_min_price' => 100,
     'plan_max_price' => 50000,
-    'plans_per_creator' => 10,
+    'plans_max' => 10,
     'body_max_bytes' => 524288,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Creator slugs
-    |--------------------------------------------------------------------------
-    */
-
-    'reserved_slugs' => [
-        'admin', 'api', 'creator', 'creators', 'login', 'logout', 'register',
-        'feed', 'supporting', 'settings', 'dashboard', 'posts', 'plans',
-        'storage', 'assets', 'help', 'terms', 'privacy', 'cart', 'orders', 'shop',
-    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -53,18 +40,9 @@ return [
         // stripe | fake. Production defaults to stripe so a build step without BILLING_DRIVER still boots;
         // choosing fake in production explicitly is refused by BillingServiceProvider.
         'driver' => env('BILLING_DRIVER', env('APP_ENV') === 'production' ? 'stripe' : 'fake'),
-        'platform_fee_percent' => (int) env('BILLING_PLATFORM_FEE_PERCENT', 10),
-        // The extra a buyer may add to a shop order to support the creator, and the platform's rate on it.
-        // Off until the operator has settled its tax and legal treatment: no one can add support then.
-        'support_enabled' => (bool) env('BILLING_SUPPORT_ENABLED', false),
-        'support_fee_percent' => (int) env('BILLING_SUPPORT_FEE_PERCENT', 5),
-        'support_amount_min' => 100,
-        'support_amount_max' => 50000,
-        'support_amount_presets' => [100, 300, 500, 1000, 3000],
         'stripe' => [
             'secret' => env('STRIPE_SECRET'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
-            'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET'),
         ],
         'checkout_expires_minutes' => 30,
         // Prefix for Stripe idempotency keys, so environments sharing one Stripe account (e.g. local and production on

@@ -6,7 +6,6 @@ import PostController from '@/actions/App/Http/Controllers/Creator/PostControlle
 import PostFileController from '@/actions/App/Http/Controllers/Creator/PostFileController';
 import InputError from '@/components/input-error';
 import { PostEditor } from '@/components/tiptap/post-editor';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,19 +26,14 @@ type FormData = {
     body: TiptapNode | null;
     required_price: number;
     cover_file_id: number | null;
-    post_category_id: number | '';
 };
 
 export default function PostEdit({
     post,
     audiences,
-    categories,
-    creatorSlug,
 }: {
     post: EditorPost;
     audiences: { price: number; plans: string[]; readers: number | null }[];
-    categories: { id: number; name: string; archived: boolean }[];
-    creatorSlug: string;
 }) {
     const form = useForm<FormData>({
         title: post.title,
@@ -47,7 +41,6 @@ export default function PostEdit({
         body: post.body,
         required_price: post.required_price,
         cover_file_id: post.cover_file_id,
-        post_category_id: post.category_id ?? '',
     });
     const [uploadedImages, setUploadedImages] = useState<PostFileData[]>([]);
     const [uploadedAttachments, setUploadedAttachments] = useState<
@@ -140,14 +133,6 @@ export default function PostEdit({
             <Head title={`編集: ${post.title}`} />
 
             <div className="mx-auto w-full max-w-6xl space-y-6 p-4 pt-0">
-                {post.hidden && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由:{' '}
-                            {post.hidden_reason}）
-                        </AlertDescription>
-                    </Alert>
-                )}
                 <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2">
                         <Badge
@@ -161,10 +146,7 @@ export default function PostEdit({
                         </Badge>
                         {post.status === 'published' && (
                             <Link
-                                href={show({
-                                    creator: creatorSlug,
-                                    post: post.id,
-                                })}
+                                href={show(post.id)}
                                 className="text-sm underline underline-offset-4"
                             >
                                 公開ページを見る
@@ -381,42 +363,6 @@ export default function PostEdit({
                             ))}
                             <InputError message={form.errors.required_price} />
                         </fieldset>
-
-                        {categories.length > 0 && (
-                            <div className="grid gap-2">
-                                <Label htmlFor="post_category_id">
-                                    カテゴリ
-                                </Label>
-                                <select
-                                    id="post_category_id"
-                                    value={form.data.post_category_id}
-                                    onChange={(e) =>
-                                        form.setData(
-                                            'post_category_id',
-                                            e.target.value === ''
-                                                ? ''
-                                                : Number(e.target.value),
-                                        )
-                                    }
-                                    className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-                                >
-                                    <option value="">未設定</option>
-                                    {categories.map((category) => (
-                                        <option
-                                            key={category.id}
-                                            value={category.id}
-                                        >
-                                            {category.name}
-                                            {category.archived &&
-                                                '（受付終了）'}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError
-                                    message={form.errors.post_category_id}
-                                />
-                            </div>
-                        )}
 
                         <section className="grid gap-2">
                             <Label>カバー画像（本文中の画像から選択）</Label>

@@ -8,23 +8,17 @@ import { login } from '@/routes';
 import type { PlanData } from '@/types';
 
 export function SupportButton({
-    creatorSlug,
     plan,
     viewerPlanId,
     viewerSupportId,
     viewerSupportPrice,
     viewerSupportCancelling,
-    acceptsSupports,
-    closed,
 }: {
-    creatorSlug: string;
     plan: PlanData;
     viewerPlanId: number | null;
     viewerSupportId: number | null;
     viewerSupportPrice: number | null;
     viewerSupportCancelling: boolean;
-    acceptsSupports: boolean;
-    closed: boolean;
 }) {
     const { auth } = usePage().props;
     const [processing, setProcessing] = useState(false);
@@ -55,26 +49,23 @@ export function SupportButton({
                 </Button>
                 {viewerSupportId !== null &&
                     (viewerSupportCancelling ? (
-                        // A closed creator's supports cannot be renewed.
-                        !closed && (
-                            <Button
-                                className="w-full"
-                                variant="ghost"
-                                size="sm"
-                                disabled={processing}
-                                onClick={() =>
-                                    router.post(
-                                        SupportController.resume.url(
-                                            viewerSupportId,
-                                        ),
-                                        {},
-                                        request,
-                                    )
-                                }
-                            >
-                                支援を再開する
-                            </Button>
-                        )
+                        <Button
+                            className="w-full"
+                            variant="ghost"
+                            size="sm"
+                            disabled={processing}
+                            onClick={() =>
+                                router.post(
+                                    SupportController.resume.url(
+                                        viewerSupportId,
+                                    ),
+                                    {},
+                                    request,
+                                )
+                            }
+                        >
+                            支援を再開する
+                        </Button>
                     ) : (
                         <Button
                             className="w-full"
@@ -101,26 +92,10 @@ export function SupportButton({
         );
     }
 
-    if (closed) {
-        return (
-            <Button className="w-full" variant="outline" disabled>
-                受付終了
-            </Button>
-        );
-    }
-
     if (viewerPlanId !== null && viewerSupportCancelling) {
         return (
             <Button className="w-full" variant="outline" disabled>
                 停止予約中
-            </Button>
-        );
-    }
-
-    if (!acceptsSupports && viewerPlanId === null) {
-        return (
-            <Button className="w-full" variant="outline" disabled>
-                準備中
             </Button>
         );
     }
@@ -136,12 +111,7 @@ export function SupportButton({
     if (viewerPlanId === null) {
         return (
             <Button asChild className="w-full">
-                <Link
-                    href={CheckoutConfirmController.url({
-                        creator: creatorSlug,
-                        plan: plan.id,
-                    })}
-                >
+                <Link href={CheckoutConfirmController.url(plan.id)}>
                     このプランで支援する
                 </Link>
             </Button>

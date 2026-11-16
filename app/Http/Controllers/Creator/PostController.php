@@ -6,9 +6,10 @@ use App\Enums\PostFileKind;
 use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\UpdatePostRequest;
+use App\Models\Plan;
 use App\Models\Post;
-use App\Models\PostCategory;
 use App\Models\PostFile;
+use App\Models\Support;
 use App\Services\PostFileStorer;
 use App\Services\PostFileUrls;
 use App\Services\Tiptap\TiptapDocumentValidator;
@@ -27,11 +28,10 @@ class PostController extends Controller
 
     public function index(Request $request): Response
     {
-        $creator = $request->user()->creator;
         $status = PostStatus::tryFrom((string) $request->query('status'));
-        $counts = $creator->posts()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $counts = Post::query()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        $posts = $creator->posts()
+        $posts = Post::query()
             ->when($status, fn ($query, PostStatus $status) => $query->where('status', $status))
             ->latest('updated_at')
             ->paginate(20)
@@ -43,8 +43,6 @@ class PostController extends Controller
                 'required_price' => $post->required_price,
                 'published_at' => $post->published_at,
                 'updated_at' => $post->updated_at,
-                'hidden' => $post->isHidden(),
-                'like_count' => $post->like_count,
             ]);
 
         return Inertia::render('creator/posts/index', [
@@ -58,9 +56,9 @@ class PostController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(): RedirectResponse
     {
-        $post = $request->user()->creator->posts()->create([
+        $post = Post::create([
             'title' => '無題',
             'status' => PostStatus::Draft,
             'required_price' => 0,
@@ -85,16 +83,11 @@ class PostController extends Controller
                 'status' => $post->status,
                 'published_at' => $post->published_at,
                 'cover_file_id' => $post->cover_file_id,
-                'category_id' => $post->post_category_id,
-                'hidden' => $post->isHidden(),
-                'hidden_reason' => $post->hidden_reason,
                 'images' => $files->where('kind', PostFileKind::Image)->values()->map(fn (PostFile $file) => $this->fileData($file)),
                 'attachments' => $files->where('kind', PostFileKind::Attachment)->values()->map(fn (PostFile $file) => $this->fileData($file)),
             ],
             'priceOptions' => UpdatePostRequest::priceOptions($post),
             'audiences' => $this->audiences($post),
-            'categories' => PostCategory::options($post->post_category_id),
-            'creatorSlug' => $request->user()->creator->slug,
         ]);
     }
 
@@ -105,9 +98,8 @@ class PostController extends Controller
      */
     private function audiences(Post $post): array
     {
-        $creator = $post->creator;
-        $plans = $creator->plans()->get(['name', 'price']);
-        $supportPrices = $creator->supports()->active()->pluck('price')->map(fn ($price) => (int) $price);
+        $plans = Plan::query()->get(['name', 'price']);
+        $supportPrices = Support::active()->pluck('price')->map(fn ($price) => (int) $price);
 
         return array_map(fn (int $price) => [
             'price' => $price,
@@ -130,8 +122,6 @@ class PostController extends Controller
             'body' => $request->validated('body'),
             'required_price' => $request->validated('required_price'),
             'cover_file_id' => $request->validated('cover_file_id'),
-            // Empty-string conversion is off for this endpoint (see bootstrap/app.php), so the form's "未設定" arrives as ''.
-            'post_category_id' => $request->validated('post_category_id') ?: null,
         ]);
 
         if ($action === 'publish') {

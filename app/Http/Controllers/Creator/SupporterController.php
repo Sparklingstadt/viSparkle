@@ -3,19 +3,16 @@
 namespace App\Http\Controllers\Creator;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\Support;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupporterController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $creator = $request->user()->creator;
-
-        $supporters = $creator->supports()
-            ->active()
+        $supporters = Support::active()
             ->with(['user', 'plan'])
             ->latest('started_at')
             ->paginate(50)
@@ -28,9 +25,8 @@ class SupporterController extends Controller
             ]);
 
         return Inertia::render('creator/supporters', [
-            'plans' => $creator->plans()->withCount('activeSupports')->get()->map->toData()->values(),
+            'plans' => Plan::query()->withCount('activeSupports')->orderBy('sort')->orderBy('price')->get()->map->toData()->values(),
             'supporters' => $supporters,
-            'followerCount' => $creator->follows()->count(),
         ]);
     }
 }

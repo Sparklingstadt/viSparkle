@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Fan;
 
 use App\Http\Controllers\Controller;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Services\Billing\CheckoutService;
@@ -23,12 +22,8 @@ class SupportController extends Controller
     /**
      * Start a Checkout session and send the fan there; the support is created when they come back (or by the webhook).
      */
-    public function store(Request $request, Creator $creator, Plan $plan): Response
+    public function store(Request $request, Plan $plan): Response
     {
-        abort_unless($plan->creator_id === $creator->id, 404);
-
-        $plan->setRelation('creator', $creator);
-
         return Inertia::location($this->checkout->begin($request->user(), $plan));
     }
 
@@ -37,8 +32,7 @@ class SupportController extends Controller
         $this->authorizeOwner($request, $support);
 
         $planId = $request->validate(['plan_id' => ['required', 'integer']])['plan_id'];
-        $plan = Plan::query()->whereKey($planId)->first();
-        abort_unless($plan !== null && $plan->creator_id === $support->creator_id, 404);
+        $plan = Plan::query()->findOrFail((int) $planId);
 
         return $this->manage(function () use ($support, $plan): string {
             $this->supports->changePlan($support, $plan);

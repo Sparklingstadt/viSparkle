@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Heart, LogOut, Newspaper, ReceiptText, Settings } from 'lucide-react';
+import { Heart, LogOut, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
@@ -9,15 +9,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useInitials } from '@/hooks/use-initials';
-import { feed, logout } from '@/routes';
-import { index as orders } from '@/routes/orders';
+import { logout } from '@/routes';
 import { edit as profile } from '@/routes/profile';
 import { index as supporting } from '@/routes/supporting';
 
 const links = [
-    { title: 'フィード', href: feed(), icon: Newspaper },
     { title: '支援中', href: supporting(), icon: Heart },
-    { title: '注文履歴', href: orders(), icon: ReceiptText },
     { title: 'アカウント設定', href: profile(), icon: Settings },
 ];
 
@@ -32,14 +29,7 @@ export function PublicUserMenu() {
                 className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted"
             >
                 <Avatar className="size-7">
-                    <AvatarImage
-                        src={
-                            auth.user.avatar ??
-                            auth.creator?.avatar_url ??
-                            undefined
-                        }
-                        alt=""
-                    />
+                    <AvatarImage src={auth.user.avatar ?? undefined} alt="" />
                     <AvatarFallback className="text-xs">
                         {getInitials(auth.user.name)}
                     </AvatarFallback>

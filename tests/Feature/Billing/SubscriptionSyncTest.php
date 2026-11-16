@@ -1,8 +1,8 @@
 <?php
 
+use App\Billing\BillingException;
 use App\Billing\Data\SubscriptionData;
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->payable()->create();
-    $this->plan = Plan::factory()->for($this->creator)->price(500)->create();
+    $this->plan = Plan::factory()->price(500)->create();
     $this->fan = User::factory()->create();
 });
 
@@ -23,7 +22,6 @@ it('creates an active support from a completed checkout', function () {
 
     expect($support)->not->toBeNull()
         ->and($support->user_id)->toBe($this->fan->id)
-        ->and($support->creator_id)->toBe($this->creator->id)
         ->and($support->plan_id)->toBe($this->plan->id)
         ->and($support->price)->toBe(500)
         ->and($support->status)->toBe(SupportStatus::Active)
@@ -124,7 +122,6 @@ it('ignores subscriptions whose metadata does not match the customer', function 
     $other = User::factory()->create();
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
         'user_id' => (string) $other->id,
-        'creator_id' => (string) $this->creator->id,
         'plan_id' => (string) $this->plan->id,
     ]);
 
@@ -142,28 +139,21 @@ it('ignores subscriptions with missing metadata', function () {
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });
 
-it('ignores a new subscription whose metadata plan belongs to another creator', function () {
-    Log::spy();
-    $foreign = Plan::factory()->for(Creator::factory())->create();
-    $foreignPrice = $this->gateway->ensurePrice($foreign)->priceId;
-    // Checked out at the other creator's price, with metadata naming this creator and the other creator's plan.
-    $subscription = fakeCheckout($this->gateway, $foreign, $this->fan, [
+it('still syncs an older subscription whose metadata carries a creator_id', function () {
+    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
+        'app' => (string) config('fanbox.billing.idempotency_prefix'),
         'user_id' => (string) $this->fan->id,
-        'creator_id' => (string) $this->creator->id,
-        'plan_id' => (string) $foreign->id,
+        'creator_id' => '1',
+        'plan_id' => (string) $this->plan->id,
     ]);
 
-    expect($subscription->priceId)->toBe($foreignPrice)
-        ->and(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
-        ->and(Support::count())->toBe(0);
-    Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
+    expect(app(SubscriptionSync::class)->sync($subscription->id)->plan_id)->toBe($this->plan->id);
 });
 
 it('uses the price plan even when the metadata plan is stale', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
         'user_id' => (string) $this->fan->id,
-        'creator_id' => (string) $this->creator->id,
-        'plan_id' => (string) Plan::factory()->for(Creator::factory())->create()->id,
+        'plan_id' => (string) Plan::factory()->create()->id,
     ]);
 
     expect(app(SubscriptionSync::class)->sync($subscription->id)->plan_id)->toBe($this->plan->id);
@@ -183,7 +173,7 @@ it('ignores an existing support whose user no longer owns the customer', functio
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });
 
-it('cancels a duplicate subscription for the same creator', function () {
+it('cancels a duplicate subscription for a user who already supports', function () {
     Log::spy();
     $first = fakeCheckout($this->gateway, $this->plan, $this->fan);
     $second = fakeCheckout($this->gateway, $this->plan, $this->fan);
@@ -199,7 +189,6 @@ it('cancels a duplicate subscription for the same creator', function () {
     Log::shouldHaveReceived('error')->with('billing.duplicate_subscription', [
         'subscription' => $second->id,
         'user_id' => $this->fan->id,
-        'creator_id' => $this->creator->id,
     ])->once();
 });
 
@@ -231,7 +220,7 @@ it('returns the existing support even when cancelling the duplicate fails', func
         unitAmount: 500,
         currentPeriodEnd: now()->toImmutable()->addMonth(),
         cancelAtPeriodEnd: false,
-        metadata: ['user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id],
+        metadata: ['user_id' => (string) $this->fan->id, 'plan_id' => (string) $this->plan->id],
     ));
 
     expect($result->id)->toBe($support->id)
@@ -241,7 +230,7 @@ it('returns the existing support even when cancelling the duplicate fails', func
 });
 
 it('follows a plan change made in stripe', function () {
-    $other = Plan::factory()->for($this->creator)->price(1000)->create();
+    $other = Plan::factory()->price(1000)->create();
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
     $sync = app(SubscriptionSync::class);
     $support = $sync->sync($subscription->id);
@@ -298,31 +287,16 @@ it('cancels a new subscription whose user was deleted', function () {
     Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === 'user_missing')->once();
 });
 
-it('cancels a new subscription for a suspended user or a closed or suspended creator', function (string $reason) {
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    match ($reason) {
-        'creator_closed' => $this->creator->forceFill(['closed_at' => now()])->save(),
-        'creator_suspended' => $this->creator->user->forceFill(['suspended_at' => now()])->save(),
-        'user_suspended' => $this->fan->forceFill(['suspended_at' => now()])->save(),
-    };
-    Log::spy();
-
-    expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
-        ->and(Support::query()->count())->toBe(0)
-        ->and($this->gateway->cancelledNow())->toBe([$subscription->id]);
-    Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'billing.orphan_subscription' && $context['reason'] === $reason)->once();
-})->with(['creator_closed', 'creator_suspended', 'user_suspended']);
-
 it('refunds the paid invoice of an orphan subscription', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $this->creator->forceFill(['closed_at' => now()])->save();
+    $this->fan->delete();
     $sync = app(SubscriptionSync::class);
 
     expect($sync->sync($subscription->id))->toBeNull()
         ->and($sync->lastOutcome())->toBe('orphan');
 
-    $charge = $this->gateway->retrieveCharge($this->gateway->chargeIdForInvoice((string) $subscription->latestInvoiceId));
-    expect($charge->amountRefunded)->toBe(500);
+    // The fake refuses a second refund, so this throwing shows the sync already refunded the invoice.
+    expect(fn () => $this->gateway->refundInvoice((string) $subscription->latestInvoiceId))->toThrow(BillingException::class);
 });
 
 it('logs a failed orphan refund without throwing', function () {
@@ -347,19 +321,10 @@ it('reports the outcome of the last sync', function () {
     expect($sync->lastOutcome())->toBe('synced');
 });
 
-it('keeps syncing an existing support after its creator closed', function () {
-    $support = app(SubscriptionSync::class)->sync(fakeCheckout($this->gateway, $this->plan, $this->fan)->id);
-    $this->creator->forceFill(['closed_at' => now()])->save();
-
-    expect(app(SubscriptionSync::class)->sync((string) $support->stripe_subscription_id)->status)->toBe(SupportStatus::Active)
-        ->and($this->gateway->cancelledNow())->toBe([]);
-});
-
 it('ignores a subscription stamped by another environment', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
         'app' => 'production/elsewhere.example',
         'user_id' => '999999',
-        'creator_id' => (string) $this->creator->id,
         'plan_id' => (string) $this->plan->id,
     ]);
     Log::spy();
@@ -374,7 +339,6 @@ it('ignores a subscription stamped by another environment', function () {
 it('never cancels an unstamped subscription whose user is missing', function () {
     $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan, [
         'user_id' => (string) $this->fan->id,
-        'creator_id' => (string) $this->creator->id,
         'plan_id' => (string) $this->plan->id,
     ]);
     $this->fan->delete();
@@ -383,48 +347,4 @@ it('never cancels an unstamped subscription whose user is missing', function () 
     expect(app(SubscriptionSync::class)->sync($subscription->id))->toBeNull()
         ->and($this->gateway->cancelledNow())->toBe([]);
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
-});
-
-it('follows the creator when a new support becomes active', function () {
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-
-    app(SubscriptionSync::class)->sync($subscription->id);
-
-    expect($this->creator->isFollowedBy($this->fan))->toBeTrue();
-});
-
-it('does not follow again on later syncs after the fan unfollowed', function () {
-    $other = Plan::factory()->for($this->creator)->price(1000)->create();
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $sync = app(SubscriptionSync::class);
-    $sync->sync($subscription->id);
-    $this->creator->unfollow($this->fan);
-
-    $sync->apply($this->gateway->setCancelAtPeriodEnd($subscription->id, true));
-    $sync->apply($this->gateway->setCancelAtPeriodEnd($subscription->id, false));
-    $this->gateway->changeSubscriptionPrice($subscription->id, (string) $subscription->itemId, $this->gateway->ensurePrice($other)->priceId, false);
-    $sync->sync($subscription->id);
-
-    expect($this->creator->isFollowedBy($this->fan))->toBeFalse();
-});
-
-it('keeps the follow when the support ends', function () {
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $sync = app(SubscriptionSync::class);
-    $sync->sync($subscription->id);
-
-    $this->gateway->setSubscriptionStatus($subscription->id, 'canceled');
-    $sync->sync($subscription->id);
-
-    expect(Support::sole()->status)->toBe(SupportStatus::Ended)
-        ->and($this->creator->isFollowedBy($this->fan))->toBeTrue();
-});
-
-it('does not follow for a subscription first seen as ended', function () {
-    $subscription = fakeCheckout($this->gateway, $this->plan, $this->fan);
-    $this->gateway->setSubscriptionStatus($subscription->id, 'canceled');
-
-    app(SubscriptionSync::class)->sync($subscription->id);
-
-    expect($this->creator->isFollowedBy($this->fan))->toBeFalse();
 });

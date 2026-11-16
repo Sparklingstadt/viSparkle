@@ -12,6 +12,5 @@ if (config('fanbox.billing.driver') === 'fake' && ! app()->isProduction()) {
     });
 }
 
-// Stripe's servers call these, so they exist for every driver and carry no session; the signature is the authentication.
-Route::post('stripe/webhook', [StripeWebhookController::class, 'platform'])->name('stripe.webhook');
-Route::post('stripe/connect-webhook', [StripeWebhookController::class, 'connect'])->name('stripe.connect-webhook');
+// Stripe's servers call this, so it exists for every driver and carries no session; the signature is the authentication.
+Route::post('stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');

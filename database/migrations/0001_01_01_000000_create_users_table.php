@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            // The one account that runs the site as its creator (see `php artisan visparkle:creator`).
+            $table->boolean('is_creator')->default(false);
+            $table->string('stripe_customer_id')->nullable()->unique();
             $table->rememberToken();
             $table->timestamps();
         });

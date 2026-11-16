@@ -2,28 +2,20 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Download, Paperclip } from 'lucide-react';
 import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
-import { LikeButton } from '@/components/like-button';
 import { AccessBadge } from '@/components/access-badge';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
-import {
-    ReportDialog,
-    type ReportReasonOption,
-} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
-import { show as showPostCategory } from '@/routes/post-categories';
 import { edit } from '@/routes/creator/posts';
 import type {
     CreatorProfile,
-    PlanData,
     PostDetail,
     PostSummary,
+    SupportPanel,
 } from '@/types';
 
 export default function PostPage({
@@ -31,29 +23,15 @@ export default function PostPage({
     creator,
     morePosts,
     plans,
-    isOwner,
+    isCreator,
     viewerSupportPrice,
     viewerPlanId,
     viewerSupportId,
     viewerSupportCancelling,
-    acceptsSupports,
-    closed,
-    reportReasons,
-    hiddenReason,
-}: {
+}: SupportPanel & {
     post: PostDetail;
-    creator: CreatorProfile & { id: number };
+    creator: CreatorProfile;
     morePosts: PostSummary[];
-    plans: PlanData[];
-    isOwner: boolean;
-    viewerSupportPrice: number | null;
-    viewerPlanId: number | null;
-    viewerSupportId: number | null;
-    viewerSupportCancelling: boolean;
-    acceptsSupports: boolean;
-    closed: boolean;
-    reportReasons: ReportReasonOption[];
-    hiddenReason: string | null;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -78,15 +56,6 @@ export default function PostPage({
             <article className="mx-auto max-w-3xl space-y-8">
                 <CreatorHeader creator={creator} compact />
 
-                {hiddenReason !== null && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由: {hiddenReason}
-                            ）
-                        </AlertDescription>
-                    </Alert>
-                )}
-
                 {post.cover_thumb_url ? (
                     <img
                         src={post.cover_thumb_url}
@@ -105,20 +74,11 @@ export default function PostPage({
                 <header className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         <AccessBadge price={post.required_price} />
-                        {post.category && (
-                            <Badge variant="secondary" asChild>
-                                <Link
-                                    href={showPostCategory(post.category.slug)}
-                                >
-                                    {post.category.name}
-                                </Link>
-                            </Badge>
-                        )}
                         {post.published_at && (
                             <span>投稿日 {formatDate(post.published_at)}</span>
                         )}
                         <span>最終更新日 {formatDate(post.updated_at)}</span>
-                        {isOwner && (
+                        {isCreator && (
                             <Link
                                 href={edit(post.id)}
                                 className="underline underline-offset-4"
@@ -157,7 +117,7 @@ export default function PostPage({
                         <LockedPost
                             requiredPrice={post.required_price}
                             supportPrice={viewerSupportPrice}
-                            creatorName={creator.display_name}
+                            creatorName={creator.name}
                         >
                             {unlocking.length > 0 && (
                                 <div id="plans" className="grid gap-3">
@@ -172,7 +132,6 @@ export default function PostPage({
                                             featuredLabel="この投稿がいちばん安く読めます"
                                             action={
                                                 <SupportButton
-                                                    creatorSlug={creator.slug}
                                                     plan={plan}
                                                     viewerPlanId={viewerPlanId}
                                                     viewerSupportId={
@@ -184,10 +143,6 @@ export default function PostPage({
                                                     viewerSupportCancelling={
                                                         viewerSupportCancelling
                                                     }
-                                                    acceptsSupports={
-                                                        acceptsSupports
-                                                    }
-                                                    closed={closed}
                                                 />
                                             }
                                         />
@@ -232,21 +187,9 @@ export default function PostPage({
                     </>
                 )}
 
-                <footer className="flex items-center justify-between gap-4 border-y py-4">
-                    <LikeButton post={post} />
-                    <ReportDialog
-                        targetType="post"
-                        targetId={post.id}
-                        reasons={reportReasons}
-                        isOwner={isOwner}
-                    />
-                </footer>
-
                 {morePosts.length > 0 && (
                     <section className="space-y-4">
-                        <h2 className="text-xl font-bold">
-                            {creator.display_name}さんのほかの投稿
-                        </h2>
+                        <h2 className="text-xl font-bold">ほかの投稿</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {morePosts.map((other) => (
                                 <PostCard key={other.id} post={other} />

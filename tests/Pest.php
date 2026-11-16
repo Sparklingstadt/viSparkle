@@ -56,13 +56,9 @@ function something()
 */
 
 use App\Billing\Data\CheckoutRequest;
-use App\Billing\Data\LineItem;
-use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
-use App\Models\Order;
-use App\Models\OrderItem;
 use App\Models\Plan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -182,57 +178,13 @@ function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $meta
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: (string) $user->stripe_customer_id,
         priceId: $gateway->ensurePrice($plan)->priceId,
-        destinationAccountId: (string) $plan->creator->stripe_account_id,
-        feePercent: 10,
-        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
         expiresAt: CarbonImmutable::now()->addMinutes(30),
     ));
 
     return $gateway->completeCheckout($session->id);
-}
-
-/**
- * Open a payment checkout session for the order on the fake gateway, save its ID on the order and return it.
- * Creates and saves the buyer's Stripe customer when missing; metadata defaults to this app's stamp and the user/creator/order.
- *
- * @param  array<string, string>|null  $metadata
- */
-function fakeOrderCheckout(FakeGateway $gateway, Order $order, ?array $metadata = null): string
-{
-    $user = $order->user;
-    assert($user instanceof User);
-
-    if ($user->stripe_customer_id === null) {
-        $user->forceFill(['stripe_customer_id' => $gateway->createCustomer($user)])->save();
-    }
-
-    $lineItems = $order->items->map(fn (OrderItem $item) => new LineItem($item->product_name, $item->unit_price, $item->quantity))->values()->all();
-
-    if ($order->shipping_fee > 0) {
-        $lineItems[] = new LineItem('送料', $order->shipping_fee, 1);
-    }
-
-    if ($order->support_amount > 0) {
-        $lineItems[] = new LineItem('クリエイターへの応援', $order->support_amount, 1);
-    }
-
-    $session = $gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
-        customerId: (string) $user->stripe_customer_id,
-        lineItems: $lineItems,
-        destinationAccountId: (string) $order->creator?->stripe_account_id,
-        applicationFeeAmount: $order->platformFeeAmount(),
-        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $order->creator_id, 'order_id' => (string) $order->id],
-        successUrl: 'https://app.test/success',
-        cancelUrl: 'https://app.test/cancel',
-        expiresAt: CarbonImmutable::now()->addMinutes(30),
-        idempotencyKey: "order-{$order->id}-checkout",
-    ));
-
-    $order->forceFill(['stripe_checkout_session_id' => $session->id])->save();
-
-    return $session->id;
 }
 
 /**

@@ -6,7 +6,6 @@ use App\Billing\BillingException;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
@@ -71,9 +70,9 @@ class SubscriptionSync
             // Locking a missing subscription id takes a gap lock, so two first syncs can deadlock; write() is idempotent, so retry.
             $result = DB::transaction(fn () => $this->write($data, $userId, $app !== null), 3);
         } catch (UniqueConstraintViolationException $e) {
-            // Another active support for the same user and creator was committed by a writer that skipped our lock.
+            // Another active support for the same user was committed by a writer that skipped our lock.
             $ids = $this->metadataIds($data);
-            $other = $ids === null ? null : $this->activeSupport($ids['user_id'], $ids['creator_id'], $data->id);
+            $other = $ids === null ? null : $this->activeSupport($ids['user_id'], $data->id);
 
             if ($other === null) {
                 throw $e;
@@ -128,58 +127,36 @@ class SubscriptionSync
             return $this->mismatch($data, $support);
         }
 
-        // A new, charging subscription for a suspended user, or for a creator who can no longer take supports.
-        if ($orphanable) {
-            $reason = $user->isSuspended() ? 'user_suspended' : $this->closedCreatorReason((int) $ids['creator_id']);
-
-            if ($reason !== null) {
-                return ['orphan' => $reason];
-            }
-        }
-
         if ($status === null) {
             return ['support' => $support];
         }
 
         if ($support === null) {
-            if ($ids === null || ! Creator::query()->whereKey($ids['creator_id'])->exists()) {
+            if ($ids === null) {
                 return $this->mismatch($data, null);
             }
 
-            $planId = $this->planForPrice($data, $ids['creator_id']);
-
-            if ($planId === null) {
-                // A metadata plan of another creator is a mismatch; a plan deleted since checkout just leaves plan_id empty.
-                $plan = Plan::query()->whereKey($ids['plan_id'])->first();
-
-                if ($plan !== null && $plan->creator_id !== $ids['creator_id']) {
-                    return $this->mismatch($data, null);
-                }
-
-                $planId = $plan?->id;
-            }
+            // A plan deleted since checkout just leaves plan_id empty.
+            $planId = $this->planForPrice($data) ?? Plan::query()->whereKey($ids['plan_id'])->value('id');
 
             $support = (new Support)->forceFill([
                 'user_id' => $user->id,
-                'creator_id' => $ids['creator_id'],
                 'plan_id' => $planId,
                 'started_at' => now(),
             ]);
         }
 
         if ($status === SupportStatus::Active && $support->status !== SupportStatus::Active) {
-            $other = $this->activeSupport($support->user_id, $support->creator_id, $data->id);
+            $other = $this->activeSupport($support->user_id, $data->id);
 
             if ($other !== null) {
                 return ['duplicate' => $other];
             }
         }
 
-        $isNew = ! $support->exists;
-
         $support->forceFill([
             'stripe_subscription_id' => $data->id,
-            'plan_id' => $this->planForPrice($data, $support->creator_id) ?? $support->plan_id,
+            'plan_id' => $this->planForPrice($data) ?? $support->plan_id,
             'price' => $data->unitAmount ?? ($support->exists ? $support->price : $support->plan?->price) ?? 0,
             'status' => $status,
             'stripe_status' => $data->status,
@@ -191,11 +168,6 @@ class SubscriptionSync
                 default => now(),
             },
         ])->save();
-
-        // Only a new support follows: a fan who unfollowed is not followed again by a later plan change or renewal.
-        if ($isNew && $status === SupportStatus::Active) {
-            $support->creator?->follow($user);
-        }
 
         return ['support' => $support];
     }
@@ -218,13 +190,15 @@ class SubscriptionSync
     }
 
     /**
-     * @return array{user_id: int, creator_id: int, plan_id: int}|null
+     * The ids Checkout stamped on the subscription. Older subscriptions also carry a `creator_id`, which is ignored.
+     *
+     * @return array{user_id: int, plan_id: int}|null
      */
     private function metadataIds(SubscriptionData $data): ?array
     {
         $ids = [];
 
-        foreach (['user_id', 'creator_id', 'plan_id'] as $key) {
+        foreach (['user_id', 'plan_id'] as $key) {
             $value = $data->metadata[$key] ?? null;
 
             if (! is_string($value) || ! ctype_digit($value)) {
@@ -238,42 +212,29 @@ class SubscriptionSync
     }
 
     /**
-     * The creator's plan for the subscription's price, or null when the price is not one of theirs.
+     * The plan for the subscription's price, or null when the price is not one of ours.
      */
-    private function planForPrice(SubscriptionData $data, int $creatorId): ?int
+    private function planForPrice(SubscriptionData $data): ?int
     {
         if ($data->priceId === null) {
             return null;
         }
 
-        $plan = Plan::query()->where('stripe_price_id', $data->priceId)->where('creator_id', $creatorId)->first();
+        $planId = Plan::query()->where('stripe_price_id', $data->priceId)->value('id');
 
-        return $plan?->id;
+        return $planId === null ? null : (int) $planId;
     }
 
     /**
      * A locking read, so it sees active supports committed after the transaction's snapshot was taken.
      */
-    private function activeSupport(int $userId, int $creatorId, string $exceptSubscriptionId): ?Support
+    private function activeSupport(int $userId, string $exceptSubscriptionId): ?Support
     {
         return Support::active()
             ->where('user_id', $userId)
-            ->where('creator_id', $creatorId)
             ->where(fn ($query) => $query->whereNull('stripe_subscription_id')->orWhere('stripe_subscription_id', '!=', $exceptSubscriptionId))
             ->lockForUpdate()
             ->first();
-    }
-
-    private function closedCreatorReason(int $creatorId): ?string
-    {
-        $creator = Creator::query()->with('user')->whereKey($creatorId)->first();
-
-        return match (true) {
-            $creator === null => 'creator_missing',
-            $creator->isClosed() => 'creator_closed',
-            $creator->user->suspended_at !== null => 'creator_suspended',
-            default => null,
-        };
     }
 
     /**
@@ -312,14 +273,13 @@ class SubscriptionSync
     }
 
     /**
-     * A second subscription for a creator the user already supports: cancel it now (refunds are manual).
+     * A second subscription for a user who already supports: cancel it now (refunds are manual).
      */
     private function cancelDuplicate(SubscriptionData $data, Support $existing): void
     {
         Log::error('billing.duplicate_subscription', [
             'subscription' => $data->id,
             'user_id' => $existing->user_id,
-            'creator_id' => $existing->creator_id,
         ]);
 
         try {

@@ -38,13 +38,11 @@ class CheckoutService
     {
         $this->assertCanBegin($user, $plan);
 
-        $creator = $plan->creator;
-
         $customerId = $this->customerId($user);
         $price = $this->gateway->ensurePrice($plan);
 
-        // Only one open session per user and creator, so a second tab cannot create a second subscription.
-        $key = self::cacheKey($user->id, $creator->id);
+        // Only one open session per user, so a second tab cannot create a second subscription.
+        $key = self::cacheKey($user->id);
         $previous = $this->cache->get($key);
 
         if (is_string($previous)) {
@@ -60,17 +58,14 @@ class CheckoutService
         $session = $this->gateway->createCheckoutSession(new CheckoutRequest(
             customerId: $customerId,
             priceId: $price->priceId,
-            destinationAccountId: (string) $creator->stripe_account_id,
-            feePercent: (int) config('fanbox.billing.platform_fee_percent'),
             metadata: [
                 // Which environment created it: test-mode accounts are shared, so others' subscriptions reach our webhooks too.
                 'app' => (string) config('fanbox.billing.idempotency_prefix'),
                 'user_id' => (string) $user->id,
-                'creator_id' => (string) $creator->id,
                 'plan_id' => (string) $plan->id,
             ],
             successUrl: route('supports.checkout.complete').'?session_id={CHECKOUT_SESSION_ID}',
-            cancelUrl: route('creators.show', $creator),
+            cancelUrl: route('home'),
             // Stripe requires at least 30 minutes by its own clock, so give it a minute of slack.
             expiresAt: now()->addMinutes($minutes + 1),
         ));
@@ -96,25 +91,15 @@ class CheckoutService
             throw ValidationException::withMessages(['plan' => '現在お申し込みを受け付けていません。']);
         }
 
-        $creator = $plan->creator;
-
-        if ($creator->user_id === $user->id) {
+        if ($user->isCreator()) {
             throw ValidationException::withMessages(['plan' => '自分自身を支援することはできません。']);
-        }
-
-        if ($creator->isClosed()) {
-            throw ValidationException::withMessages(['plan' => 'このクリエイターは活動を終了しました。']);
-        }
-
-        if (! $creator->canAcceptSupports() || $creator->user->isSuspended()) {
-            throw ValidationException::withMessages(['plan' => 'このクリエイターは現在支援を受け付けていません。']);
         }
 
         if (! $plan->is_accepting) {
             throw ValidationException::withMessages(['plan' => 'このプランは現在受付を停止しています。']);
         }
 
-        if (Support::active()->where('user_id', $user->id)->where('creator_id', $creator->id)->exists()) {
+        if (Support::active()->where('user_id', $user->id)->exists()) {
             throw ValidationException::withMessages(['plan' => 'すでに支援中です。プランの変更は「このプランに変更」から行ってください。']);
         }
     }
@@ -157,17 +142,16 @@ class CheckoutService
         $support = $this->sync->sync($session->subscriptionId);
 
         $userId = $session->metadata['user_id'] ?? null;
-        $creatorId = $session->metadata['creator_id'] ?? null;
 
-        if ($userId !== null && $creatorId !== null) {
-            $this->cache->forget(self::cacheKey((int) $userId, (int) $creatorId));
+        if ($userId !== null) {
+            $this->cache->forget(self::cacheKey((int) $userId));
         }
 
         return $support;
     }
 
     /**
-     * Whether the last finish() found the subscription orphaned (the creator or user went away during checkout),
+     * Whether the last finish() found the subscription orphaned (the user went away during checkout),
      * so it was cancelled and its payment refunded.
      */
     public function finishedAsOrphan(): bool
@@ -175,9 +159,9 @@ class CheckoutService
         return $this->sync->lastOutcome() === 'orphan';
     }
 
-    private static function cacheKey(int $userId, int $creatorId): string
+    private static function cacheKey(int $userId): string
     {
-        return "checkout:{$userId}:{$creatorId}";
+        return "checkout:{$userId}";
     }
 
     /**

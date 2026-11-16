@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Settings;
 
-use App\Models\Creator;
-use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -102,35 +100,31 @@ class ProfileUpdateTest extends TestCase
 
     public function test_creator_with_active_supporters_cannot_delete_their_account()
     {
-        $creator = Creator::factory()->payable()->create();
-        $plan = Plan::factory()->create(['creator_id' => $creator->id]);
-        Support::factory()->forPlan($plan)->billing()->create();
+        $creator = User::factory()->creator()->create();
+        Support::factory()->billing()->create();
 
         $response = $this
-            ->actingAs($creator->user)
+            ->actingAs($creator)
             ->from(route('profile.edit'))
             ->delete(route('profile.destroy'), [
                 'password' => 'password',
             ]);
 
         $response
-            ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。『活動を終了する』で支援を停止し、期間の終了をお待ちください。'])
+            ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。すべてのプランの受付を停止して支援の期間が終わるのを待つか、Stripe ダッシュボードでサブスクリプションを解約してください。'])
             ->assertRedirect(route('profile.edit'));
 
-        $this->assertNotNull($creator->user->fresh());
+        $this->assertNotNull($creator->fresh());
     }
 
-    public function test_user_with_only_dummy_or_ended_supports_can_delete_their_account()
+    public function test_creator_with_only_ended_supports_can_delete_their_account()
     {
-        $creator = Creator::factory()->create();
-        $plan = Plan::factory()->create(['creator_id' => $creator->id]);
-        Support::factory()->forPlan($plan)->ended()->create();
-        Support::factory()->forPlan($plan)->billing()->ended()->create();
-        Support::factory()->create(['user_id' => $creator->user_id]);
-        Support::factory()->billing()->ended()->create(['user_id' => $creator->user_id]);
+        $creator = User::factory()->creator()->create();
+        Support::factory()->ended()->create();
+        Support::factory()->billing()->ended()->create();
 
         $response = $this
-            ->actingAs($creator->user)
+            ->actingAs($creator)
             ->delete(route('profile.destroy'), [
                 'password' => 'password',
             ]);
@@ -139,6 +133,6 @@ class ProfileUpdateTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('home'));
 
-        $this->assertNull($creator->user->fresh());
+        $this->assertNull($creator->fresh());
     }
 }

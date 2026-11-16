@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Billing\FakeGateway;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\User;
@@ -15,36 +13,32 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Demo data for local development. Both accounts use the password "password".
+     * Demo data for local development: the creator, a fan, three plans and three posts.
+     * Both accounts use the password "password".
      */
     public function run(): void
     {
+        User::factory()->creator()->create(['name' => 'デモクリエイター', 'email' => 'creator@example.com']);
         User::factory()->create(['name' => 'ファン太郎', 'email' => 'fan@example.com']);
 
-        $creator = Creator::factory()
-            ->for(User::factory()->state(['name' => 'デモクリエイター', 'email' => 'creator@example.com']))
-            ->create([
-                'slug' => 'demo-creator',
-                'display_name' => 'デモクリエイター',
-                'bio' => "イラストと漫画を描いています。\n支援してくださると制作の励みになります！",
-            ]);
+        $plans = [
+            [300, 'ちょっと応援', '月1回のラフ公開'],
+            [500, 'しっかり応援', '完成イラストの高解像度版'],
+            [1000, '全力応援', '制作過程の動画と素材ファイル'],
+        ];
 
-        // A payable demo creator, so the fake checkout works out of the box.
-        $creator->forceFill(['stripe_account_id' => 'acct_fake_demo', 'payouts_enabled' => true, 'details_submitted' => true])->save();
-
-        if (config('fanbox.billing.driver') === 'fake') {
-            app(FakeGateway::class)->setAccount('acct_fake_demo', true, true);
+        foreach ($plans as $i => [$price, $name, $description]) {
+            Plan::factory()->create(['price' => $price, 'name' => $name, 'description' => $description, 'sort' => $i]);
         }
 
-        foreach ([[300, 'ちょっと応援', '月1回のラフ公開'], [500, 'しっかり応援', '完成イラストの高解像度版'], [1000, '全力応援', '制作過程の動画と素材ファイル']] as $i => [$price, $name, $description]) {
-            Plan::factory()->for($creator)->create(['price' => $price, 'name' => $name, 'description' => $description, 'sort' => $i]);
-        }
+        $posts = [
+            [0, 'ご挨拶', 'ページを開設しました！'],
+            [300, '今月のラフ', '今月描いたラフをまとめました。'],
+            [1000, 'メイキング', '完成までの工程を解説します。'],
+        ];
 
-        // The shop goods come with DemoCreatorsSeeder (DemoProductsSeeder).
-        $creator->forceFill(['shipping_fee' => 500])->save();
-
-        foreach ([[0, 'ご挨拶', 'ページを開設しました！'], [300, '今月のラフ', '今月描いたラフをまとめました。'], [1000, 'メイキング', '完成までの工程を解説します。']] as $i => [$price, $title, $excerpt]) {
-            Post::factory()->for($creator)->published()->requiring($price)->create([
+        foreach ($posts as $i => [$price, $title, $excerpt]) {
+            Post::factory()->published()->requiring($price)->create([
                 'title' => $title,
                 'excerpt' => $excerpt,
                 'published_at' => now()->subDays(3 - $i),
@@ -58,11 +52,8 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        $this->call(DemoCreatorsSeeder::class);
-
+        // Local only: drawing the covers takes a while.
         if (app()->isLocal()) {
-            $this->call(DemoShowcaseSeeder::class);
-            // Last, so the posts of every demo seeder above get a cover. Local only: drawing them takes a while.
             $this->call(DemoPostCoversSeeder::class);
         }
     }

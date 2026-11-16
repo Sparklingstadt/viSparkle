@@ -19,7 +19,6 @@ class SupportFactory extends Factory
         return [
             'user_id' => User::factory(),
             'plan_id' => Plan::factory(),
-            'creator_id' => fn (array $attributes) => Plan::findOrFail((int) $attributes['plan_id'])->creator_id,
             'price' => fn (array $attributes) => Plan::findOrFail((int) $attributes['plan_id'])->price,
             'status' => SupportStatus::Active,
             'started_at' => now(),
@@ -30,7 +29,6 @@ class SupportFactory extends Factory
     {
         return $this->state(fn () => [
             'plan_id' => $plan->id,
-            'creator_id' => $plan->creator_id,
             'price' => $plan->price,
         ]);
     }

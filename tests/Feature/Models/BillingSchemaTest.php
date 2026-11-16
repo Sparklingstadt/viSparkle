@@ -1,17 +1,15 @@
 <?php
 
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 
-it('rejects a second active support for the same user and creator', function () {
-    $creator = Creator::factory()->create();
+it('rejects a second active support for the same user', function () {
     $user = User::factory()->create();
-    $plan = Plan::factory()->for($creator)->create();
-    $other = Plan::factory()->for($creator)->create();
+    $plan = Plan::factory()->create();
+    $other = Plan::factory()->create();
 
     Support::factory()->forPlan($plan)->create(['user_id' => $user->id]);
 
@@ -39,12 +37,6 @@ it('frees the slot when a support ends', function () {
     Support::factory()->forPlan($plan)->create(['user_id' => $user->id]);
 
     expect(Support::active()->count())->toBe(1);
-});
-
-it('reports whether a creator can accept supports', function () {
-    expect(Creator::factory()->create()->canAcceptSupports())->toBeFalse()
-        ->and(Creator::factory()->payable()->create()->canAcceptSupports())->toBeTrue()
-        ->and(Creator::factory()->payable()->create(['payouts_enabled' => false])->canAcceptSupports())->toBeFalse();
 });
 
 it('reports whether a support is billed through Stripe', function () {

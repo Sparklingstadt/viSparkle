@@ -32,11 +32,6 @@ class LegalDocuments
         return str_replace('{email}', e($email !== '' ? $email : '（準備中）'), self::parsed($name)['html']);
     }
 
-    public static function termsVersion(): string
-    {
-        return self::version('terms');
-    }
-
     /**
      * Whether the 特商法 details are complete enough to accept payments.
      */

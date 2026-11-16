@@ -1,20 +1,12 @@
 <?php
 
-use App\Http\Controllers\Legal\AcceptTermsController;
-use App\Http\Controllers\Public\CategoryPageController;
-use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LegalController;
-use App\Http\Controllers\Public\PostCategoryPageController;
 use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
-use App\Http\Controllers\Public\ProductPageController;
-use App\Http\Controllers\Public\SearchController;
-use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
-Route::get('search', SearchController::class)->middleware('throttle:60,1,search')->name('search');
 
 Route::controller(LegalController::class)->prefix('legal')->name('legal.')->group(function () {
     Route::get('tokushoho', 'tokushoho')->name('tokushoho');
@@ -22,28 +14,17 @@ Route::controller(LegalController::class)->prefix('legal')->name('legal.')->grou
     Route::get('privacy', 'privacy')->name('privacy');
 });
 
-Route::middleware('auth')->controller(AcceptTermsController::class)->group(function () {
-    Route::get('legal/accept', 'show')->name('legal.accept');
-    Route::post('legal/accept', 'store')->name('legal.accept.store');
-});
-
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::redirect('dashboard', '/feed')->name('dashboard');
-    Route::post('reports', [ReportController::class, 'store'])->middleware('throttle:10,60')->name('reports.store');
+    Route::redirect('dashboard', '/')->name('dashboard');
 });
 
 require __DIR__.'/settings.php';
 require __DIR__.'/creator.php';
 require __DIR__.'/fan.php';
 require __DIR__.'/billing.php';
-require __DIR__.'/admin.php';
 
-Route::get('categories/{category:slug}', CategoryPageController::class)->name('categories.show');
-Route::get('post-categories/{category:slug}', PostCategoryPageController::class)->name('post-categories.show');
-Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
-Route::get('/@{creator}/shop/{product}', ProductPageController::class)->whereNumber('product')->name('shop.products.show');
-Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
-Route::get('/@{creator}/posts/{post}/files/{file}', PostFileDownloadController::class)
+Route::get('posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
+Route::get('posts/{post}/files/{file}', PostFileDownloadController::class)
     ->whereNumber(['post', 'file'])
     ->middleware('throttle:120,1')
     ->name('posts.files.show');

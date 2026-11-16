@@ -9,6 +9,6 @@ class PlanPolicy
 {
     public function manage(User $user, Plan $plan): bool
     {
-        return $user->creator !== null && $plan->creator_id === $user->creator->id;
+        return $user->isCreator();
     }
 }

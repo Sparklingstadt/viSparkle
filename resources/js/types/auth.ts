@@ -1,5 +1,3 @@
-import type { CreatorSummary } from './fanbox';
-
 export type User = {
     id: number;
     name: string;
@@ -7,7 +5,6 @@ export type User = {
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
-    is_admin: boolean;
     has_billing_account: boolean;
     created_at: string;
     updated_at: string;
@@ -16,7 +13,7 @@ export type User = {
 
 export type Auth = {
     user: User;
-    creator: CreatorSummary | null;
+    isCreator: boolean;
 };
 
 export type Passkey = {

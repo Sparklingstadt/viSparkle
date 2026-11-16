@@ -1,10 +1,7 @@
 <?php
 
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\PostFile;
-use App\Models\Product;
-use App\Models\ProductFile;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,14 +22,12 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
     $file = PostFile::factory()->create();
     $referenced = putFile('private', $file->path, 48);
     $referencedThumb = putFile('private', $file->thumb_path, 48);
-    $orphan = putFile('private', 'creators/1/posts/1/orphan.jpg', 48);
-    $fresh = putFile('private', 'creators/1/posts/1/uploading.jpg', 1);
+    $orphan = putFile('private', 'posts/1/orphan.jpg', 48);
+    $fresh = putFile('private', 'posts/1/uploading.jpg', 1);
 
-    $creator = Creator::factory()->create(['avatar_path' => 'creators/9/avatar/a.jpg']);
-    $plan = Plan::factory()->for($creator)->create(['cover_path' => 'creators/9/plans/c.jpg']);
-    $avatar = putFile('public', $creator->avatar_path, 48);
+    $plan = Plan::factory()->create(['cover_path' => 'plans/c.jpg']);
     $cover = putFile('public', $plan->cover_path, 48);
-    $oldAvatar = putFile('public', 'creators/9/avatar/old.jpg', 48);
+    $oldCover = putFile('public', 'plans/old.jpg', 48);
 
     $this->artisan('visparkle:prune-orphan-files')
         ->expectsOutputToContain('2')
@@ -40,34 +35,12 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
 
     Storage::disk('private')->assertExists([$referenced, $referencedThumb, $fresh]);
     Storage::disk('private')->assertMissing($orphan);
-    Storage::disk('public')->assertExists([$avatar, $cover]);
-    Storage::disk('public')->assertMissing($oldAvatar);
-});
-
-it('keeps product images', function () {
-    $image = Product::factory()->create()->images()->create(['path' => 'creators/9/products/p.jpg', 'sort_order' => 0]);
-    $kept = putFile('public', $image->path, 48);
-    $orphan = putFile('public', 'creators/9/products/orphan.jpg', 48);
-
-    $this->artisan('visparkle:prune-orphan-files')->assertSuccessful();
-
-    Storage::disk('public')->assertExists($kept);
-    Storage::disk('public')->assertMissing($orphan);
-});
-
-it('keeps product files and prunes orphans under products', function () {
-    $file = ProductFile::factory()->create(['path' => 'creators/1/products/1/kept.zip']);
-    $kept = putFile('private', $file->path, 48);
-    $orphan = putFile('private', 'creators/1/products/1/x.zip', 25);
-
-    $this->artisan('visparkle:prune-orphan-files')->assertSuccessful();
-
-    Storage::disk('private')->assertExists($kept);
-    Storage::disk('private')->assertMissing($orphan);
+    Storage::disk('public')->assertExists($cover);
+    Storage::disk('public')->assertMissing($oldCover);
 });
 
 it('only reports in dry-run mode', function () {
-    $orphan = putFile('private', 'creators/1/posts/1/orphan.jpg', 48);
+    $orphan = putFile('private', 'posts/1/orphan.jpg', 48);
 
     $this->artisan('visparkle:prune-orphan-files', ['--dry-run' => true])->assertSuccessful();
 

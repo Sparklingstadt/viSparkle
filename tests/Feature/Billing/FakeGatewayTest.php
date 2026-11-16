@@ -2,38 +2,14 @@
 
 use App\Billing\BillingException;
 use App\Billing\Data\CheckoutRequest;
-use App\Billing\Data\LineItem;
-use App\Billing\Data\PaymentCheckoutRequest;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentFailedException;
 use App\Billing\PaymentGateway;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use App\Providers\BillingServiceProvider;
 use Carbon\CarbonImmutable;
-
-/**
- * Open a payment checkout session for two line items (total 2,700 yen) and return its id.
- */
-function openPaymentSession(FakeGateway $gateway): string
-{
-    $user = User::factory()->create();
-    $session = $gateway->createPaymentCheckoutSession(new PaymentCheckoutRequest(
-        customerId: $gateway->createCustomer($user),
-        lineItems: [new LineItem('Tシャツ', 1200, 2), new LineItem('送料', 300, 1)],
-        destinationAccountId: 'acct_x',
-        applicationFeeAmount: 270,
-        metadata: ['user_id' => (string) $user->id, 'order_id' => '42'],
-        successUrl: 'https://app.test/success',
-        cancelUrl: 'https://app.test/cancel',
-        expiresAt: CarbonImmutable::now()->addMinutes(30),
-        idempotencyKey: 'order-42-checkout',
-    ));
-
-    return $session->id;
-}
 
 /**
  * Walk a fan through checkout of the given plan and return the resulting subscription.
@@ -45,9 +21,7 @@ function subscribeFake(FakeGateway $gateway, Plan $plan, ?User $user = null): Su
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: $gateway->createCustomer($user),
         priceId: $price->priceId,
-        destinationAccountId: $gateway->createConnectAccount($plan->creator),
-        feePercent: 10,
-        metadata: ['user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        metadata: ['user_id' => (string) $user->id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
         expiresAt: CarbonImmutable::now()->addMinutes(30),
@@ -58,7 +32,7 @@ function subscribeFake(FakeGateway $gateway, Plan $plan, ?User $user = null): Su
 
 it('completes a checkout into an active subscription carrying metadata', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $user = User::factory()->create();
 
     $subscription = subscribeFake($gateway, $plan, $user);
@@ -82,7 +56,7 @@ it('completes a checkout into an active subscription carrying metadata', functio
 
 it('schedules and undoes cancellation', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
 
     $cancelled = subscribeFake($gateway, $plan);
     expect($gateway->setCancelAtPeriodEnd($cancelled->id, true)->cancelAtPeriodEnd)->toBeTrue();
@@ -102,9 +76,8 @@ it('schedules and undoes cancellation', function () {
 
 it('does not apply an upgrade when payment fails', function () {
     $gateway = fakeBilling();
-    $creator = Creator::factory()->create();
-    $low = Plan::factory()->for($creator)->price(300)->create();
-    $high = Plan::factory()->for($creator)->price(1000)->create();
+    $low = Plan::factory()->price(300)->create();
+    $high = Plan::factory()->price(1000)->create();
     $subscription = subscribeFake($gateway, $low);
     $highPrice = $gateway->ensurePrice($high);
 
@@ -117,9 +90,8 @@ it('does not apply an upgrade when payment fails', function () {
 
 it('invoices the difference on upgrade and nothing on downgrade', function () {
     $gateway = fakeBilling();
-    $creator = Creator::factory()->create();
-    $low = Plan::factory()->for($creator)->price(300)->create();
-    $high = Plan::factory()->for($creator)->price(1000)->create();
+    $low = Plan::factory()->price(300)->create();
+    $high = Plan::factory()->price(1000)->create();
     $subscription = subscribeFake($gateway, $low);
 
     $upgraded = $gateway->changeSubscriptionPrice($subscription->id, $subscription->itemId, $gateway->ensurePrice($high)->priceId, true);
@@ -134,7 +106,7 @@ it('invoices the difference on upgrade and nothing on downgrade', function () {
 
 it('returns the same price for the same plan', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
 
     $first = $gateway->ensurePrice($plan);
 
@@ -146,24 +118,11 @@ it('returns the same price for the same plan', function () {
         ->and($first->productId)->toStartWith('prod_fake_');
 });
 
-it('marks an account payable after onboarding and exposes simple links', function () {
-    $gateway = fakeBilling();
-    $accountId = $gateway->createConnectAccount(Creator::factory()->create());
-
-    expect($gateway->retrieveAccount($accountId)->payoutsEnabled)->toBeFalse();
-    expect($gateway->createAccountOnboardingLink($accountId, 'https://app.test/refresh', 'https://app.test/return'))->toBe('https://app.test/return');
-
-    $account = $gateway->retrieveAccount($accountId);
-    expect($account->payoutsEnabled)->toBeTrue()
-        ->and($account->detailsSubmitted)->toBeTrue()
-        ->and($gateway->createDashboardLoginLink($accountId))->toEndWith('/creator/earnings');
-});
-
 it('tracks checkout session state and unknown ids', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $user = User::factory()->create();
-    $request = new CheckoutRequest($gateway->createCustomer($user), $gateway->ensurePrice($plan)->priceId, 'acct_x', 10, [], 'https://a.test/s', 'https://a.test/c', now()->toImmutable()->addMinutes(30));
+    $request = new CheckoutRequest($gateway->createCustomer($user), $gateway->ensurePrice($plan)->priceId, [], 'https://a.test/s', 'https://a.test/c', now()->toImmutable()->addMinutes(30));
 
     $session = $gateway->createCheckoutSession($request);
     expect($session->status)->toBe('open')
@@ -179,7 +138,7 @@ it('tracks checkout session state and unknown ids', function () {
 
 it('records immediate cancellations and sets past_due when renewal fails', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $subscription = subscribeFake($gateway, $plan);
 
     $gateway->failPayments();
@@ -214,72 +173,3 @@ it('boots with the fake driver outside production and with the stripe driver in 
     app()->detectEnvironment(fn () => 'production');
     (new BillingServiceProvider(app()))->boot();
 })->throwsNoExceptions();
-
-it('completes a payment checkout with shipping details', function () {
-    $gateway = fakeBilling();
-    $id = openPaymentSession($gateway);
-
-    expect($gateway->retrieveCheckoutSession($id)->status)->toBe('open')
-        ->and($gateway->describeSession($id))->toMatchArray(['amount' => 2700, 'mode' => 'payment', 'order_id' => 42, 'plan_id' => 0]);
-
-    $gateway->completePaymentCheckout($id);
-    $session = $gateway->retrieveCheckoutSession($id);
-
-    expect($session->status)->toBe('complete')
-        ->and($session->paymentStatus)->toBe('paid')
-        ->and($session->paymentIntentId)->toStartWith('pi_fake_')
-        ->and($session->shipping->postalCode)->toBe('100-0001')
-        ->and($session->shipping->address)->toBe('東京都 千代田区 千代田1-1')
-        ->and($session->metadata['order_id'])->toBe('42');
-});
-
-it('leaves a delayed payment unpaid until settled', function () {
-    $gateway = fakeBilling();
-    $id = openPaymentSession($gateway);
-
-    $gateway->completePaymentCheckout($id, paid: false);
-    expect($gateway->retrieveCheckoutSession($id)->paymentStatus)->toBe('unpaid');
-
-    $gateway->settleAsyncPayment($id, true);
-    expect($gateway->retrieveCheckoutSession($id)->paymentStatus)->toBe('paid');
-});
-
-it('keeps the session complete but unpaid when a delayed payment fails', function () {
-    $gateway = fakeBilling();
-    $id = openPaymentSession($gateway);
-
-    $gateway->completePaymentCheckout($id, paid: false);
-    $gateway->settleAsyncPayment($id, false);
-    $session = $gateway->retrieveCheckoutSession($id);
-
-    expect($session->status)->toBe('complete')
-        ->and($session->paymentStatus)->toBe('unpaid')
-        ->and(fn () => $gateway->refundPaymentIntent($session->paymentIntentId, 'order-42-refund'))->toThrow(BillingException::class);
-});
-
-it('refunds a payment intent once', function () {
-    $gateway = fakeBilling();
-    $id = openPaymentSession($gateway);
-    $gateway->completePaymentCheckout($id);
-    $paymentIntentId = $gateway->retrieveCheckoutSession($id)->paymentIntentId;
-
-    $refund = $gateway->refundPaymentIntent($paymentIntentId, 'order-42-refund');
-    $charge = $gateway->retrieveCharge($gateway->chargeIdForPaymentIntent($paymentIntentId));
-
-    expect($refund->amount)->toBe(2700)
-        ->and($charge->amountRefunded)->toBe(2700)
-        ->and($charge->paymentIntentId)->toBe($paymentIntentId)
-        ->and($charge->invoiceId)->toBeNull()
-        ->and($gateway->refundedPaymentIntents())->toBe([$paymentIntentId])
-        ->and(fn () => $gateway->refundPaymentIntent($paymentIntentId, 'order-42-refund'))->toThrow(BillingException::class)
-        ->and(fn () => $gateway->refundPaymentIntent('pi_fake_missing', 'order-42-refund'))->toThrow(BillingException::class);
-});
-
-it('expires an open payment checkout', function () {
-    $gateway = fakeBilling();
-    $id = openPaymentSession($gateway);
-
-    $gateway->expireCheckoutSession($id);
-
-    expect($gateway->retrieveCheckoutSession($id)->status)->toBe('expired');
-});

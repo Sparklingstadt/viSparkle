@@ -1,246 +1,152 @@
-import { Head, Link } from '@inertiajs/react';
-import { CategoryLinks } from '@/components/category-links';
-import { Carousel } from '@/components/carousel';
-import { CreatorCard } from '@/components/creator-card';
+import { Head } from '@inertiajs/react';
+import { CreatorHeader } from '@/components/creator-header';
+import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
-import { ProductCarousel } from '@/components/product-carousel';
-import type { LikeableProduct } from '@/components/product-like-button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { home, search } from '@/routes';
-import { register as registerCreator } from '@/routes/creator';
-import { show as showCategory } from '@/routes/categories';
-import { show as showPostCategory } from '@/routes/post-categories';
+import { SupportButton } from '@/components/support-button';
 import type {
-    CategorySummary,
-    CreatorCard as CreatorCardData,
+    CreatorProfile,
+    Paginated,
+    PlanData,
     PostSummary,
+    SupportPanel,
 } from '@/types';
+import { Button } from '@/components/ui/button';
+import { formatYen } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { Pagination } from '@/components/pagination';
 
-type PostSort = 'new' | 'popular';
-
-const sortTabs: { label: string; sort: PostSort }[] = [
-    { label: '新着', sort: 'new' },
-    { label: '人気', sort: 'popular' },
-];
-
+/**
+ * The creator's page, which is the site's top page: who they are, the plans to support, and the posts.
+ */
 export default function Home({
+    creator,
+    plans,
     posts,
-    products,
-    recommendedProducts,
-    popularCreators,
-    categories,
-    postCategories,
-    sort,
-}: {
-    posts: PostSummary[];
-    products: LikeableProduct[];
-    recommendedProducts: LikeableProduct[];
-    popularCreators: CreatorCardData[];
-    categories: CategorySummary[];
-    postCategories: CategorySummary[];
-    sort: PostSort;
+    isCreator,
+    viewerSupportPrice,
+    viewerPlanId,
+    viewerSupportId,
+    viewerSupportCancelling,
+}: SupportPanel & {
+    creator: CreatorProfile;
+    posts: Paginated<PostSummary>;
 }) {
-    // The hero shows the top four only when every one of them has a header image to fill its tile.
-    const heroCreators = popularCreators
-        .slice(0, 4)
-        .filter((creator) => creator.header_url !== null);
+    const acceptingPlans = plans.filter((plan) => plan.is_accepting);
+    const cheapestPlan = acceptingPlans.reduce<PlanData | null>(
+        (min, plan) => (min === null || plan.price < min.price ? plan : min),
+        null,
+    );
+    // The top accepting plan reads every post the others do and more, so it is the one drawn as featured.
+    const featuredPlanId =
+        acceptingPlans.length > 1
+            ? acceptingPlans.reduce((max, plan) =>
+                  plan.price > max.price ? plan : max,
+              ).id
+            : null;
+    // A visitor who could start supporting right now gets a "支援する" next to the name and, on phones, a bar fixed to the bottom.
+    const showSupportBar =
+        !isCreator && viewerSupportId === null && acceptingPlans.length > 0;
 
     return (
         <>
-            <Head title="ホーム" />
+            <Head title={creator.name} />
 
-            <div className="space-y-10">
-                <section className="grid items-center gap-10 pt-6 md:grid-cols-2">
-                    <div className="space-y-5">
-                        <p className="text-sm font-bold tracking-wider text-primary">
-                            月額でつながる創作の場所
-                        </p>
-                        <h1 className="text-4xl leading-tight font-black sm:text-5xl">
-                            クリエイターを、
-                            <br />
-                            月額で応援しよう
-                        </h1>
-                        <p className="leading-relaxed text-muted-foreground">
-                            支援すると、プランに応じた限定投稿が見られます。
-                            <br />
-                            グッズやデジタル作品もまとめて買えます。
-                        </p>
-                        <div className="flex flex-wrap gap-3 pt-1">
-                            <Button asChild size="lg">
-                                <Link href={search()}>クリエイターを探す</Link>
-                            </Button>
-                            <Button asChild size="lg" variant="outline">
-                                <Link href={registerCreator()}>
-                                    クリエイターとしてはじめる
-                                </Link>
-                            </Button>
-                        </div>
-                    </div>
-                    {heroCreators.length === 4 && (
-                        <div
-                            className="hidden grid-cols-2 gap-4 md:grid"
-                            aria-hidden
-                        >
-                            {heroCreators.map((creator, index) => (
-                                <div
-                                    key={creator.slug}
-                                    className={cn(
-                                        'overflow-hidden rounded-2xl border bg-card',
-                                        index % 2 === 1
-                                            ? 'translate-y-6 rotate-2'
-                                            : '-rotate-2',
-                                    )}
-                                >
-                                    <div className="h-24 bg-secondary">
-                                        {creator.header_url && (
-                                            <img
-                                                src={creator.header_url}
-                                                alt=""
-                                                className="size-full object-cover"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1 px-3.5 pb-3.5">
-                                        <Avatar className="-mt-5 size-11 border-[3px] border-card">
-                                            {creator.avatar_url && (
-                                                <AvatarImage
-                                                    src={creator.avatar_url}
-                                                    alt=""
-                                                />
-                                            )}
-                                            <AvatarFallback>
-                                                {creator.display_name.slice(
-                                                    0,
-                                                    1,
-                                                )}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <p className="truncate text-sm font-bold">
-                                            {creator.display_name}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
+            <div className={cn('space-y-8', showSupportBar && 'pb-24 lg:pb-0')}>
+                <div className="space-y-2">
+                    <CreatorHeader
+                        creator={creator}
+                        action={
+                            showSupportBar && (
+                                <Button asChild>
+                                    <a href="#plans">支援する</a>
+                                </Button>
+                            )
+                        }
+                    />
+                </div>
 
-                {popularCreators.length > 0 && (
-                    <Carousel
-                        title="今週の人気クリエイター"
-                        description="直近7日間に新しく支援を始めたファンが多い順です。"
-                        trackClassName="scroll-pl-1 pt-1 pl-1"
+                <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                    <section
+                        id="plans"
+                        className="scroll-mt-6 space-y-4 lg:col-start-2 lg:row-start-1"
                     >
-                        {popularCreators.map((creator, index) => (
-                            <li
-                                key={creator.slug}
-                                className="w-52 shrink-0 snap-start"
-                            >
-                                <CreatorCard
-                                    creator={creator}
-                                    rank={index + 1}
-                                />
-                            </li>
-                        ))}
-                    </Carousel>
-                )}
-
-                {categories.length > 0 && (
-                    <CategoryLinks
-                        categories={categories}
-                        href={(slug) => showCategory(slug!).url}
-                    />
-                )}
-
-                {recommendedProducts.length > 0 && (
-                    <ProductCarousel
-                        title="おすすめの商品"
-                        products={recommendedProducts}
-                    />
-                )}
-
-                {products.length === 0 ? (
-                    <section className="space-y-4">
-                        <h2 className="text-lg font-semibold">新着商品</h2>
-                        <p className="text-sm text-muted-foreground">
-                            出品されている商品はまだありません。
+                        <h2 className="text-xl font-bold">支援プラン</h2>
+                        {plans.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                現在受け付けているプランはありません。
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                                {plans.map((plan) => (
+                                    <PlanCard
+                                        key={plan.id}
+                                        plan={plan}
+                                        featured={plan.id === featuredPlanId}
+                                        action={
+                                            isCreator ? null : (
+                                                <SupportButton
+                                                    plan={plan}
+                                                    viewerPlanId={viewerPlanId}
+                                                    viewerSupportId={
+                                                        viewerSupportId
+                                                    }
+                                                    viewerSupportPrice={
+                                                        viewerSupportPrice
+                                                    }
+                                                    viewerSupportCancelling={
+                                                        viewerSupportCancelling
+                                                    }
+                                                />
+                                            )
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            支援はいつでも停止できます。停止しても、支払い済みの期間が終わるまでは読めます。
                         </p>
                     </section>
-                ) : (
-                    <ProductCarousel title="新着商品" products={products} />
-                )}
 
-                <section className="space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-lg font-semibold">
-                            {sort === 'popular'
-                                ? '人気の全体公開投稿'
-                                : '新着の全体公開投稿'}
-                        </h2>
-                        <div
-                            className="flex gap-1 rounded-full bg-muted p-1"
-                            role="tablist"
-                        >
-                            {sortTabs.map((tab) => (
-                                <Button
-                                    key={tab.sort}
-                                    size="sm"
-                                    variant="ghost"
-                                    asChild
-                                    className={cn(
-                                        'text-muted-foreground',
-                                        tab.sort === sort &&
-                                            'bg-background text-foreground shadow-xs hover:bg-background',
-                                    )}
-                                >
-                                    <Link
-                                        href={home({
-                                            query:
-                                                tab.sort === 'new'
-                                                    ? { sort: 'new' }
-                                                    : {},
-                                        })}
-                                        role="tab"
-                                        aria-selected={tab.sort === sort}
-                                        preserveScroll
-                                        only={['posts', 'sort']}
-                                    >
-                                        {tab.label}
-                                    </Link>
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                    {postCategories.length > 0 && (
-                        <CategoryLinks
-                            categories={postCategories}
-                            href={(slug) => showPostCategory(slug!).url}
-                        />
-                    )}
-                    {sort === 'popular' && (
-                        <p className="text-sm text-muted-foreground">
-                            直近30日に公開された投稿を、閲覧数の多い順に表示しています。
-                        </p>
-                    )}
-                    {posts.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            まだ投稿がありません。
-                        </p>
-                    ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {posts.map((post) => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    showCreator
-                                />
-                            ))}
-                        </div>
-                    )}
-                </section>
+                    <section className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
+                        <h2 className="text-lg font-semibold">投稿</h2>
+                        {posts.data.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                まだ投稿がありません。
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {posts.data.map((post) => (
+                                    <PostCard key={post.id} post={post} />
+                                ))}
+                            </div>
+                        )}
+                        <Pagination page={posts} />
+                    </section>
+                </div>
             </div>
+
+            {showSupportBar && cheapestPlan && (
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+                    <div className="mx-auto flex max-w-5xl items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs text-muted-foreground">
+                                支援プラン {acceptingPlans.length} 件
+                            </p>
+                            <p className="text-lg font-bold">
+                                {formatYen(cheapestPlan.price)}
+                                <span className="text-xs font-normal text-muted-foreground">
+                                    {' '}
+                                    / 月から
+                                </span>
+                            </p>
+                        </div>
+                        <Button asChild size="lg">
+                            <a href="#plans">支援する</a>
+                        </Button>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

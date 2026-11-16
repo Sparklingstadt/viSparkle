@@ -11,16 +11,21 @@ return new class extends Migration
         Schema::create('supports', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('creator_id')->constrained()->cascadeOnDelete();
             $table->foreignId('plan_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('price');
             $table->string('status', 16);
             $table->dateTime('started_at');
             $table->dateTime('ended_at')->nullable();
+            $table->string('stripe_subscription_id')->nullable()->unique();
+            $table->string('stripe_status', 32)->nullable();
+            $table->dateTime('current_period_end')->nullable();
+            $table->boolean('cancel_at_period_end')->default(false);
+            // At most one active support per user, enforced by the database.
+            // Virtual, not stored: MySQL refuses a stored generated column over columns that have CASCADE foreign keys.
+            $table->unsignedBigInteger('current_key')->nullable()
+                ->virtualAs("CASE WHEN status = 'active' THEN user_id END")
+                ->unique();
             $table->timestamps();
-
-            $table->index(['user_id', 'creator_id', 'status']);
-            $table->index(['creator_id', 'status']);
         });
     }
 

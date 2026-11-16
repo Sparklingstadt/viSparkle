@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Creator;
 
+use App\Models\Plan;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,7 +21,7 @@ class StorePlanRequest extends FormRequest
             'price' => [
                 'required', 'integer',
                 'between:'.config('fanbox.plan_min_price').','.config('fanbox.plan_max_price'),
-                Rule::unique('plans', 'price')->where('creator_id', $this->user()->creator->id),
+                Rule::unique('plans', 'price'),
             ],
             'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.config('fanbox.image_max_kb')],
         ];
@@ -32,8 +33,8 @@ class StorePlanRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator) {
-            if ($this->user()->creator->plans()->count() >= config('fanbox.plans_per_creator')) {
-                $validator->errors()->add('price', 'プランは'.config('fanbox.plans_per_creator').'個まで作成できます。');
+            if (Plan::query()->count() >= config('fanbox.plans_max')) {
+                $validator->errors()->add('price', 'プランは'.config('fanbox.plans_max').'個まで作成できます。');
             }
         }];
     }

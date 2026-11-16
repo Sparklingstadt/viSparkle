@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\PostStatus;
-use App\Models\Creator;
 use App\Models\Post;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -15,7 +14,6 @@ class PostFactory extends Factory
     public function definition(): array
     {
         return [
-            'creator_id' => Creator::factory(),
             'title' => fake()->sentence(4),
             'body' => [
                 'type' => 'doc',
@@ -33,11 +31,6 @@ class PostFactory extends Factory
     public function published(): static
     {
         return $this->state(fn () => ['status' => PostStatus::Published, 'published_at' => now()]);
-    }
-
-    public function hidden(string $reason = '規約違反'): static
-    {
-        return $this->state(fn () => ['hidden_at' => now(), 'hidden_reason' => $reason]);
     }
 
     public function draft(): static

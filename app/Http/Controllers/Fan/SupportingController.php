@@ -14,12 +14,11 @@ class SupportingController extends Controller
     {
         $supports = $request->user()->supports()
             ->active()
-            ->with(['creator', 'plan'])
+            ->with('plan')
             ->latest('started_at')
             ->get()
             ->map(fn (Support $support) => [
                 'id' => $support->id,
-                'creator' => $support->creator->toSummary(),
                 'plan_name' => $support->plan?->name,
                 'price' => $support->price,
                 'started_at' => $support->started_at,
@@ -27,7 +26,6 @@ class SupportingController extends Controller
                 'stripe_status' => $support->stripe_status,
                 'current_period_end' => $support->current_period_end,
                 'cancel_at_period_end' => $support->cancel_at_period_end,
-                'creator_closed' => $support->creator->isClosed(),
             ]);
 
         return Inertia::render('fan/supporting', [
