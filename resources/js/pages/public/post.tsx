@@ -13,7 +13,6 @@ import {
 } from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
@@ -25,6 +24,7 @@ import type {
     PostDetail,
     PostSummary,
 } from '@/types';
+import { HiddenByAdminAlert } from '@/components/hidden-by-admin';
 
 export default function PostPage({
     post,
@@ -79,12 +79,7 @@ export default function PostPage({
                 <CreatorHeader creator={creator} compact />
 
                 {hiddenReason !== null && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由: {hiddenReason}
-                            ）
-                        </AlertDescription>
-                    </Alert>
+                    <HiddenByAdminAlert reason={hiddenReason} />
                 )}
 
                 {post.cover_thumb_url ? (

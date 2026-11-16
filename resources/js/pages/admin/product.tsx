@@ -6,6 +6,7 @@ import { index as reportsIndex } from '@/routes/admin/reports';
 import { update } from '@/routes/admin/products';
 import { ModerationPanel } from '@/components/admin/moderation-panel';
 import { ReportList, type ItemReport } from '@/components/admin/report-list';
+import { HiddenByAdminBadge } from '@/components/hidden-by-admin';
 
 type ModeratedProduct = {
     id: number;
@@ -43,9 +44,7 @@ export default function AdminProduct({
                         <Badge variant="outline">
                             {product.is_published ? '販売中' : '非公開（作者）'}
                         </Badge>
-                        {product.hidden && (
-                            <Badge variant="destructive">非公開（運営）</Badge>
-                        )}
+                        {product.hidden && <HiddenByAdminBadge />}
                     </div>
                     <p className="text-muted-foreground">
                         {product.creator.name}（@{product.creator.slug}） /{' '}

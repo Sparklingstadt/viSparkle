@@ -1,9 +1,7 @@
-import { Link } from '@inertiajs/react';
 import { ProductCard } from '@/components/product-card';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { show } from '@/routes/creators';
 import type { ShopProductSummary } from '@/types';
+import { SegmentedTabs } from '@/components/segmented-tabs';
 
 export type ShopSort = 'new' | 'popular';
 
@@ -33,36 +31,23 @@ export function ShopSection({
         <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">ショップ</h2>
-                <div className="flex gap-1" role="tablist">
-                    {sortTabs.map((sortTab) => (
-                        <Button
-                            key={sortTab.sort}
-                            size="sm"
-                            variant="ghost"
-                            asChild
-                            className={cn({
-                                'bg-muted': sortTab.sort === shop.sort,
-                            })}
-                        >
-                            <Link
-                                href={show(creatorSlug, {
-                                    query: {
-                                        tab: 'shop',
-                                        ...(sortTab.sort === 'popular'
-                                            ? { sort: 'popular' }
-                                            : {}),
-                                    },
-                                })}
-                                role="tab"
-                                aria-selected={sortTab.sort === shop.sort}
-                                preserveScroll
-                                only={['shop']}
-                            >
-                                {sortTab.label}
-                            </Link>
-                        </Button>
-                    ))}
-                </div>
+                <SegmentedTabs
+                    label="並び順"
+                    tabs={sortTabs.map((sortTab) => ({
+                        key: sortTab.sort,
+                        label: sortTab.label,
+                        href: show.url(creatorSlug, {
+                            query: {
+                                tab: 'shop',
+                                ...(sortTab.sort === 'popular'
+                                    ? { sort: 'popular' }
+                                    : {}),
+                            },
+                        }),
+                        current: sortTab.sort === shop.sort,
+                    }))}
+                    only={['shop']}
+                />
             </div>
             {shop.notice && (
                 <p className="rounded-md border bg-muted p-4 text-sm whitespace-pre-wrap">

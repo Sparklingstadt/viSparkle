@@ -1,50 +1,61 @@
 import { Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export type SegmentedTab = {
+export type TabLink = {
     key: string;
     label: ReactNode;
     href: string;
     current: boolean;
+    /** A number shown after the label (e.g. how many items the tab lists). */
+    count?: number;
 };
 
 /**
- * Rounded tabs that switch a list in place: each tab reloads only the props in `only`, keeping the scroll position.
+ * Rounded tabs that switch a list in place, keeping the scroll position. `only` limits the reload to those props.
  */
 export function SegmentedTabs({
+    label,
     tabs,
     only,
+    className,
 }: {
-    tabs: SegmentedTab[];
-    only: string[];
+    label: string;
+    tabs: TabLink[];
+    only?: string[];
+    className?: string;
 }) {
     return (
-        <div className="flex gap-1 rounded-full bg-muted p-1" role="tablist">
+        <nav
+            aria-label={label}
+            className={cn(
+                'flex gap-1 self-start rounded-full bg-muted p-1',
+                className,
+            )}
+        >
             {tabs.map((tab) => (
-                <Button
+                <Link
                     key={tab.key}
-                    size="sm"
-                    variant="ghost"
-                    asChild
+                    href={tab.href}
+                    aria-current={tab.current ? 'page' : undefined}
+                    preserveScroll
+                    only={only}
                     className={cn(
-                        'text-muted-foreground',
-                        tab.current &&
-                            'bg-background text-foreground shadow-xs hover:bg-background',
+                        'rounded-full px-4 py-1.5 text-sm font-bold transition-colors',
+                        tab.current
+                            ? 'bg-background shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground',
                     )}
                 >
-                    <Link
-                        href={tab.href}
-                        role="tab"
-                        aria-selected={tab.current}
-                        preserveScroll
-                        only={only}
-                    >
-                        {tab.label}
-                    </Link>
-                </Button>
+                    {tab.label}
+                    {tab.count !== undefined && (
+                        <>
+                            {' '}
+                            <span className="font-normal">{tab.count}</span>
+                        </>
+                    )}
+                </Link>
             ))}
-        </div>
+        </nav>
     );
 }

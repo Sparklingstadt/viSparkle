@@ -181,6 +181,7 @@ export default function Home({
                                 : '新着の全体公開投稿'}
                         </h2>
                         <SegmentedTabs
+                            label="並び順"
                             tabs={sortTabs.map((tab) => ({
                                 key: tab.sort,
                                 label: tab.label,

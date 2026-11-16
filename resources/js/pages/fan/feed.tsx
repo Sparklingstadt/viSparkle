@@ -36,6 +36,7 @@ export default function Feed({
                         description="支援中・フォロー中のクリエイターの新着投稿"
                     />
                     <SegmentedTabs
+                        label="表示する投稿"
                         tabs={feedTabs.map((item) => ({
                             key: item.tab,
                             label: item.label,
