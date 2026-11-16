@@ -9,6 +9,7 @@ import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/products';
 import { edit as shopSettings } from '@/routes/creator/shop';
 import type { ProductKind } from '@/types';
+import { HiddenByAdminBadge } from '@/components/hidden-by-admin';
 
 type Row = {
     id: number;
@@ -102,9 +103,7 @@ export default function ProductsIndex({
                                             </Badge>
                                         )}
                                         {product.hidden && (
-                                            <Badge variant="destructive">
-                                                運営により非表示
-                                            </Badge>
+                                            <HiddenByAdminBadge />
                                         )}
                                         <Badge
                                             variant={

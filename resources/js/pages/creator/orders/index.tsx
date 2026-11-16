@@ -5,10 +5,10 @@ import Heading from '@/components/heading';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatYen } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import { index, ship, show } from '@/routes/creator/orders';
 import type { OrderStatusValue, OrderSummary, Paginated } from '@/types';
 import { Pagination } from '@/components/pagination';
+import { UnderlineTabs } from '@/components/underline-tabs';
 
 type Row = OrderSummary & {
     support_amount: number;
@@ -54,43 +54,21 @@ export default function CreatorOrdersIndex({
             <div className="space-y-6 p-4">
                 <Heading title="注文管理" />
 
-                <nav
-                    aria-label="状態で絞り込む"
-                    className="flex flex-wrap gap-1 border-b"
-                >
-                    {tabs.map((option) => (
-                        <Link
-                            key={option.value}
-                            href={index({
-                                query:
-                                    option.value === 'paid'
-                                        ? {}
-                                        : { status: option.value },
-                            })}
-                            aria-current={
-                                status === option.value ? 'page' : undefined
-                            }
-                            className={cn(
-                                '-mb-px flex items-center gap-2 border-b-[3px] px-3 py-2.5 text-sm font-bold',
-                                status === option.value
-                                    ? 'border-primary'
-                                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                            )}
-                        >
-                            {option.label}
-                            <span
-                                className={cn(
-                                    'min-w-6 rounded-full px-1.5 text-center text-xs',
-                                    status === option.value
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted',
-                                )}
-                            >
-                                {counts[option.value]}
-                            </span>
-                        </Link>
-                    ))}
-                </nav>
+                <UnderlineTabs
+                    label="状態で絞り込む"
+                    tabs={tabs.map((option) => ({
+                        key: option.value,
+                        label: option.label,
+                        href: index.url({
+                            query:
+                                option.value === 'paid'
+                                    ? {}
+                                    : { status: option.value },
+                        }),
+                        current: status === option.value,
+                        count: counts[option.value],
+                    }))}
+                />
 
                 {status === 'paid' && (
                     <p className="text-sm text-muted-foreground">

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/Creator/ProductController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +18,7 @@ import { FilesSection } from '@/components/creator/product-form/files-section';
 import { ImagesSection } from '@/components/creator/product-form/images-section';
 import type { EditableProduct } from '@/components/creator/product-form/types';
 import { VariantsField } from '@/components/creator/product-form/variants-field';
+import { HiddenByAdminAlert } from '@/components/hidden-by-admin';
 
 export default function ProductEdit({
     product,
@@ -60,12 +60,7 @@ export default function ProductEdit({
                 </div>
 
                 {product?.hidden && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非表示になっています（理由:{' '}
-                            {product.hidden_reason}）
-                        </AlertDescription>
-                    </Alert>
+                    <HiddenByAdminAlert reason={product.hidden_reason} />
                 )}
 
                 {/* Keyed on the kinds and their stock too: after a save (or a sale) the rows and stock_seen start again from the current stock. */}

@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { CreatorHeader } from '@/components/creator-header';
 import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
@@ -24,6 +24,7 @@ import {
     type CreatorShop,
 } from '@/components/creator-page/shop-section';
 import { SupportBar } from '@/components/creator-page/support-bar';
+import { UnderlineTabs } from '@/components/underline-tabs';
 
 export default function CreatorPage({
     creator,
@@ -170,39 +171,25 @@ export default function CreatorPage({
 
                     <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1">
                         {shop.visible && (
-                            <nav
-                                className="flex gap-2 border-b"
-                                aria-label="コンテンツ"
-                            >
-                                {(
-                                    [
-                                        ['posts', '投稿'],
-                                        ['shop', 'ショップ'],
-                                    ] as const
-                                ).map(([key, label]) => (
-                                    <Link
-                                        key={key}
-                                        href={
-                                            key === 'shop'
-                                                ? show(creator.slug, {
-                                                      query: { tab: 'shop' },
-                                                  })
-                                                : show(creator.slug)
-                                        }
-                                        preserveScroll
-                                        aria-current={
-                                            tab === key ? 'page' : undefined
-                                        }
-                                        className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-                                            tab === key
-                                                ? 'border-primary'
-                                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                                        }`}
-                                    >
-                                        {label}
-                                    </Link>
-                                ))}
-                            </nav>
+                            <UnderlineTabs
+                                label="コンテンツ"
+                                tabs={[
+                                    {
+                                        key: 'posts',
+                                        label: '投稿',
+                                        href: show.url(creator.slug),
+                                        current: tab === 'posts',
+                                    },
+                                    {
+                                        key: 'shop',
+                                        label: 'ショップ',
+                                        href: show.url(creator.slug, {
+                                            query: { tab: 'shop' },
+                                        }),
+                                        current: tab === 'shop',
+                                    },
+                                ]}
+                            />
                         )}
 
                         {tab === 'shop' ? (
