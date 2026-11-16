@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\Concerns\AllocatesColors;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -16,6 +17,8 @@ use Random\Randomizer;
  */
 class DemoProductPainter
 {
+    use AllocatesColors;
+
     /**
      * The size of the PNG, in pixels (square, like the product cards).
      */
@@ -749,27 +752,5 @@ class DemoProductPainter
         $channels = array_map(fn (int $x, int $y) => (int) round($x + ($y - $x) * $t), $this->rgb($a), $this->rgb($b));
 
         return vsprintf('#%02x%02x%02x', $channels);
-    }
-
-    /**
-     * @return array{int<0, 255>, int<0, 255>, int<0, 255>}
-     */
-    private function rgb(string $hex): array
-    {
-        return [
-            max(0, min(255, (int) hexdec(substr($hex, 1, 2)))),
-            max(0, min(255, (int) hexdec(substr($hex, 3, 2)))),
-            max(0, min(255, (int) hexdec(substr($hex, 5, 2)))),
-        ];
-    }
-
-    /**
-     * @param  int<0, 127>  $alpha  0 (opaque) to 127 (transparent)
-     */
-    private function color(\GdImage $image, string $hex, int $alpha = 0): int
-    {
-        [$r, $g, $b] = $this->rgb($hex);
-
-        return (int) imagecolorallocatealpha($image, $r, $g, $b, $alpha);
     }
 }

@@ -7,6 +7,7 @@ use App\Enums\PostStatus;
 use App\Models\Creator;
 use App\Models\User;
 use App\Services\Legal\LegalDocuments;
+use Database\Seeders\Concerns\AllocatesColors;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,7 @@ use Illuminate\Support\Str;
  */
 class DemoCreatorsSeeder extends Seeder
 {
+    use AllocatesColors;
     use WithoutModelEvents;
 
     /**
@@ -325,36 +327,6 @@ class DemoCreatorsSeeder extends Seeder
         }
 
         return $this->png($image);
-    }
-
-    /**
-     * @return array{int<0, 255>, int<0, 255>, int<0, 255>}
-     */
-    private function rgb(string $hex): array
-    {
-        return [
-            $this->byte((int) hexdec(substr($hex, 1, 2))),
-            $this->byte((int) hexdec(substr($hex, 3, 2))),
-            $this->byte((int) hexdec(substr($hex, 5, 2))),
-        ];
-    }
-
-    /**
-     * @return int<0, 255>
-     */
-    private function byte(int $value): int
-    {
-        return max(0, min(255, $value));
-    }
-
-    /**
-     * @param  int<0, 127>  $alpha  0 (opaque) to 127 (transparent)
-     */
-    private function color(\GdImage $image, string $hex, int $alpha = 0): int
-    {
-        [$r, $g, $b] = $this->rgb($hex);
-
-        return (int) imagecolorallocatealpha($image, $r, $g, $b, $alpha);
     }
 
     private function png(\GdImage $image): string
