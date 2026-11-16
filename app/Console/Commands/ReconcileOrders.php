@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Billing\PaymentGateway;
+use App\Billing\Status\CheckoutSessionStatus;
+use App\Billing\Status\PaymentIntentStatus;
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
 use App\Models\Order;
@@ -46,7 +48,7 @@ class ReconcileOrders extends Command
                 }
 
                 // Still waiting on an open session after an hour: close it, then settle on what Stripe says now.
-                if ($gateway->retrieveCheckoutSession($sessionId)->status === 'open') {
+                if ($gateway->retrieveCheckoutSession($sessionId)->status === CheckoutSessionStatus::Open->value) {
                     $gateway->expireCheckoutSession($sessionId);
                     $sync->syncSession($sessionId);
 
@@ -58,8 +60,8 @@ class ReconcileOrders extends Command
 
                 if ($paymentIntentId !== null) {
                     match ($gateway->retrievePaymentIntentStatus($paymentIntentId)) {
-                        'canceled', 'requires_payment_method' => $orders->cancel($order, OrderCancelReason::PaymentFailed),
-                        'succeeded' => $sync->syncSession($sessionId),
+                        PaymentIntentStatus::Canceled->value, PaymentIntentStatus::RequiresPaymentMethod->value => $orders->cancel($order, OrderCancelReason::PaymentFailed),
+                        PaymentIntentStatus::Succeeded->value => $sync->syncSession($sessionId),
                         default => null,
                     };
                 }

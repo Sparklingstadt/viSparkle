@@ -12,7 +12,7 @@ class UpdateCreatorProfileRequest extends FormRequest
      */
     public function rules(): array
     {
-        $image = ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.config('fanbox.image_max_kb')];
+        $image = ['nullable', 'image', 'mimes:'.implode(',', config('fanbox.still_image_mimes')), 'max:'.config('fanbox.image_max_kb')];
 
         return [
             'display_name' => ['required', 'string', 'max:50'],

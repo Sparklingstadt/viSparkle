@@ -1,6 +1,7 @@
 <?php
 
 use App\Billing\Data\SubscriptionData;
+use App\Billing\Status\SyncOutcome;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -319,7 +320,7 @@ it('refunds the paid invoice of an orphan subscription', function () {
     $sync = app(SubscriptionSync::class);
 
     expect($sync->sync($subscription->id))->toBeNull()
-        ->and($sync->lastOutcome())->toBe('orphan');
+        ->and($sync->lastOutcome())->toBe(SyncOutcome::Orphan);
 
     $charge = $this->gateway->retrieveCharge($this->gateway->chargeIdForInvoice((string) $subscription->latestInvoiceId));
     expect($charge->amountRefunded)->toBe(500);
@@ -344,7 +345,7 @@ it('reports the outcome of the last sync', function () {
 
     expect($sync->lastOutcome())->toBeNull();
     $sync->sync($subscription->id);
-    expect($sync->lastOutcome())->toBe('synced');
+    expect($sync->lastOutcome())->toBe(SyncOutcome::Synced);
 });
 
 it('keeps syncing an existing support after its creator closed', function () {

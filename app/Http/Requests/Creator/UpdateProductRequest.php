@@ -36,7 +36,7 @@ class UpdateProductRequest extends FormRequest
 
         return [
             ...$this->productRules(),
-            'variants.*.stock_seen' => ['required_with:variants.*.id', 'nullable', 'integer', 'between:0,99999'],
+            'variants.*.stock_seen' => ['required_with:variants.*.id', 'nullable', 'integer', 'between:0,'.config('fanbox.product_max_stock')],
         ];
     }
 

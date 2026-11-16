@@ -18,7 +18,7 @@ class CartItemController extends Controller
     {
         $request->validate([
             'product_variant_id' => ['required', 'integer'],
-            'quantity' => ['required', 'integer', 'min:1', 'max:99999'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.config('fanbox.product_max_stock')],
         ]);
 
         // A kind that is gone is "not available", not a 404 the buyer cannot make sense of.
@@ -37,7 +37,7 @@ class CartItemController extends Controller
     {
         $this->authorizeOwner($request, $cartItem);
 
-        $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:99999']]);
+        $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:'.config('fanbox.product_max_stock')]]);
         $this->cart->setQuantity($cartItem, $request->integer('quantity'));
 
         return back();

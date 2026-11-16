@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\ProductKind;
 use App\Models\Creator;
 use App\Models\Product;
+use App\Models\ProductFile;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use WeakMap;
 
@@ -58,6 +59,14 @@ class ProductFactory extends Factory
     public function digital(): static
     {
         return $this->state(fn () => ['kind' => ProductKind::Digital, 'stock' => 0]);
+    }
+
+    /**
+     * A digital work with one file, so it can be bought.
+     */
+    public function withFile(): static
+    {
+        return $this->digital()->afterCreating(fn (Product $product) => ProductFile::factory()->for($product)->create());
     }
 
     public function unpublished(): static

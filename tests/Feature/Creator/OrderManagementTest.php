@@ -1,11 +1,9 @@
 <?php
 
 use App\Enums\OrderStatus;
-use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Orders;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -16,22 +14,6 @@ beforeEach(function () {
     $this->buyer = User::factory()->create();
     $this->actingAs($this->creator->user);
 });
-
-/** Reserve, pay on the fake gateway and mark the order paid, as the buyer's checkout would. */
-function paidShopOrder(Product $product, int $quantity = 1, int $supportAmount = 0): Order
-{
-    $orders = app(Orders::class);
-    $cart = collect([CartItem::query()->create([
-        'user_id' => test()->buyer->id,
-        'product_variant_id' => $product->variants()->value('id'),
-        'quantity' => $quantity,
-    ])]);
-    $order = $orders->reserve(test()->buyer, test()->creator, $cart, $supportAmount);
-    $sessionId = fakeOrderCheckout(test()->gateway, $order);
-    test()->gateway->completePaymentCheckout($sessionId);
-
-    return $orders->markPaid($order, test()->gateway->retrieveCheckoutSession($sessionId));
-}
 
 it('ships a paid order with a tracking number', function () {
     $order = Order::factory()->paid()->withGoods()->for($this->creator)->create();
@@ -62,7 +44,7 @@ it('cannot ship an order that is not paid', function () {
 
 it('refunds a paid order and restores stock', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = paidShopOrder($product, 2);
+    $order = paidOrder($product, 2);
     expect($product->refresh()->stock)->toBe(3);
 
     $this->post(route('creator.orders.refund', $order))->assertSessionHasNoErrors();
@@ -74,7 +56,7 @@ it('refunds a paid order and restores stock', function () {
 
 it('refunds the support along with the goods when the creator cancels', function () {
     $product = Product::factory()->for($this->creator)->create(['price' => 1500, 'stock' => 5]);
-    $order = paidShopOrder($product, 1, 800);
+    $order = paidOrder($product, 1, 800);
     expect($order->total)->toBe(1500 + 500 + 800);
 
     $this->post(route('creator.orders.refund', $order))->assertSessionHasNoErrors();
@@ -84,7 +66,7 @@ it('refunds the support along with the goods when the creator cancels', function
 
 it('cannot refund a shipped order', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = app(Orders::class)->ship(paidShopOrder($product), null);
+    $order = app(Orders::class)->ship(paidOrder($product), null);
 
     $this->post(route('creator.orders.refund', $order))->assertSessionHasErrors('order');
 
@@ -94,7 +76,7 @@ it('cannot refund a shipped order', function () {
 
 it('keeps the order and shows a toast when the refund call fails', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = paidShopOrder($product);
+    $order = paidOrder($product);
     $this->gateway->refundPaymentIntent((string) $order->stripe_payment_intent_id, 'elsewhere');
     // The gateway already refunded it, so our own refund call now fails.
     $this->from(route('creator.orders.show', $order))
@@ -192,19 +174,8 @@ it('requires a creator', function () {
     $this->get(route('creator.orders.index'))->assertRedirect();
 });
 
-/**
- * A published digital work of the creator with one file.
- */
-function managedWork(): Product
-{
-    $work = Product::factory()->digital()->for(test()->creator)->create(['name' => 'イラスト集']);
-    ProductFile::factory()->for($work)->create();
-
-    return $work;
-}
-
 it('hides ship and refund for a digital-only order', function () {
-    $order = Order::factory()->paid()->for($this->creator)->withItem(managedWork())->create();
+    $order = Order::factory()->paid()->for($this->creator)->withItem(digitalWork($this->creator, ['name' => 'イラスト集']))->create();
 
     $this->get(route('creator.orders.show', $order))
         ->assertInertia(fn (Assert $page) => $page
@@ -220,7 +191,7 @@ it('hides ship and refund for a digital-only order', function () {
 
 it('offers only shipping for a mixed order', function () {
     $order = Order::factory()->paid()->for($this->creator)
-        ->withItem(managedWork())
+        ->withItem(digitalWork($this->creator, ['name' => 'イラスト集']))
         ->withItem(Product::factory()->for($this->creator)->create())
         ->create();
 

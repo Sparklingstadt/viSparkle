@@ -5,6 +5,8 @@ namespace App\Services\Billing;
 use App\Billing\BillingException;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\PaymentGateway;
+use App\Billing\Status\SubscriptionStatus;
+use App\Billing\Status\SyncOutcome;
 use App\Enums\SupportStatus;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -20,23 +22,12 @@ use Illuminate\Support\Facades\Log;
  */
 class SubscriptionSync
 {
-    /** @var array<string, SupportStatus> Stripe statuses not listed here (`incomplete`) never create or change a support. */
-    private const STATUSES = [
-        'active' => SupportStatus::Active,
-        'trialing' => SupportStatus::Active,
-        'past_due' => SupportStatus::Active,
-        'canceled' => SupportStatus::Ended,
-        'unpaid' => SupportStatus::Ended,
-        'incomplete_expired' => SupportStatus::Ended,
-        'paused' => SupportStatus::Ended,
-    ];
-
-    /** What the last apply() did: 'synced', 'orphan' (cancelled and refunded), 'duplicate' (cancelled) or 'foreign' (ignored). */
-    private ?string $lastOutcome = null;
+    /** What the last apply() did. */
+    private ?SyncOutcome $lastOutcome = null;
 
     public function __construct(private readonly PaymentGateway $gateway) {}
 
-    public function lastOutcome(): ?string
+    public function lastOutcome(): ?SyncOutcome
     {
         return $this->lastOutcome;
     }
@@ -58,7 +49,7 @@ class SubscriptionSync
 
         if ($app !== null && $app !== config('fanbox.billing.idempotency_prefix')) {
             Log::info('billing.foreign_subscription', ['subscription' => $data->id, 'app' => $app]);
-            $this->lastOutcome = 'foreign';
+            $this->lastOutcome = SyncOutcome::Foreign;
 
             return null;
         }
@@ -83,20 +74,20 @@ class SubscriptionSync
         }
 
         if (isset($result['orphan'])) {
-            $this->lastOutcome = 'orphan';
+            $this->lastOutcome = SyncOutcome::Orphan;
             $this->cancelOrphan($data, $result['orphan']);
 
             return null;
         }
 
         if (isset($result['duplicate'])) {
-            $this->lastOutcome = 'duplicate';
+            $this->lastOutcome = SyncOutcome::Duplicate;
             $this->cancelDuplicate($data, $result['duplicate']);
 
             return $result['duplicate'];
         }
 
-        $this->lastOutcome = 'synced';
+        $this->lastOutcome = SyncOutcome::Synced;
 
         return $result['support'] ?? null;
     }
@@ -112,7 +103,8 @@ class SubscriptionSync
         $user = $userId === null ? null : User::query()->whereKey($userId)->lockForUpdate()->first();
         $support = Support::query()->where('stripe_subscription_id', $data->id)->lockForUpdate()->first();
 
-        $status = self::STATUSES[$data->status] ?? null;
+        // Statuses with no support status (`incomplete`, or one Stripe adds later) never create or change a support.
+        $status = SubscriptionStatus::tryFrom($data->status)?->supportStatus();
 
         // Orphans are only cancelled when stamped as ours; older subscriptions without the stamp keep the mismatch handling.
         $orphanable = $ours && $support === null && $ids !== null && $status === SupportStatus::Active;

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Billing;
 
+use App\Billing\Status\StripeEventType;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessStripeEvent;
 use App\Models\StripeEvent;
@@ -59,11 +60,11 @@ class StripeWebhookController extends Controller
 
         $object = $payload['data']['object'] ?? [];
         $objectId = $object['id'] ?? null;
-        $subscriptionId = $event->type === 'checkout.session.completed' ? ($object['subscription'] ?? null) : null;
+        $subscriptionId = $event->type === StripeEventType::CheckoutSessionCompleted->value ? ($object['subscription'] ?? null) : null;
         $accountId = $payload['account'] ?? null;
-        $chargeId = match ($event->type) {
-            'charge.refunded' => $objectId,
-            'charge.dispute.created' => $object['charge'] ?? null, // the object is the dispute
+        $chargeId = match (StripeEventType::tryFrom($event->type)) {
+            StripeEventType::ChargeRefunded => $objectId,
+            StripeEventType::ChargeDisputeCreated => $object['charge'] ?? null, // the object is the dispute
             default => null,
         };
 

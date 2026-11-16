@@ -162,6 +162,23 @@ class Orders
     }
 
     /**
+     * Save the session's payment intent on a canceled order (it never got one), so a payment that arrived after the
+     * cancellation can be refunded. Any other order is returned as it is.
+     */
+    public function attachPaymentIntent(Order $order, CheckoutSessionData $session): Order
+    {
+        return DB::transaction(function () use ($order, $session) {
+            $order = $this->lock($order);
+
+            if ($order->status === OrderStatus::Canceled && $order->stripe_payment_intent_id === null) {
+                $order->forceFill(['stripe_payment_intent_id' => $session->paymentIntentId])->save();
+            }
+
+            return $order;
+        });
+    }
+
+    /**
      * pending → canceled, putting the stock back. An order in any other state is returned as it is.
      */
     public function cancel(Order $order, OrderCancelReason $reason): Order

@@ -7,14 +7,11 @@ use App\Enums\OrderStatus;
 use App\Enums\ProductKind;
 use App\Events\Shop\OrderRefunded;
 use App\Events\Shop\OrderShipped;
-use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductFile;
 use App\Models\User;
 use App\Services\Shop\Orders;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
@@ -24,38 +21,11 @@ beforeEach(function () {
     $this->buyer = User::factory()->create();
 });
 
-/**
- * Put the products in the buyer's cart (product => quantity) and return the cart rows.
- *
- * @param  array<int, array{0: Product, 1: int}>  $lines
- */
-function shopCart(User $buyer, array $lines): Collection
-{
-    return collect($lines)->map(fn (array $line) => CartItem::query()->create([
-        'user_id' => $buyer->id,
-        'product_variant_id' => $line[0]->variants()->value('id'),
-        'quantity' => $line[1],
-    ]));
-}
-
-/**
- * Reserve the product for the buyer, check it out and pay on the fake gateway, and mark the order paid.
- */
-function shopPaidOrder(Product $product, int $quantity = 1): Order
-{
-    $orders = app(Orders::class);
-    $order = $orders->reserve(test()->buyer, test()->creator, shopCart(test()->buyer, [[$product, $quantity]]));
-    $sessionId = fakeOrderCheckout(test()->gateway, $order);
-    test()->gateway->completePaymentCheckout($sessionId);
-
-    return $orders->markPaid($order, test()->gateway->retrieveCheckoutSession($sessionId));
-}
-
 it('reserves stock and copies names and prices', function () {
     $mug = Product::factory()->for($this->creator)->create(['name' => 'マグカップ', 'price' => 1800, 'stock' => 5]);
     $sticker = Product::factory()->for($this->creator)->create(['name' => 'ステッカー', 'price' => 300, 'stock' => 10]);
 
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$mug, 2], [$sticker, 3]]));
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$mug, 2], [$sticker, 3]]));
 
     expect($order->status)->toBe(OrderStatus::Pending)
         ->and($order->user_id)->toBe($this->buyer->id)
@@ -80,10 +50,10 @@ it('refuses the second buyer of the last item', function () {
     $other = User::factory()->create();
     $orders = app(Orders::class);
 
-    $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 1]]));
+    $orders->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 1]]));
 
     try {
-        $orders->reserve($other, $this->creator, shopCart($other, [[$product, 1]]));
+        $orders->reserve($other, $this->creator, cartLines($other, [[$product, 1]]));
         $this->fail('The second reservation should fail.');
     } catch (ValidationException $e) {
         expect($e->errors())->toBe(['cart' => ['在庫が足りません']]);
@@ -97,7 +67,7 @@ it('reserves nothing when one of the products is short', function () {
     $plenty = Product::factory()->for($this->creator)->create(['stock' => 5]);
     $short = Product::factory()->for($this->creator)->create(['stock' => 1]);
 
-    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$plenty, 2], [$short, 2]])))
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$plenty, 2], [$short, 2]])))
         ->toThrow(ValidationException::class);
 
     expect($plenty->refresh()->stock)->toBe(5)
@@ -108,7 +78,7 @@ it('reserves nothing when one of the products is short', function () {
 it('refuses unlisted products and products of another creator', function (Closure $make) {
     $product = $make($this->creator);
 
-    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 1]])))
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 1]])))
         ->toThrow(ValidationException::class);
 
     expect(Order::query()->count())->toBe(0);
@@ -123,7 +93,7 @@ it('cancels a pending order once and restores stock once', function () {
     $this->travelTo(now()->startOfSecond());
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
     $orders = app(Orders::class);
-    $order = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 2]]));
+    $order = $orders->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 2]]));
 
     $orders->cancel($order, OrderCancelReason::Abandoned);
     $again = $orders->cancel($order, OrderCancelReason::Expired);
@@ -136,7 +106,7 @@ it('cancels a pending order once and restores stock once', function () {
 
 it('does not cancel an order that is no longer pending', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = shopPaidOrder($product);
+    $order = paidOrder($product);
 
     $result = app(Orders::class)->cancel($order, OrderCancelReason::Expired);
 
@@ -147,7 +117,7 @@ it('does not cancel an order that is no longer pending', function () {
 
 it('ships a paid order', function () {
     Event::fake([OrderShipped::class]);
-    $order = shopPaidOrder(Product::factory()->for($this->creator)->create());
+    $order = paidOrder(Product::factory()->for($this->creator)->create());
 
     $shipped = app(Orders::class)->ship($order, 'TRK-123');
 
@@ -160,7 +130,7 @@ it('ships a paid order', function () {
 it('does not ship an unpaid order', function () {
     Event::fake([OrderShipped::class]);
     $product = Product::factory()->for($this->creator)->create();
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 1]]));
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 1]]));
 
     try {
         app(Orders::class)->ship($order, null);
@@ -177,7 +147,7 @@ it('refunds a paid order and restores stock', function () {
     Event::fake([OrderRefunded::class]);
     $this->travelTo(now()->startOfSecond());
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = shopPaidOrder($product, 2);
+    $order = paidOrder($product, 2);
     expect($product->refresh()->stock)->toBe(3);
 
     $refunded = app(Orders::class)->refund($order, OrderCancelReason::Creator);
@@ -194,7 +164,7 @@ it('refunds a paid order and restores stock', function () {
 
 it('refunds a shipped order without restoring stock', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = app(Orders::class)->ship(shopPaidOrder($product), null);
+    $order = app(Orders::class)->ship(paidOrder($product), null);
 
     $refunded = app(Orders::class)->refund($order, OrderCancelReason::Admin);
 
@@ -205,7 +175,7 @@ it('refunds a shipped order without restoring stock', function () {
 
 it('refuses a creator refund of a shipped order', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = app(Orders::class)->ship(shopPaidOrder($product), null);
+    $order = app(Orders::class)->ship(paidOrder($product), null);
 
     expect(fn () => app(Orders::class)->refund($order, OrderCancelReason::Creator))->toThrow(ValidationException::class);
 
@@ -216,9 +186,9 @@ it('refuses a creator refund of a shipped order', function () {
 it('refuses to refund a pending, canceled or refunded order', function () {
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
     $orders = app(Orders::class);
-    $pending = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 1]]));
+    $pending = $orders->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 1]]));
     $canceled = Order::factory()->for($this->creator)->create(['status' => OrderStatus::Canceled, 'cancel_reason' => OrderCancelReason::Expired]);
-    $refunded = $orders->refund(shopPaidOrder(Product::factory()->for($this->creator)->create()), OrderCancelReason::Admin);
+    $refunded = $orders->refund(paidOrder(Product::factory()->for($this->creator)->create()), OrderCancelReason::Admin);
 
     foreach ([$pending, $canceled, $refunded] as $order) {
         expect(fn () => $orders->refund($order, OrderCancelReason::Admin))->toThrow(ValidationException::class);
@@ -232,7 +202,7 @@ it('refuses to refund a pending, canceled or refunded order', function () {
 it('changes nothing when the refund call fails', function () {
     Event::fake([OrderRefunded::class]);
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = shopPaidOrder($product);
+    $order = paidOrder($product);
     $this->gateway->refundPaymentIntent((string) $order->stripe_payment_intent_id, 'elsewhere');
 
     expect(fn () => app(Orders::class)->refund($order, OrderCancelReason::Creator))->toThrow(BillingException::class);
@@ -249,7 +219,7 @@ it('changes nothing when the refund call fails', function () {
 it('mirrors a full refund at Stripe once and records a dispute', function () {
     Event::fake([OrderRefunded::class]);
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = shopPaidOrder($product);
+    $order = paidOrder($product);
     $chargeId = $this->gateway->chargeIdForPaymentIntent((string) $order->stripe_payment_intent_id);
     $this->gateway->refundPaymentIntent((string) $order->stripe_payment_intent_id, 'dashboard');
     $this->gateway->markDisputed($chargeId);
@@ -267,7 +237,7 @@ it('mirrors a full refund at Stripe once and records a dispute', function () {
 });
 
 it('records a partial refund at Stripe without changing the status', function () {
-    $order = shopPaidOrder(Product::factory()->for($this->creator)->create());
+    $order = paidOrder(Product::factory()->for($this->creator)->create());
     $charge = new ChargeData('ch_partial', null, 700, false, $order->stripe_payment_intent_id);
 
     $synced = app(Orders::class)->syncRefund($order, $charge);
@@ -280,7 +250,7 @@ it('records a partial refund at Stripe without changing the status', function ()
 it('moves a pending order that is fully refunded to refunded and restores its stock once', function () {
     Event::fake([OrderRefunded::class]);
     $product = Product::factory()->for($this->creator)->create(['stock' => 5]);
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$product, 2]]));
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$product, 2]]));
     $sessionId = fakeOrderCheckout($this->gateway, $order);
     $this->gateway->completePaymentCheckout($sessionId, paid: false);
     $session = $this->gateway->retrieveCheckoutSession($sessionId);
@@ -298,21 +268,10 @@ it('moves a pending order that is fully refunded to refunded and restores its st
     Event::assertDispatchedTimes(OrderRefunded::class, 1);
 });
 
-/**
- * A published digital work of the creator with one file.
- */
-function ordersWork(int $price = 800): Product
-{
-    $work = Product::factory()->digital()->for(test()->creator)->create(['price' => $price]);
-    ProductFile::factory()->for($work)->create();
-
-    return $work;
-}
-
 it('reserves a digital work without touching stock', function () {
-    $work = ordersWork(800);
+    $work = digitalWork($this->creator, ['price' => 800]);
 
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]]));
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$work, 1]]));
 
     expect($order->shipping_fee)->toBe(0)
         ->and($order->total)->toBe(800)
@@ -323,7 +282,7 @@ it('reserves a digital work without touching stock', function () {
 it('adds shipping when the order has goods', function () {
     $mug = Product::factory()->for($this->creator)->create(['price' => 1800, 'stock' => 2]);
 
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(800), 1], [$mug, 1]]));
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[digitalWork($this->creator, ['price' => 800]), 1], [$mug, 1]]));
 
     expect($order->shipping_fee)->toBe(500)
         ->and($order->total)->toBe(800 + 1800 + 500)
@@ -333,12 +292,12 @@ it('adds shipping when the order has goods', function () {
 });
 
 it('refuses to reserve an already purchased work', function () {
-    $work = ordersWork();
-    shopPaidOrder($work);
+    $work = digitalWork($this->creator);
+    paidOrder($work);
     $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
     $orders = Order::query()->count();
 
-    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$mug, 1], [$work, 1]])))
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$mug, 1], [$work, 1]])))
         ->toThrow(ValidationException::class);
 
     expect(Order::query()->count())->toBe($orders)
@@ -346,22 +305,22 @@ it('refuses to reserve an already purchased work', function () {
 });
 
 it('refuses to reserve a work without files', function () {
-    $work = ordersWork();
+    $work = digitalWork($this->creator);
     $work->files()->delete();
 
-    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]])))
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$work, 1]])))
         ->toThrow(ValidationException::class);
     expect(Order::query()->count())->toBe(0);
 });
 
 it('refuses to reserve more than one of a work', function () {
-    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(), 2]])))
+    expect(fn () => app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[digitalWork($this->creator), 2]])))
         ->toThrow(ValidationException::class);
     expect(Order::query()->count())->toBe(0);
 });
 
 it('refuses to ship a digital-only order', function () {
-    $order = shopPaidOrder(ordersWork());
+    $order = paidOrder(digitalWork($this->creator));
 
     expect(fn () => app(Orders::class)->ship($order, null))
         ->toThrow(ValidationException::class, 'この注文は発送できません。');
@@ -371,7 +330,7 @@ it('refuses to ship a digital-only order', function () {
 it('ships an order that mixes kinds', function () {
     $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
     $orders = app(Orders::class);
-    $order = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[ordersWork(), 1], [$mug, 1]]));
+    $order = $orders->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[digitalWork($this->creator), 1], [$mug, 1]]));
     $sessionId = fakeOrderCheckout($this->gateway, $order);
     $this->gateway->completePaymentCheckout($sessionId);
     $order = $orders->markPaid($order, $this->gateway->retrieveCheckoutSession($sessionId));
@@ -380,7 +339,7 @@ it('ships an order that mixes kinds', function () {
 });
 
 it('refuses a creator refund of an order with a digital work', function () {
-    $order = shopPaidOrder(ordersWork());
+    $order = paidOrder(digitalWork($this->creator));
 
     expect(fn () => app(Orders::class)->refund($order, OrderCancelReason::Creator))
         ->toThrow(ValidationException::class, 'デジタル作品を含む注文は取り消せません。');
@@ -390,10 +349,10 @@ it('refuses a creator refund of an order with a digital work', function () {
 });
 
 it('lets an admin refund an order with a digital work and restocks only goods', function () {
-    $work = ordersWork();
+    $work = digitalWork($this->creator);
     $mug = Product::factory()->for($this->creator)->create(['stock' => 2]);
     $orders = app(Orders::class);
-    $order = $orders->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1], [$mug, 1]]));
+    $order = $orders->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$work, 1], [$mug, 1]]));
     $sessionId = fakeOrderCheckout($this->gateway, $order);
     $this->gateway->completePaymentCheckout($sessionId);
     $order = $orders->markPaid($order, $this->gateway->retrieveCheckoutSession($sessionId));
@@ -406,8 +365,8 @@ it('lets an admin refund an order with a digital work and restocks only goods', 
 });
 
 it('gives no stock to a work when a pending order is canceled', function () {
-    $work = ordersWork();
-    $order = app(Orders::class)->reserve($this->buyer, $this->creator, shopCart($this->buyer, [[$work, 1]]));
+    $work = digitalWork($this->creator);
+    $order = app(Orders::class)->reserve($this->buyer, $this->creator, cartLines($this->buyer, [[$work, 1]]));
 
     app(Orders::class)->cancel($order, OrderCancelReason::Expired);
 

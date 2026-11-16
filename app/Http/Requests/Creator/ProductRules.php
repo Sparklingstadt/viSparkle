@@ -23,7 +23,7 @@ trait ProductRules
         $rules = [
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'price' => ['required', 'integer', 'between:50,1000000'],
+            'price' => ['required', 'integer', 'between:'.config('fanbox.product_min_price').','.config('fanbox.product_max_price')],
             'is_published' => ['boolean'],
             'product_category_id' => ['nullable', 'integer', $this->categoryExistsRule()],
         ];
@@ -37,7 +37,7 @@ trait ProductRules
             'variants' => ['required', 'array', 'min:1', 'max:'.self::MAX_VARIANTS],
             'variants.*.id' => ['nullable', 'integer'],
             'variants.*.name' => ['nullable', 'string', 'max:50', 'distinct'],
-            'variants.*.stock' => ['required', 'integer', 'between:0,99999'],
+            'variants.*.stock' => ['required', 'integer', 'between:0,'.config('fanbox.product_max_stock')],
         ];
     }
 

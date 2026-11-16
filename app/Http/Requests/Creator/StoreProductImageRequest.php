@@ -9,8 +9,6 @@ use Illuminate\Validation\Validator;
 
 class StoreProductImageRequest extends FormRequest
 {
-    public const MAX_IMAGES = 10;
-
     /**
      * Another creator's product is reported as missing (404), never as forbidden.
      */
@@ -27,7 +25,7 @@ class StoreProductImageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'image' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:'.config('fanbox.image_max_kb')],
+            'image' => ['required', 'file', 'mimes:'.implode(',', config('fanbox.still_image_mimes')), 'max:'.config('fanbox.image_max_kb')],
         ];
     }
 
@@ -40,8 +38,10 @@ class StoreProductImageRequest extends FormRequest
             /** @var Product $product */
             $product = $this->route('product');
 
-            if ($product->images()->count() >= self::MAX_IMAGES) {
-                $validator->errors()->add('image', '画像は'.self::MAX_IMAGES.'枚までです。');
+            $max = (int) config('fanbox.product_images_max');
+
+            if ($product->images()->count() >= $max) {
+                $validator->errors()->add('image', "画像は{$max}枚までです。");
             }
         }];
     }
