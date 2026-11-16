@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
@@ -21,7 +20,7 @@ class PostPageController extends Controller
         $entitlement = Entitlement::for($viewer);
 
         abort_unless($post->creator_id === $creator->id, 404);
-        abort_unless(($post->isPublished() && ! $post->isHidden()) || $entitlement->isAuthorOf($post), 404);
+        abort_unless($post->isPublished() || $entitlement->isAuthorOf($post), 404);
 
         $post->setRelation('creator', $creator)->load(['cover', 'category']);
         $isOwner = $entitlement->isAuthorOf($post);
@@ -32,7 +31,6 @@ class PostPageController extends Controller
 
         $morePosts = $creator->posts()
             ->published()
-            ->visible()
             ->whereKeyNot($post->id)
             ->with('cover')
             ->latest('published_at')
@@ -61,9 +59,6 @@ class PostPageController extends Controller
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
-            'reportReasons' => ReportReason::options(),
-            // Only the author is told why the operators hid the post; everyone else gets a 404 above.
-            'hiddenReason' => $isOwner && $post->isHidden() ? (string) $post->hidden_reason : null,
         ]);
     }
 }

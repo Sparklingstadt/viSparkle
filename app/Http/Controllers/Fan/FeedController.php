@@ -30,8 +30,6 @@ class FeedController extends Controller
 
         // "all" adds the free posts of followed creators; a supported creator shows every post, followed or not.
         $posts = Post::published()
-            ->visible()
-            ->byActiveCreator()
             ->when(
                 $tab === 'all',
                 fn (Builder $query) => $query->where(fn (Builder $query) => $query
@@ -56,7 +54,6 @@ class FeedController extends Controller
                 ->orWhereIn('id', Follow::query()->where('user_id', $user->id)->select('creator_id')))
             ->withExists(['posts as has_new' => fn ($query) => $query
                 ->where('status', PostStatus::Published)
-                ->visible()
                 ->whereBetween('published_at', [now()->subDays(self::NEW_POST_DAYS), now()])])
             ->orderBy('display_name')
             ->get()

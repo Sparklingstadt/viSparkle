@@ -40,6 +40,6 @@ class PostLikeController extends Controller
     private function ensureLikeable(Creator $creator, Post $post): void
     {
         abort_unless($post->creator_id === $creator->id, 404);
-        abort_unless($post->isPublished() && ! $post->isHidden(), 404);
+        abort_unless($post->isPublished(), 404);
     }
 }

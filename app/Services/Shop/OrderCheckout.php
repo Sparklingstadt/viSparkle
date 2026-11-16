@@ -39,7 +39,7 @@ class OrderCheckout
      */
     public function begin(User $buyer, Creator $creator, int $supportAmount = 0): string
     {
-        if ($buyer->isSuspended() || ! $creator->canSell()) {
+        if (! $creator->canSell()) {
             throw self::unavailable();
         }
 

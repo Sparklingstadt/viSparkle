@@ -85,10 +85,9 @@ class SearchController extends Controller
      */
     private function posts(Request $request, PostPresenter $presenter, string $q, ?PostCategory $postCategory): array
     {
-        $posts = $this->matching(Post::published()->visible(), ['title', 'excerpt'], $q)
+        $posts = $this->matching(Post::published(), ['title', 'excerpt'], $q)
             ->when($postCategory, fn (Builder $query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->free()
-            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->limit(self::MAX_RESULTS)
             ->get();

@@ -3,10 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use App\Services\Legal\LegalDocuments;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
@@ -41,9 +41,13 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
 
-        $user = User::where('email', 'test@example.com')->firstOrFail();
-        $this->assertSame(LegalDocuments::termsVersion(), $user->terms_version);
-        $this->assertNotNull($user->terms_accepted_at);
+        $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+    }
+
+    public function test_registration_does_not_record_a_terms_version()
+    {
+        $this->assertFalse(Schema::hasColumn('users', 'terms_version'));
+        $this->assertFalse(Schema::hasColumn('users', 'terms_accepted_at'));
     }
 
     public function test_new_users_receive_a_verification_email()

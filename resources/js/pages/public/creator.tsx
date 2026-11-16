@@ -4,10 +4,6 @@ import { CreatorHeader } from '@/components/creator-header';
 import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
-import {
-    ReportDialog,
-    type ReportReasonOption,
-} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { show } from '@/routes/creators';
 import { show as showProduct } from '@/routes/shop/products';
@@ -46,7 +42,6 @@ export default function CreatorPage({
     viewerFollows,
     acceptsSupports,
     closed,
-    reportReasons,
     tab,
     can_buy: canBuy,
     shop,
@@ -64,7 +59,6 @@ export default function CreatorPage({
     viewerFollows: boolean;
     acceptsSupports: boolean;
     closed: boolean;
-    reportReasons: ReportReasonOption[];
     tab: 'posts' | 'shop';
     can_buy: boolean;
     shop: {
@@ -119,14 +113,6 @@ export default function CreatorPage({
                             </>
                         }
                     />
-                    <div className="flex items-center justify-end gap-2">
-                        <ReportDialog
-                            targetType="creator"
-                            targetId={creator.id}
-                            reasons={reportReasons}
-                            isOwner={isOwner}
-                        />
-                    </div>
                 </div>
 
                 {closed && (

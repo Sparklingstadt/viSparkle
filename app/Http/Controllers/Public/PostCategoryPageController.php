@@ -20,12 +20,10 @@ class PostCategoryPageController extends Controller
 
         $entitlement = Entitlement::for($request->user());
 
-        // Same audience as the home page: free, published, not hidden, author not suspended.
+        // Same audience as the home page: free and published.
         $posts = Post::published()
-            ->visible()
             ->inCategory($category)
             ->free()
-            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->paginate(20)
             ->withQueryString();

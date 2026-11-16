@@ -39,7 +39,6 @@ class DemoPostLikesSeeder extends Seeder
         $fans = self::fans();
 
         Post::published()
-            ->visible()
             ->where('required_price', 0)
             ->where('like_count', 0)
             ->get()

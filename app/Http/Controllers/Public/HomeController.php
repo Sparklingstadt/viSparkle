@@ -25,9 +25,7 @@ class HomeController extends Controller
         $sort = $request->query('sort') === 'new' ? 'new' : 'popular';
 
         $posts = ($sort === 'popular' ? Post::popular() : Post::published())
-            ->visible()
             ->free()
-            ->byActiveCreator()
             ->with(['creator', 'cover'])
             ->limit(8)
             ->get();

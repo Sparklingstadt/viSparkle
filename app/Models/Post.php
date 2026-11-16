@@ -28,8 +28,6 @@ use Illuminate\Support\Facades\DB;
  * @property int $required_price
  * @property PostStatus $status
  * @property CarbonInterface|null $published_at
- * @property Carbon|null $hidden_at
- * @property string|null $hidden_reason
  * @property int $like_count
  * @property int $view_count
  * @property Carbon|null $created_at
@@ -48,7 +46,6 @@ class Post extends Model
             'required_price' => 'integer',
             'status' => PostStatus::class,
             'published_at' => 'datetime',
-            'hidden_at' => 'datetime',
             'like_count' => 'integer',
             'view_count' => 'integer',
         ];
@@ -106,24 +103,6 @@ class Post extends Model
         $query->where('post_category_id', $category->id);
     }
 
-    /** @param  Builder<self>  $query */
-    #[Scope]
-    protected function visible(Builder $query): void
-    {
-        $query->whereNull('hidden_at');
-    }
-
-    /**
-     * Posts whose author is not suspended.
-     *
-     * @param  Builder<self>  $query
-     */
-    #[Scope]
-    protected function byActiveCreator(Builder $query): void
-    {
-        $query->whereHas('creator.user', fn ($query) => $query->whereNull('suspended_at'));
-    }
-
     /**
      * Posts anyone can read (no plan required).
      *
@@ -164,11 +143,6 @@ class Post extends Model
                 static::whereKey($this->id)->toBase()->decrement('like_count');
             }
         });
-    }
-
-    public function isHidden(): bool
-    {
-        return $this->hidden_at !== null;
     }
 
     public function isPublished(): bool

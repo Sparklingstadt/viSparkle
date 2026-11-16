@@ -62,8 +62,6 @@ export type EditorPost = {
     published_at: string | null;
     cover_file_id: number | null;
     category_id: number | null;
-    hidden: boolean;
-    hidden_reason: string | null;
     images: PostFileData[];
     attachments: PostFileData[];
 };

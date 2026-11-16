@@ -6,7 +6,6 @@ use App\Billing\FakeGateway;
 use App\Enums\PostStatus;
 use App\Models\Creator;
 use App\Models\User;
-use App\Services\Legal\LegalDocuments;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
@@ -183,8 +182,6 @@ class DemoCreatorsSeeder extends Seeder
         ]);
         $user->forceFill([
             'email_verified_at' => now(),
-            'terms_version' => LegalDocuments::termsVersion(),
-            'terms_accepted_at' => now(),
         ])->save();
 
         return $user;

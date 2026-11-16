@@ -2,10 +2,6 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle2, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-    ReportDialog,
-    type ReportReasonOption,
-} from '@/components/report-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +23,6 @@ export default function ProductPage({
     can_buy: canBuy,
     is_owner: isOwner,
     purchased_order_id: purchasedOrderId,
-    reportReasons,
 }: {
     creator: CreatorSummary;
     product: {
@@ -49,7 +44,6 @@ export default function ProductPage({
     shop_notice: string | null;
     can_buy: boolean;
     is_owner: boolean;
-    reportReasons: ReportReasonOption[];
 }) {
     const { auth } = usePage().props;
     const [image, setImage] = useState(0);
@@ -350,14 +344,6 @@ export default function ProductPage({
                                 </p>
                             </section>
                         )}
-                        <div className="flex justify-end">
-                            <ReportDialog
-                                targetType="product"
-                                targetId={product.id}
-                                reasons={reportReasons}
-                                isOwner={isOwner}
-                            />
-                        </div>
                     </div>
                 </div>
             </div>

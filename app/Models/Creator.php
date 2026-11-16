@@ -54,8 +54,7 @@ class Creator extends Model
     #[Scope]
     protected function open(Builder $query): void
     {
-        $query->whereNull('closed_at')
-            ->whereHas('user', fn ($q) => $q->whereNull('suspended_at'));
+        $query->whereNull('closed_at');
     }
 
     /**
@@ -119,7 +118,6 @@ class Creator extends Model
 
     /**
      * Resolve by exact slug: MySQL's default collation is case-insensitive, so "/@Alice" would otherwise match "alice".
-     * A creator whose owner is suspended does not exist for any route (every {creator} route is public or fan-facing).
      */
     public function resolveRouteBinding($value, $field = null): ?Model
     {
@@ -133,7 +131,7 @@ class Creator extends Model
             return null;
         }
 
-        return $creator->user->isSuspended() ? null : $creator;
+        return $creator;
     }
 
     public function avatarUrl(): ?string
@@ -178,7 +176,7 @@ class Creator extends Model
 
     public function isShopVisible(): bool
     {
-        return ! $this->isClosed() && ! $this->user->isSuspended();
+        return ! $this->isClosed();
     }
 
     public function canSell(): bool

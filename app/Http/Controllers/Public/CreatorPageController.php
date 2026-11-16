@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ReportReason;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
@@ -34,14 +33,13 @@ class CreatorPageController extends Controller
 
         $postCategories = PostCategory::active()
             ->ordered()
-            ->whereHas('posts', fn ($query) => $query->where('creator_id', $creator->id)->published()->visible())
+            ->whereHas('posts', fn ($query) => $query->where('creator_id', $creator->id)->published())
             ->get();
         $slug = $request->query('post_category');
         $postCategory = is_string($slug) ? $postCategories->firstWhere('slug', $slug) : null;
 
         $posts = $creator->posts()
             ->published()
-            ->visible()
             ->when($postCategory, fn ($query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->with('cover')
             ->paginate(20)
@@ -72,7 +70,6 @@ class CreatorPageController extends Controller
             'viewerFollows' => $creator->isFollowedBy($viewer),
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
-            'reportReasons' => ReportReason::options(),
             'tab' => $tab,
             'can_buy' => $creator->canSell(),
             'shop' => [

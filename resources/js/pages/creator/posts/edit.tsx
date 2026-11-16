@@ -6,7 +6,6 @@ import PostController from '@/actions/App/Http/Controllers/Creator/PostControlle
 import PostFileController from '@/actions/App/Http/Controllers/Creator/PostFileController';
 import InputError from '@/components/input-error';
 import { PostEditor } from '@/components/tiptap/post-editor';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -140,14 +139,6 @@ export default function PostEdit({
             <Head title={`編集: ${post.title}`} />
 
             <div className="mx-auto w-full max-w-6xl space-y-6 p-4 pt-0">
-                {post.hidden && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由:{' '}
-                            {post.hidden_reason}）
-                        </AlertDescription>
-                    </Alert>
-                )}
                 <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2">
                         <Badge

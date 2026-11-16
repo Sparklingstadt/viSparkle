@@ -128,9 +128,9 @@ class SubscriptionSync
             return $this->mismatch($data, $support);
         }
 
-        // A new, charging subscription for a suspended user, or for a creator who can no longer take supports.
+        // A new, charging subscription for a creator who can no longer take supports.
         if ($orphanable) {
-            $reason = $user->isSuspended() ? 'user_suspended' : $this->closedCreatorReason((int) $ids['creator_id']);
+            $reason = $this->closedCreatorReason((int) $ids['creator_id']);
 
             if ($reason !== null) {
                 return ['orphan' => $reason];
@@ -266,12 +266,11 @@ class SubscriptionSync
 
     private function closedCreatorReason(int $creatorId): ?string
     {
-        $creator = Creator::query()->with('user')->whereKey($creatorId)->first();
+        $creator = Creator::query()->whereKey($creatorId)->first();
 
         return match (true) {
             $creator === null => 'creator_missing',
             $creator->isClosed() => 'creator_closed',
-            $creator->user->suspended_at !== null => 'creator_suspended',
             default => null,
         };
     }

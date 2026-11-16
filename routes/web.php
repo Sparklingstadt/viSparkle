@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Legal\AcceptTermsController;
 use App\Http\Controllers\Public\CategoryPageController;
 use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
@@ -10,7 +9,6 @@ use App\Http\Controllers\Public\PostFileDownloadController;
 use App\Http\Controllers\Public\PostPageController;
 use App\Http\Controllers\Public\ProductPageController;
 use App\Http\Controllers\Public\SearchController;
-use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -22,21 +20,14 @@ Route::controller(LegalController::class)->prefix('legal')->name('legal.')->grou
     Route::get('privacy', 'privacy')->name('privacy');
 });
 
-Route::middleware('auth')->controller(AcceptTermsController::class)->group(function () {
-    Route::get('legal/accept', 'show')->name('legal.accept');
-    Route::post('legal/accept', 'store')->name('legal.accept.store');
-});
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('dashboard', '/feed')->name('dashboard');
-    Route::post('reports', [ReportController::class, 'store'])->middleware('throttle:10,60')->name('reports.store');
 });
 
 require __DIR__.'/settings.php';
 require __DIR__.'/creator.php';
 require __DIR__.'/fan.php';
 require __DIR__.'/billing.php';
-require __DIR__.'/admin.php';
 
 Route::get('categories/{category:slug}', CategoryPageController::class)->name('categories.show');
 Route::get('post-categories/{category:slug}', PostCategoryPageController::class)->name('post-categories.show');

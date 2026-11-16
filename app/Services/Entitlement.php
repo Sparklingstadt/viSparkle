@@ -65,7 +65,7 @@ final class Entitlement
             return true;
         }
 
-        if (! $post->isPublished() || $post->isHidden()) {
+        if (! $post->isPublished()) {
             return false;
         }
 

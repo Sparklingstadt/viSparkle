@@ -7,7 +7,6 @@ export type User = {
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
-    is_admin: boolean;
     has_billing_account: boolean;
     created_at: string;
     updated_at: string;

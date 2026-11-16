@@ -9,7 +9,6 @@ import {
     ReceiptText,
     ShoppingCart,
     Palette,
-    Shield,
     Ticket,
     ThumbsUp,
     Users,
@@ -28,7 +27,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard as adminDashboard } from '@/routes/admin';
 import { feed, home } from '@/routes';
 import { register as creatorRegister } from '@/routes/creator';
 import { index as cart } from '@/routes/cart';
@@ -125,19 +123,12 @@ const billingNavItem: NavItem = {
     icon: CreditCard,
 };
 
-const adminNavItem: NavItem = {
-    title: '管理',
-    href: adminDashboard(),
-    icon: Shield,
-};
-
 export function AppSidebar() {
     const { auth } = usePage().props;
     const items = [
         ...fanNavItems,
         ...(auth.user?.has_billing_account ? [billingNavItem] : []),
         ...(auth.creator ? creatorNavItems : [creatorRegisterNavItem]),
-        ...(auth.user?.is_admin ? [adminNavItem] : []),
     ];
 
     return (

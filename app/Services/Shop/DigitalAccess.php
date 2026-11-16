@@ -35,10 +35,6 @@ class DigitalAccess
      */
     public function refusal(User $buyer, Order $order, Product $product): ?string
     {
-        if ($buyer->isSuspended()) {
-            return '現在ダウンロードできません';
-        }
-
         $statusReason = match ($order->status) {
             OrderStatus::Pending => '支払いの確認後にダウンロードできます',
             OrderStatus::Canceled => '取り消された注文のためダウンロードできません',

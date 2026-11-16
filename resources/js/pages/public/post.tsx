@@ -7,13 +7,8 @@ import { AccessBadge } from '@/components/access-badge';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
-import {
-    ReportDialog,
-    type ReportReasonOption,
-} from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
@@ -38,8 +33,6 @@ export default function PostPage({
     viewerSupportCancelling,
     acceptsSupports,
     closed,
-    reportReasons,
-    hiddenReason,
 }: {
     post: PostDetail;
     creator: CreatorProfile & { id: number };
@@ -52,8 +45,6 @@ export default function PostPage({
     viewerSupportCancelling: boolean;
     acceptsSupports: boolean;
     closed: boolean;
-    reportReasons: ReportReasonOption[];
-    hiddenReason: string | null;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -77,15 +68,6 @@ export default function PostPage({
 
             <article className="mx-auto max-w-3xl space-y-8">
                 <CreatorHeader creator={creator} compact />
-
-                {hiddenReason !== null && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由: {hiddenReason}
-                            ）
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 {post.cover_thumb_url ? (
                     <img
@@ -234,12 +216,6 @@ export default function PostPage({
 
                 <footer className="flex items-center justify-between gap-4 border-y py-4">
                     <LikeButton post={post} />
-                    <ReportDialog
-                        targetType="post"
-                        targetId={post.id}
-                        reasons={reportReasons}
-                        isOwner={isOwner}
-                    />
                 </footer>
 
                 {morePosts.length > 0 && (

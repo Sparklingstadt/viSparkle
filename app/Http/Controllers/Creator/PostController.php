@@ -43,7 +43,6 @@ class PostController extends Controller
                 'required_price' => $post->required_price,
                 'published_at' => $post->published_at,
                 'updated_at' => $post->updated_at,
-                'hidden' => $post->isHidden(),
                 'like_count' => $post->like_count,
             ]);
 
@@ -86,8 +85,6 @@ class PostController extends Controller
                 'published_at' => $post->published_at,
                 'cover_file_id' => $post->cover_file_id,
                 'category_id' => $post->post_category_id,
-                'hidden' => $post->isHidden(),
-                'hidden_reason' => $post->hidden_reason,
                 'images' => $files->where('kind', PostFileKind::Image)->values()->map(fn (PostFile $file) => $this->fileData($file)),
                 'attachments' => $files->where('kind', PostFileKind::Attachment)->values()->map(fn (PostFile $file) => $this->fileData($file)),
             ],
