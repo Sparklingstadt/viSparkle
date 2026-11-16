@@ -4,13 +4,13 @@ import { CreatorHeader } from '@/components/creator-header';
 import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
+import { ProductCard } from '@/components/product-card';
 import {
     ReportDialog,
     type ReportReasonOption,
 } from '@/components/report-dialog';
 import { SupportButton } from '@/components/support-button';
 import { show } from '@/routes/creators';
-import { show as showProduct } from '@/routes/shop/products';
 import type {
     CategorySummary,
     CreatorProfile,
@@ -19,7 +19,6 @@ import type {
     PostSummary,
     ShopProductSummary,
 } from '@/types';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -282,44 +281,11 @@ export default function CreatorPage({
                                 )}
                                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                     {shop.products.map((product) => (
-                                        <Link
+                                        <ProductCard
                                             key={product.id}
-                                            href={showProduct({
-                                                creator: creator.slug,
-                                                product: product.id,
-                                            })}
-                                            className="flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/30 hover:bg-muted/70"
-                                        >
-                                            <div className="aspect-square bg-muted">
-                                                {product.cover_url && (
-                                                    <img
-                                                        src={product.cover_url}
-                                                        alt=""
-                                                        loading="lazy"
-                                                        className="size-full object-cover"
-                                                    />
-                                                )}
-                                            </div>
-                                            <div className="space-y-1 p-3">
-                                                <p className="line-clamp-2 font-medium">
-                                                    {product.name}
-                                                </p>
-                                                <p className="flex items-center gap-2 text-sm">
-                                                    {formatYen(product.price)}
-                                                    {product.kind ===
-                                                        'digital' && (
-                                                        <Badge variant="outline">
-                                                            デジタル
-                                                        </Badge>
-                                                    )}
-                                                    {product.sold_out && (
-                                                        <Badge variant="secondary">
-                                                            売り切れ
-                                                        </Badge>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </Link>
+                                            product={product}
+                                            creatorSlug={creator.slug}
+                                        />
                                     ))}
                                 </div>
                             </section>

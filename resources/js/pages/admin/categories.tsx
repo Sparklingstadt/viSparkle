@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/admin/categories';
 import { index as postIndex } from '@/routes/admin/post-categories';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Row = {
     id: number;
@@ -39,6 +40,7 @@ function CategoryRow({
     first: boolean;
     last: boolean;
 }) {
+    const confirm = useConfirm();
     const { archive, destroy, move, update } = actionsByKind[kind];
 
     return (
@@ -160,18 +162,27 @@ function CategoryRow({
                 <Form
                     {...destroy.form(category.id)}
                     options={{ preserveScroll: true }}
-                    onBefore={() =>
-                        confirm(`「${category.name}」を削除しますか？`)
-                    }
                 >
-                    {({ processing, errors }) => (
+                    {({ processing, errors, submit }) => (
                         <>
                             <Button
+                                type="button"
                                 size="sm"
                                 variant="destructive"
                                 disabled={
                                     category.usage_count > 0 || processing
                                 }
+                                onClick={async () => {
+                                    if (
+                                        await confirm({
+                                            title: `「${category.name}」を削除しますか？`,
+                                            confirmLabel: '削除',
+                                            destructive: true,
+                                        })
+                                    ) {
+                                        submit();
+                                    }
+                                }}
                             >
                                 削除
                             </Button>

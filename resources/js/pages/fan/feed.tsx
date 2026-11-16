@@ -2,12 +2,12 @@ import { Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { PostCard } from '@/components/post-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { feed, home } from '@/routes';
 import { show } from '@/routes/creators';
 import type { CreatorSummary, Paginated, PostSummary } from '@/types';
 import { Pagination } from '@/components/pagination';
+import { SegmentedTabs } from '@/components/segmented-tabs';
 
 type FeedTab = 'all' | 'supporting';
 
@@ -35,39 +35,20 @@ export default function Feed({
                         title="フィード"
                         description="支援中・フォロー中のクリエイターの新着投稿"
                     />
-                    <div
-                        className="flex gap-1 rounded-full bg-muted p-1"
-                        role="tablist"
-                    >
-                        {feedTabs.map((item) => (
-                            <Button
-                                key={item.tab}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn(
-                                    'text-muted-foreground',
-                                    item.tab === tab &&
-                                        'bg-background text-foreground shadow-xs hover:bg-background',
-                                )}
-                            >
-                                <Link
-                                    href={feed({
-                                        query:
-                                            item.tab === 'supporting'
-                                                ? { tab: 'supporting' }
-                                                : {},
-                                    })}
-                                    role="tab"
-                                    aria-selected={item.tab === tab}
-                                    preserveScroll
-                                    only={['posts', 'tab']}
-                                >
-                                    {item.label}
-                                </Link>
-                            </Button>
-                        ))}
-                    </div>
+                    <SegmentedTabs
+                        tabs={feedTabs.map((item) => ({
+                            key: item.tab,
+                            label: item.label,
+                            href: feed.url({
+                                query:
+                                    item.tab === 'supporting'
+                                        ? { tab: 'supporting' }
+                                        : {},
+                            }),
+                            current: item.tab === tab,
+                        }))}
+                        only={['posts', 'tab']}
+                    />
                 </div>
 
                 {creators.length > 0 && (

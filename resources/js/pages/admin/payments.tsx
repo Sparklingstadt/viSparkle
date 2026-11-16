@@ -1,6 +1,5 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
@@ -19,13 +18,16 @@ import { Label } from '@/components/ui/label';
 import { formatDate, formatYen } from '@/lib/format';
 import { refund as refundOrder } from '@/routes/admin/orders';
 import { index, refund } from '@/routes/admin/payments';
-import type { Paginated } from '@/types';
+import type { AdminCreatorRef, OrderStatusValue, Paginated } from '@/types';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 import { Pagination } from '@/components/pagination';
+import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
 type Row = {
     id: number;
     paid_at: string;
-    creator: { name: string; slug: string } | null;
+    creator: AdminCreatorRef | null;
     supporter: { name: string; email: string } | null;
     amount: number;
     refunded_amount: number;
@@ -37,13 +39,13 @@ type Row = {
 type OrderRow = {
     id: number;
     paid_at: string | null;
-    creator: { name: string; slug: string } | null;
+    creator: AdminCreatorRef | null;
     buyer: { name: string; email: string } | null;
     total: number;
     has_digital: boolean;
     has_physical: boolean;
     support_amount: number;
-    status: string;
+    status: OrderStatusValue;
     status_label: string;
     refundable: boolean;
 };
@@ -57,6 +59,7 @@ export default function Payments({
     orders: Paginated<OrderRow>;
     filters: { creator: string | null; user: string | null };
 }) {
+    const confirm = useConfirm();
     const [refunding, setRefunding] = useState<Row | null>(null);
     const [cancelSupport, setCancelSupport] = useState(false);
 
@@ -65,11 +68,13 @@ export default function Payments({
         setRefunding(payment);
     };
 
-    const refundOrderRow = (order: OrderRow) => {
+    const refundOrderRow = async (order: OrderRow) => {
         if (
-            !window.confirm(
-                `注文 #${order.id}（${formatYen(order.total)}）を返金しますか？`,
-            )
+            !(await confirm({
+                title: `注文 #${order.id}（${formatYen(order.total)}）を返金しますか？`,
+                confirmLabel: '返金する',
+                destructive: true,
+            }))
         ) {
             return;
         }
@@ -79,8 +84,7 @@ export default function Payments({
             {},
             {
                 preserveScroll: true,
-                onError: (errors) =>
-                    toast.error(errors.order ?? '処理に失敗しました。'),
+                onError: toastErrors('order'),
             },
         );
     };
@@ -215,15 +219,10 @@ export default function Payments({
                                                 {order.support_amount > 0 &&
                                                     `（うち応援 ${formatYen(order.support_amount)}）`}
                                             </span>
-                                            <Badge
-                                                variant={
-                                                    order.status === 'refunded'
-                                                        ? 'secondary'
-                                                        : 'outline'
-                                                }
-                                            >
-                                                {order.status_label}
-                                            </Badge>
+                                            <OrderStatusBadge
+                                                status={order.status}
+                                                label={order.status_label}
+                                            />
                                             {order.has_physical && (
                                                 <Badge variant="outline">
                                                     グッズ

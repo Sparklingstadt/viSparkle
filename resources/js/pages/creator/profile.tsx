@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/creator/profile';
 import { show } from '@/routes/creators';
 import type { CreatorProfile } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function CreatorProfileEdit({
     creator,
@@ -62,13 +63,12 @@ export default function CreatorProfileEdit({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="bio">自己紹介</Label>
-                                <textarea
+                                <Textarea
                                     id="bio"
                                     name="bio"
                                     defaultValue={creator.bio ?? ''}
                                     maxLength={2000}
                                     rows={6}
-                                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                                 />
                                 <InputError message={errors.bio} />
                             </div>

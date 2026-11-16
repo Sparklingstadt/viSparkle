@@ -13,6 +13,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export type ReportReasonOption = { value: string; label: string };
 
@@ -102,12 +103,11 @@ export function ReportDialog({
                                 <Label htmlFor="report-body">
                                     詳細（任意）
                                 </Label>
-                                <textarea
+                                <Textarea
                                     id="report-body"
                                     name="body"
                                     rows={4}
                                     maxLength={1000}
-                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                 />
                                 <InputError message={errors.body} />
                                 <InputError message={errors.target_id} />

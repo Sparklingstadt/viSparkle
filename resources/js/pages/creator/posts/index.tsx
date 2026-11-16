@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import type { Paginated, PostStatus } from '@/types';
 import { Pagination } from '@/components/pagination';
+import { PostStatusBadge } from '@/components/post-status-badge';
 
 type Row = {
     id: number;
@@ -103,18 +104,9 @@ export default function PostsIndex({
                                             {post.title}
                                         </p>
                                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                            <span
-                                                className={cn(
-                                                    'inline-flex h-6 items-center rounded-full px-2.5 font-bold',
-                                                    post.status === 'published'
-                                                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                                        : 'bg-muted text-muted-foreground',
-                                                )}
-                                            >
-                                                {post.status === 'published'
-                                                    ? '公開中'
-                                                    : '下書き'}
-                                            </span>
+                                            <PostStatusBadge
+                                                status={post.status}
+                                            />
                                             <AccessBadge
                                                 price={post.required_price}
                                             />

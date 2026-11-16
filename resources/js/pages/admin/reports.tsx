@@ -15,10 +15,10 @@ import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index, update } from '@/routes/admin/reports';
-import type { Paginated } from '@/types';
+import type { Paginated, ReportStatus } from '@/types';
 import { Pagination } from '@/components/pagination';
-
-type ReportStatus = 'open' | 'resolved' | 'dismissed';
+import { Textarea } from '@/components/ui/textarea';
+import { REPORT_STATUS_LABEL } from '@/lib/labels';
 
 type Row = {
     id: number;
@@ -31,12 +31,6 @@ type Row = {
     resolved_by_name: string | null;
     resolved_at: string | null;
     resolution_note: string | null;
-};
-
-const statusLabels: Record<ReportStatus, string> = {
-    open: '未処理',
-    resolved: '対応済み',
-    dismissed: '却下',
 };
 
 const tabs: { label: string; status?: ReportStatus }[] = [
@@ -99,7 +93,7 @@ export default function Reports({
                             <li key={report.id} className="space-y-2 p-4">
                                 <div className="flex flex-wrap items-center gap-2 text-sm">
                                     <span className="rounded-full border px-2 py-0.5 text-xs">
-                                        {statusLabels[report.status]}
+                                        {REPORT_STATUS_LABEL[report.status]}
                                     </span>
                                     <span className="font-medium">
                                         {report.reason_label}
@@ -207,12 +201,11 @@ export default function Reports({
                                             <Label htmlFor="report-note">
                                                 メモ（任意）
                                             </Label>
-                                            <textarea
+                                            <Textarea
                                                 id="report-note"
                                                 name="note"
                                                 rows={4}
                                                 maxLength={1000}
-                                                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                             />
                                             <InputError message={errors.note} />
                                             <InputError

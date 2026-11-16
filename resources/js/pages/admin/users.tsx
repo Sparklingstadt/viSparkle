@@ -18,6 +18,7 @@ import { formatDate } from '@/lib/format';
 import { index, update } from '@/routes/admin/users';
 import type { Paginated } from '@/types';
 import { Pagination } from '@/components/pagination';
+import { Textarea } from '@/components/ui/textarea';
 
 type Row = {
     id: number;
@@ -215,13 +216,12 @@ export default function Users({
                                             <Label htmlFor="suspend-reason">
                                                 理由
                                             </Label>
-                                            <textarea
+                                            <Textarea
                                                 id="suspend-reason"
                                                 name="reason"
                                                 rows={4}
                                                 required
                                                 maxLength={500}
-                                                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                             />
                                             <InputError
                                                 message={errors.reason}

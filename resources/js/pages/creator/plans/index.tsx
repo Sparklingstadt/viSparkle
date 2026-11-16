@@ -1,4 +1,4 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import PlanController from '@/actions/App/Http/Controllers/Creator/PlanController';
 import Heading from '@/components/heading';
@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { index as earnings } from '@/routes/creator/earnings';
 import { index } from '@/routes/creator/plans';
 import type { PlanData } from '@/types';
+import { useConfirm } from '@/components/confirm-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type Limits = { min: number; max: number; count: number };
 
@@ -38,13 +40,12 @@ function PlanFields({
             </div>
             <div className="grid gap-2">
                 <Label htmlFor={`${prefix}-description`}>説明</Label>
-                <textarea
+                <Textarea
                     id={`${prefix}-description`}
                     name="description"
                     defaultValue={plan?.description ?? ''}
                     maxLength={1000}
                     rows={3}
-                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
                 />
                 <InputError message={errors.description} />
             </div>
@@ -115,6 +116,7 @@ export default function PlansIndex({
     acceptsSupports: boolean;
     limits: Limits;
 }) {
+    const confirm = useConfirm();
     const [editing, setEditing] = useState<number | null>(null);
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
 
@@ -168,22 +170,27 @@ export default function PlansIndex({
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={PlanController.destroy(
-                                                        plan.id,
-                                                    )}
-                                                    as="button"
-                                                    preserveScroll
-                                                    onBefore={() =>
-                                                        confirm(
-                                                            'このプランを削除しますか？',
-                                                        )
+                                                onClick={async () => {
+                                                    if (
+                                                        await confirm({
+                                                            title: 'このプランを削除しますか？',
+                                                            confirmLabel:
+                                                                '削除',
+                                                            destructive: true,
+                                                        })
+                                                    ) {
+                                                        router.delete(
+                                                            PlanController.destroy.url(
+                                                                plan.id,
+                                                            ),
+                                                            {
+                                                                preserveScroll: true,
+                                                            },
+                                                        );
                                                     }
-                                                >
-                                                    削除
-                                                </Link>
+                                                }}
+                                            >
+                                                削除
                                             </Button>
                                         </div>
                                     )}

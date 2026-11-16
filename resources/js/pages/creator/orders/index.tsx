@@ -7,20 +7,14 @@ import { Button } from '@/components/ui/button';
 import { formatDate, formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index, ship, show } from '@/routes/creator/orders';
-import type { OrderStatusValue, Paginated } from '@/types';
+import type { OrderStatusValue, OrderSummary, Paginated } from '@/types';
 import { Pagination } from '@/components/pagination';
 
-type Row = {
-    id: number;
-    status: OrderStatusValue;
-    status_label: string;
-    total: number;
+type Row = OrderSummary & {
     support_amount: number;
-    created_at: string;
     buyer_name: string | null;
     shipping_name: string | null;
     can_ship: boolean;
-    items: { id: number; product_name: string; quantity: number }[];
 };
 
 export default function CreatorOrdersIndex({

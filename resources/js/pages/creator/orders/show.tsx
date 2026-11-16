@@ -1,5 +1,4 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { toast } from 'sonner';
 import OrderController from '@/actions/App/Http/Controllers/Creator/OrderController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -10,31 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate, formatYen } from '@/lib/format';
 import { index } from '@/routes/creator/orders';
-import type { OrderItemData, OrderStatusValue } from '@/types';
+import type { OrderDetail } from '@/types';
+import { toastErrors } from '@/lib/toast-errors';
+import { useConfirm } from '@/components/confirm-dialog';
 
-type Order = {
-    id: number;
-    status: OrderStatusValue;
-    status_label: string;
-    items: OrderItemData[];
-    has_physical: boolean;
-    subtotal: number;
-    shipping_fee: number;
-    support_amount: number;
-    total: number;
+type Order = OrderDetail & {
     buyer_name: string | null;
-    shipping_name: string | null;
-    shipping_postal_code: string | null;
-    shipping_address: string | null;
-    shipping_phone: string | null;
-    tracking_number: string | null;
-    refunded_amount: number;
-    created_at: string;
     can_ship: boolean;
     can_refund: boolean;
 };
 
 export default function CreatorOrderShow({ order }: { order: Order }) {
+    const confirm = useConfirm();
     const form = useForm({ tracking_number: '' });
 
     return (
@@ -96,10 +82,7 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                             event.preventDefault();
                             form.post(OrderController.ship.url(order.id), {
                                 preserveScroll: true,
-                                onError: (errors) =>
-                                    toast.error(
-                                        errors.order ?? '処理に失敗しました。',
-                                    ),
+                                onError: toastErrors('order'),
                             });
                         }}
                     >
@@ -128,22 +111,21 @@ export default function CreatorOrderShow({ order }: { order: Order }) {
                     <div className="border-t pt-6">
                         <Button
                             variant="destructive"
-                            onClick={() => {
+                            onClick={async () => {
                                 if (
-                                    confirm(
-                                        'この注文を取り消して全額を返金しますか？在庫は戻ります。',
-                                    )
+                                    await confirm({
+                                        title: 'この注文を取り消して全額を返金しますか？',
+                                        description: '在庫は戻ります。',
+                                        confirmLabel: '取り消して返金',
+                                        destructive: true,
+                                    })
                                 ) {
                                     router.post(
                                         OrderController.refund.url(order.id),
                                         {},
                                         {
                                             preserveScroll: true,
-                                            onError: (errors) =>
-                                                toast.error(
-                                                    errors.order ??
-                                                        '処理に失敗しました。',
-                                                ),
+                                            onError: toastErrors('order'),
                                         },
                                     );
                                 }

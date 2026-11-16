@@ -1,11 +1,8 @@
-import { router, usePage } from '@inertiajs/react';
 import { Heart } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import ProductLikeController from '@/actions/App/Http/Controllers/Fan/ProductLikeController';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { login } from '@/routes';
+import { useOptimisticLike } from '@/hooks/use-optimistic-like';
 import type { CreatorSummary, ShopProductSummary } from '@/types';
 
 export type LikeableProduct = ShopProductSummary & {
@@ -14,7 +11,6 @@ export type LikeableProduct = ShopProductSummary & {
     can_like: boolean;
 };
 
-// Flips at once on click; the server's answer replaces it, and a failure puts the old state back.
 export function ProductLikeButton({
     product,
     className,
@@ -22,43 +18,20 @@ export function ProductLikeButton({
     product: LikeableProduct;
     className?: string;
 }) {
-    const { auth } = usePage().props;
-    const [pending, setPending] = useState<boolean | null>(null);
-
-    const liked = pending ?? product.liked;
-    const count =
-        product.like_count +
-        (pending === null ? 0 : Number(pending) - Number(product.liked));
-
-    const toggle = () => {
-        if (!auth.user) {
-            router.visit(login());
-
-            return;
-        }
-
-        const args = { creator: product.creator.slug, product: product.id };
-        const options = {
-            preserveScroll: true,
-            onError: () => toast.error('いいねできませんでした。'),
-            onFinish: () => setPending(null),
-        };
-
-        setPending(!liked);
-
-        if (liked) {
-            router.delete(ProductLikeController.destroy.url(args), options);
-        } else {
-            router.post(ProductLikeController.store.url(args), {}, options);
-        }
-    };
+    const args = { creator: product.creator.slug, product: product.id };
+    const { liked, count, pending, toggle } = useOptimisticLike({
+        liked: product.liked,
+        count: product.like_count,
+        storeUrl: ProductLikeController.store.url(args),
+        destroyUrl: ProductLikeController.destroy.url(args),
+    });
 
     return (
         <Button
             variant="ghost"
             size="sm"
             onClick={toggle}
-            disabled={pending !== null || !product.can_like}
+            disabled={pending || !product.can_like}
             aria-pressed={liked}
             aria-label={`${liked ? 'いいねを取り消す' : 'いいねする'}（${count}件）`}
             data-test="product-like-button"

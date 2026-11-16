@@ -5,25 +5,9 @@ import { OrderLines, OrderTotals } from '@/components/order-totals';
 import { formatDate, formatYen } from '@/lib/format';
 import { show } from '@/routes/creators';
 import { index } from '@/routes/orders';
-import type { CreatorSummary, OrderItemData, OrderStatusValue } from '@/types';
+import type { CreatorSummary, OrderDetail } from '@/types';
 
-type Order = {
-    id: number;
-    status: OrderStatusValue;
-    status_label: string;
-    items: OrderItemData[];
-    has_physical: boolean;
-    subtotal: number;
-    shipping_fee: number;
-    support_amount: number;
-    total: number;
-    shipping_name: string | null;
-    shipping_postal_code: string | null;
-    shipping_address: string | null;
-    shipping_phone: string | null;
-    tracking_number: string | null;
-    refunded_amount: number;
-    created_at: string;
+type Order = OrderDetail & {
     creator: CreatorSummary | null;
     contact_email: string | null;
 };
