@@ -28,7 +28,7 @@ class ProductImageController extends Controller
 
     public function destroy(Request $request, Product $product, ProductImage $image): RedirectResponse
     {
-        abort_unless($request->user()->can('update', $product) && $image->product_id === $product->id, 403);
+        abort_unless($request->user()->can('manage', $product) && $image->product_id === $product->id, 404);
 
         $image->delete();
         Storage::disk('public')->delete($image->path);

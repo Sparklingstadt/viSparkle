@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductFile;
 use App\Models\User;
+use App\Presenters\OrderPresenter;
 use App\Services\Shop\DigitalAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,10 @@ use Inertia\Response;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly DigitalAccess $access) {}
+    public function __construct(
+        private readonly DigitalAccess $access,
+        private readonly OrderPresenter $presenter,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -24,17 +28,8 @@ class OrderController extends Controller
             ->latest('id')
             ->paginate(20)
             ->through(fn (Order $order) => [
-                'id' => $order->id,
-                'status' => $order->status->value,
-                'status_label' => $order->statusLabel(),
-                'total' => $order->total,
-                'created_at' => $order->created_at,
+                ...$this->presenter->summary($order),
                 'creator' => $order->creator?->toSummary(),
-                'items' => $order->items->map(fn (OrderItem $item) => [
-                    'id' => $item->id,
-                    'product_name' => $item->product_name,
-                    'quantity' => $item->quantity,
-                ])->values(),
             ]);
 
         return Inertia::render('fan/orders/index', ['orders' => $orders]);
@@ -48,31 +43,9 @@ class OrderController extends Controller
 
         return Inertia::render('fan/orders/show', [
             'order' => [
-                'id' => $order->id,
-                'status' => $order->status->value,
-                'status_label' => $order->statusLabel(),
-                'items' => $order->items->map(fn (OrderItem $item) => [
-                    'id' => $item->id,
-                    'product_name' => $item->product_name,
-                    'product_kind' => $item->product_kind->value,
-                    'unit_price' => $item->unit_price,
-                    'quantity' => $item->quantity,
+                ...$this->presenter->detail($order, fn (OrderItem $item) => [
                     'downloads' => $item->isDigital() ? $this->downloads($request->user(), $order, $item) : null,
-                ])->values(),
-                'has_physical' => $order->hasPhysical(),
-                'subtotal' => $order->subtotal,
-                'shipping_fee' => $order->shipping_fee,
-                'support_amount' => $order->support_amount,
-                'total' => $order->total,
-                'shipping_name' => $order->shipping_name,
-                'shipping_postal_code' => $order->shipping_postal_code,
-                'shipping_address' => $order->shipping_address,
-                'shipping_phone' => $order->shipping_phone,
-                'tracking_number' => $order->tracking_number,
-                'refunded_amount' => $order->refunded_amount,
-                'created_at' => $order->created_at,
-                'paid_at' => $order->paid_at,
-                'shipped_at' => $order->shipped_at,
+                ]),
                 'creator' => $order->creator?->toSummary(),
                 'contact_email' => $order->creator?->shop_contact_email,
             ],

@@ -69,7 +69,7 @@ class ProductFileController extends Controller
 
     private function authorizeFile(Request $request, Product $product, ProductFile $file): void
     {
-        abort_unless($request->user()->can('update', $product), 403);
+        abort_unless($request->user()->can('manage', $product), 404);
         abort_unless($product->isDigital() && $file->product_id === $product->id, 404);
     }
 }

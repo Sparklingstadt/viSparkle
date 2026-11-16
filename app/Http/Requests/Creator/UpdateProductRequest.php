@@ -12,9 +12,14 @@ class UpdateProductRequest extends FormRequest
         rules as productRules;
     }
 
+    /**
+     * Another creator's product is reported as missing (404), never as forbidden.
+     */
     public function authorize(): bool
     {
-        return $this->user()->can('update', $this->route('product'));
+        abort_unless($this->user()->can('manage', $this->route('product')), 404);
+
+        return true;
     }
 
     /**

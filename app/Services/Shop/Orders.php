@@ -195,7 +195,7 @@ class Orders
         return DB::transaction(function () use ($order, $trackingNumber) {
             $order = $this->lock($order);
 
-            if ($order->status !== OrderStatus::Paid || ($order->hasDigital() && ! $order->hasPhysical())) {
+            if (! $order->isShippable()) {
                 throw ValidationException::withMessages(['order' => 'この注文は発送できません。']);
             }
 
@@ -226,17 +226,12 @@ class Orders
             $order = $this->lock($order);
             $from = $order->status;
 
-            // A creator may only cancel before shipping; once the goods are out, only an admin (or Stripe) refunds.
-            $refundable = $from === OrderStatus::Paid
-                || ($from === OrderStatus::Shipped && $by !== OrderCancelReason::Creator)
-                || ($allowCanceled && $from === OrderStatus::Canceled);
-
-            if (! $refundable) {
+            if (! $order->hasRefundableStatusFor($by, $allowCanceled)) {
                 throw ValidationException::withMessages(['order' => 'この注文は返金できません。']);
             }
 
-            // A downloaded file cannot be given back: only an admin refunds an order with a digital work (§6.4).
-            if ($by === OrderCancelReason::Creator && $order->hasDigital()) {
+            // The status allows it, so only the digital-work rule of isRefundableBy() is left to refuse it.
+            if (! $order->isRefundableBy($by, $allowCanceled)) {
                 throw ValidationException::withMessages(['order' => 'デジタル作品を含む注文は取り消せません。']);
             }
 
@@ -271,7 +266,7 @@ class Orders
             $from = $order->status;
 
             // A pending order can be fully refunded before its delayed payment's success reaches us; it must not turn paid later.
-            if ($refunded >= $order->total && in_array($from, [OrderStatus::Pending, OrderStatus::Paid, OrderStatus::Shipped, OrderStatus::Canceled], true)) {
+            if ($refunded >= $order->total && $from !== OrderStatus::Refunded) {
                 $this->markRefunded($order, $from, $order->cancel_reason);
             }
 

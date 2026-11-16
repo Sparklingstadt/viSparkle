@@ -2,6 +2,7 @@
 
 use App\Enums\OrderCancelReason;
 use App\Enums\OrderStatus;
+use App\Enums\ProductKind;
 use App\Models\AdminAction;
 use App\Models\CartItem;
 use App\Models\Creator;
@@ -102,4 +103,16 @@ it('lists shop orders on the payments page, newest first, without pending ones',
             ->where('orders.data.0.status_label', '発送済み')
             ->where('orders.data.0.total', 1500)
             ->where('orders.data.0.refundable', true));
+});
+
+it('labels a paid order of digital works only as purchased, as the buyer and the creator see it', function () {
+    $order = Order::factory()->paid()->create();
+    $order->items()->create(['product_id' => null, 'product_name' => 'PDF', 'product_kind' => ProductKind::Digital, 'unit_price' => 1500, 'quantity' => 1]);
+
+    $this->actingAs($this->admin)->get(route('admin.payments.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('orders.data.0.status', 'paid')
+            ->where('orders.data.0.status_label', '購入済み')
+            ->where('orders.data.0.has_digital', true)
+            ->where('orders.data.0.has_physical', false));
 });

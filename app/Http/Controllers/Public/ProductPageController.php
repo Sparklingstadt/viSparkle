@@ -67,7 +67,7 @@ class ProductPageController extends Controller
     {
         $id = Order::query()
             ->where('user_id', $viewer->id)
-            ->whereIn('status', [OrderStatus::Paid, OrderStatus::Shipped])
+            ->whereIn('status', OrderStatus::purchased())
             ->whereHas('items', fn ($items) => $items->where('product_id', $product->id)->where('product_kind', ProductKind::Digital))
             ->latest('id')
             ->value('id');

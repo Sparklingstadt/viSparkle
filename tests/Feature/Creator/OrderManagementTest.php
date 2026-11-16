@@ -34,7 +34,7 @@ function paidShopOrder(Product $product, int $quantity = 1, int $supportAmount =
 }
 
 it('ships a paid order with a tracking number', function () {
-    $order = Order::factory()->paid()->for($this->creator)->create();
+    $order = Order::factory()->paid()->withGoods()->for($this->creator)->create();
 
     $this->post(route('creator.orders.ship', $order), ['tracking_number' => 'JP123'])
         ->assertSessionHasNoErrors();
@@ -43,7 +43,7 @@ it('ships a paid order with a tracking number', function () {
 });
 
 it('ships without a tracking number but rejects an overlong one', function () {
-    $order = Order::factory()->paid()->for($this->creator)->create();
+    $order = Order::factory()->paid()->withGoods()->for($this->creator)->create();
 
     $this->post(route('creator.orders.ship', $order), ['tracking_number' => str_repeat('a', 101)])
         ->assertSessionHasErrors('tracking_number');
