@@ -2,17 +2,14 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Download, Paperclip } from 'lucide-react';
 import { useRef } from 'react';
 import { CreatorHeader } from '@/components/creator-header';
-import { LikeButton } from '@/components/like-button';
 import { AccessBadge } from '@/components/access-badge';
 import { LockedPost } from '@/components/locked-post';
 import { PlanCard } from '@/components/plan-card';
 import { PostCard } from '@/components/post-card';
 import { SupportButton } from '@/components/support-button';
 import { PostRenderer } from '@/components/tiptap/post-renderer';
-import { Badge } from '@/components/ui/badge';
 import { formatBytes, formatDate } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
-import { show as showPostCategory } from '@/routes/post-categories';
 import { edit } from '@/routes/creator/posts';
 import type {
     CreatorProfile,
@@ -87,15 +84,6 @@ export default function PostPage({
                 <header className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         <AccessBadge price={post.required_price} />
-                        {post.category && (
-                            <Badge variant="secondary" asChild>
-                                <Link
-                                    href={showPostCategory(post.category.slug)}
-                                >
-                                    {post.category.name}
-                                </Link>
-                            </Badge>
-                        )}
                         {post.published_at && (
                             <span>投稿日 {formatDate(post.published_at)}</span>
                         )}
@@ -213,10 +201,6 @@ export default function PostPage({
                         )}
                     </>
                 )}
-
-                <footer className="flex items-center justify-between gap-4 border-y py-4">
-                    <LikeButton post={post} />
-                </footer>
 
                 {morePosts.length > 0 && (
                     <section className="space-y-4">

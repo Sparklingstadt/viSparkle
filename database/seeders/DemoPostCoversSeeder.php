@@ -11,11 +11,11 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Gives every demo post without a cover one drawn by DemoProductPainter in its creator's colours and motif. The image
+ * Gives every demo post without a cover one drawn by DemoCoverPainter in its creator's colours and motif. The image
  * goes through PostFileStorer like an upload, so it lands on the private disk with its thumbnail.
  *
- * The colours are read back from the creator's demo header (a left-to-right gradient of the two), which also covers
- * the creators of DemoCrowdSeeder. Safe to re-run: posts that have a cover are skipped.
+ * The colours are read back from the creator's demo header (a left-to-right gradient of the two).
+ * Safe to re-run: posts that have a cover are skipped.
  */
 class DemoPostCoversSeeder extends Seeder
 {
@@ -26,7 +26,7 @@ class DemoPostCoversSeeder extends Seeder
             ->with('creator')
             ->lazyById()
             ->each(function (Post $post) use ($storer) {
-                $painter = new DemoProductPainter($post->creator->slug, $this->palette($post->creator));
+                $painter = new DemoCoverPainter($post->creator->slug, $this->palette($post->creator));
                 $path = tempnam(sys_get_temp_dir(), 'cover');
                 file_put_contents($path, $painter->cover($post->title));
 

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Ten demo creators with plans, posts, images and shop goods (DemoProductsSeeder). Locally their accounts use the password "password"; in
+ * Ten demo creators with plans, posts and images. Locally their accounts use the password "password"; in
  * production each gets a long random password nobody knows, so the pages show but nobody can log in as them.
  * Locally (fake billing) eight of them get a fake payout account so their plans can be supported; the other two
  * stay "準備中". In production none has a payout account, since a made-up Stripe account would break checkout;
@@ -165,9 +165,6 @@ class DemoCreatorsSeeder extends Seeder
             $this->openFakePayoutAccounts();
         }
 
-        $this->call(DemoProductsSeeder::class);
-        $this->call(DemoCategoriesSeeder::class);
-        $this->call(DemoPostCategoriesSeeder::class);
     }
 
     /**

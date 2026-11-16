@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\SupportStatus;
 use Database\Factories\CreatorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -26,14 +25,13 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $payouts_enabled
  * @property bool $details_submitted
  * @property Carbon|null $closed_at
- * @property int $shipping_fee
  * @property string|null $shop_notice
  * @property string|null $shop_contact_email
  * @property bool $accepts_support
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path', 'shipping_fee', 'shop_notice', 'shop_contact_email', 'accepts_support'])]
+#[Fillable(['slug', 'display_name', 'bio', 'avatar_path', 'header_path'])]
 class Creator extends Model
 {
     /** @use HasFactory<CreatorFactory> */
@@ -45,7 +43,6 @@ class Creator extends Model
             'payouts_enabled' => 'boolean',
             'details_submitted' => 'boolean',
             'closed_at' => 'datetime',
-            'shipping_fee' => 'integer',
             'accepts_support' => 'boolean',
         ];
     }
@@ -55,55 +52,6 @@ class Creator extends Model
     protected function open(Builder $query): void
     {
         $query->whereNull('closed_at');
-    }
-
-    /**
-     * Open creators a fan can start supporting now: payouts are set up (canAcceptSupports) and a plan is accepting.
-     *
-     * @param  Builder<self>  $query
-     */
-    #[Scope]
-    protected function supportable(Builder $query): void
-    {
-        $query->open()
-            ->whereNotNull('stripe_account_id')
-            ->where('payouts_enabled', true)
-            ->whereHas('plans', fn ($q) => $q->where('is_accepting', true));
-    }
-
-    /**
-     * Open creators ranked by fans who started (and still keep) a support in the last 7 days.
-     * One fan holds at most one active support per creator, so counting supports counts fans.
-     *
-     * @param  Builder<self>  $query
-     */
-    #[Scope]
-    protected function weeklyPopular(Builder $query): void
-    {
-        $newThisWeek = fn ($q) => $q->where('status', SupportStatus::Active)
-            ->where('started_at', '>=', now()->subDays(7))
-            ->whereColumn('supports.user_id', '!=', 'creators.user_id');
-
-        $query->open()
-            ->whereHas('supports', $newThisWeek)
-            ->withCount([
-                'supports as weekly_supporters_count' => $newThisWeek,
-                'supports as active_supporters_count' => fn ($q) => $q->where('status', SupportStatus::Active),
-            ])
-            ->orderByDesc('weekly_supporters_count')
-            ->orderByDesc('active_supporters_count')
-            ->orderByDesc('id');
-    }
-
-    /**
-     * Adds min_plan_price: the lowest price among plans that are accepting new supports.
-     *
-     * @param  Builder<self>  $query
-     */
-    #[Scope]
-    protected function withMinPlanPrice(Builder $query): void
-    {
-        $query->withMin(['plans as min_plan_price' => fn ($q) => $q->where('is_accepting', true)], 'price');
     }
 
     public function isClosed(): bool
@@ -152,58 +100,9 @@ class Creator extends Model
         return ['slug' => $this->slug, 'display_name' => $this->display_name, 'avatar_url' => $this->avatarUrl()];
     }
 
-    /**
-     * The summary plus what a creator card shows. min_plan_price comes from withMinPlanPrice() and is null when no plan is accepting.
-     *
-     * @return array{slug: string, display_name: string, avatar_url: string|null, header_url: string|null, bio: string|null, min_plan_price: int|null}
-     */
-    public function toCard(): array
-    {
-        $minPlanPrice = $this->getAttribute('min_plan_price');
-
-        return [
-            ...$this->toSummary(),
-            'header_url' => $this->headerUrl(),
-            'bio' => $this->bio,
-            'min_plan_price' => $minPlanPrice === null ? null : (int) $minPlanPrice,
-        ];
-    }
-
     public function canAcceptSupports(): bool
     {
         return $this->stripe_account_id !== null && (bool) $this->payouts_enabled;
-    }
-
-    public function isShopVisible(): bool
-    {
-        return ! $this->isClosed();
-    }
-
-    public function canSell(): bool
-    {
-        return $this->isShopVisible() && $this->canAcceptSupports();
-    }
-
-    /**
-     * Idempotent: following twice keeps one row.
-     */
-    public function follow(User $user): void
-    {
-        Follow::query()->insertOrIgnore([
-            'user_id' => $user->id,
-            'creator_id' => $this->id,
-            'created_at' => now(),
-        ]);
-    }
-
-    public function unfollow(User $user): void
-    {
-        $this->follows()->where('user_id', $user->id)->delete();
-    }
-
-    public function isFollowedBy(?User $user): bool
-    {
-        return $user !== null && $this->follows()->where('user_id', $user->id)->exists();
     }
 
     /** @return BelongsTo<User, $this> */
@@ -234,23 +133,5 @@ class Creator extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
-    }
-
-    /** @return HasMany<Product, $this> */
-    public function products(): HasMany
-    {
-        return $this->hasMany(Product::class);
-    }
-
-    /** @return HasMany<Order, $this> */
-    public function orders(): HasMany
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    /** @return HasMany<Follow, $this> */
-    public function follows(): HasMany
-    {
-        return $this->hasMany(Follow::class);
     }
 }

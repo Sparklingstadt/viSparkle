@@ -40,9 +40,6 @@ class DatabaseSeeder extends Seeder
             Plan::factory()->for($creator)->create(['price' => $price, 'name' => $name, 'description' => $description, 'sort' => $i]);
         }
 
-        // The shop goods come with DemoCreatorsSeeder (DemoProductsSeeder).
-        $creator->forceFill(['shipping_fee' => 500])->save();
-
         foreach ([[0, 'ご挨拶', 'ページを開設しました！'], [300, '今月のラフ', '今月描いたラフをまとめました。'], [1000, 'メイキング', '完成までの工程を解説します。']] as $i => [$price, $title, $excerpt]) {
             Post::factory()->for($creator)->published()->requiring($price)->create([
                 'title' => $title,
@@ -61,7 +58,6 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoCreatorsSeeder::class);
 
         if (app()->isLocal()) {
-            $this->call(DemoShowcaseSeeder::class);
             // Last, so the posts of every demo seeder above get a cover. Local only: drawing them takes a while.
             $this->call(DemoPostCoversSeeder::class);
         }

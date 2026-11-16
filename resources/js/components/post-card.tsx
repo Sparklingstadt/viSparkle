@@ -1,10 +1,9 @@
 import { Link } from '@inertiajs/react';
-import { Heart, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { AccessBadge } from '@/components/access-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDate, formatYen } from '@/lib/format';
 import { placeholderCover } from '@/lib/placeholder';
-import { cn } from '@/lib/utils';
 import { show } from '@/routes/posts';
 import type { PostSummary } from '@/types';
 
@@ -70,25 +69,6 @@ export function PostCard({
                             </>
                         )}
                         <span>{formatDate(post.published_at)}</span>
-                        {!!post.like_count && (
-                            <span
-                                className={cn(
-                                    'ml-1 inline-flex items-center gap-0.5',
-                                    post.liked && 'font-medium text-support',
-                                )}
-                            >
-                                <Heart
-                                    aria-label={
-                                        post.liked ? 'いいね済み' : 'いいね'
-                                    }
-                                    className={cn(
-                                        'size-3',
-                                        post.liked && 'fill-current',
-                                    )}
-                                />
-                                {post.like_count}
-                            </span>
-                        )}
                     </p>
                     {!post.locked && (
                         <AccessBadge price={post.required_price} />

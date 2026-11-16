@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Post;
-use App\Models\PostLike;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -22,11 +21,8 @@ class PostPageController extends Controller
         abort_unless($post->creator_id === $creator->id, 404);
         abort_unless($post->isPublished() || $entitlement->isAuthorOf($post), 404);
 
-        $post->setRelation('creator', $creator)->load(['cover', 'category']);
+        $post->setRelation('creator', $creator)->load('cover');
         $isOwner = $entitlement->isAuthorOf($post);
-        if ($post->isPublished()) {
-            $post->recordView($viewer, $request->session());
-        }
         $support = CreatorPageController::activeSupport($viewer, $creator);
 
         $morePosts = $creator->posts()
@@ -36,14 +32,10 @@ class PostPageController extends Controller
             ->latest('published_at')
             ->limit(4)
             ->get();
-        $morePostsLiked = PostLike::idsLikedBy($viewer, $morePosts->modelKeys());
-        $morePosts = $morePosts->map(fn (Post $other) => $presenter->summary($other->setRelation('creator', $creator), $entitlement, $morePostsLiked));
+        $morePosts = $morePosts->map(fn (Post $other) => $presenter->summary($other->setRelation('creator', $creator), $entitlement));
 
         return Inertia::render('public/post', [
-            'post' => [
-                ...$presenter->detail($post, $entitlement, PostLike::idsLikedBy($viewer, [$post->id])),
-                'category' => $post->publicCategory()?->toSummary(),
-            ],
+            'post' => $presenter->detail($post, $entitlement),
             'creator' => [
                 'id' => $creator->id,
                 ...$creator->toSummary(),

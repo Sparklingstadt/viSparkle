@@ -1,10 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
 import { AppearanceMenu } from '@/components/appearance-menu';
-import { CartLink } from '@/components/cart-link';
 import { PublicUserMenu } from '@/components/public-user-menu';
 import { SiteFooter } from '@/components/site-footer';
-import { SiteSearch } from '@/components/site-search';
 import { Button } from '@/components/ui/button';
 import { home, login, register } from '@/routes';
 
@@ -22,10 +20,8 @@ export default function PublicLayout({
                     <Link href={home()} className="flex items-center gap-2">
                         <AppLogo />
                     </Link>
-                    <SiteSearch className="order-last w-full sm:order-none sm:w-auto sm:max-w-lg sm:flex-1" />
                     <nav className="flex items-center gap-2">
                         <AppearanceMenu />
-                        <CartLink />
                         {auth.user ? (
                             <PublicUserMenu />
                         ) : (

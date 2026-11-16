@@ -4,13 +4,6 @@ export type CreatorSummary = {
     avatar_url: string | null;
 };
 
-/** A creator as a card shows it: min_plan_price is the cheapest plan taking new supports, or null. */
-export type CreatorCard = CreatorSummary & {
-    header_url: string | null;
-    bio: string | null;
-    min_plan_price: number | null;
-};
-
 export type CreatorProfile = CreatorSummary & {
     bio: string | null;
     header_url: string | null;
@@ -61,7 +54,6 @@ export type EditorPost = {
     status: PostStatus;
     published_at: string | null;
     cover_file_id: number | null;
-    category_id: number | null;
     images: PostFileData[];
     attachments: PostFileData[];
 };
@@ -83,10 +75,6 @@ export type PostSummary = {
     published_at: string | null;
     cover_thumb_url: string | null;
     locked: boolean;
-    // null when the viewer is neither the author nor a supporter of the creator.
-    like_count: number;
-    liked: boolean;
-    can_like: boolean;
     creator: CreatorSummary;
 };
 
@@ -99,75 +87,7 @@ export type PostAttachment = {
 
 export type PostDetail = PostSummary & {
     updated_at: string;
-    category: CategorySummary | null;
     body?: TiptapNode | null;
     image_urls?: Record<string, string>;
     attachments?: PostAttachment[];
-};
-
-export type ShopProductSummary = {
-    id: number;
-    kind: ProductKind;
-    name: string;
-    price: number;
-    sold_out: boolean;
-    cover_url: string | null;
-    like_count: number;
-};
-
-export type CategorySummary = {
-    id: number;
-    name: string;
-    slug: string;
-};
-
-export type ProductKind = 'physical' | 'digital';
-
-export type CartLine = {
-    id: number;
-    product_id: number;
-    kind: ProductKind;
-    name: string;
-    price: number;
-    quantity: number;
-    stock: number;
-    listed: boolean;
-    cover_url: string | null;
-};
-
-export type CartGroup = {
-    creator: CreatorSummary;
-    items: CartLine[];
-    subtotal: number;
-    shipping_fee: number;
-    total: number;
-    purchasable: boolean;
-    accepts_support: boolean;
-};
-
-export type OrderStatusValue =
-    | 'pending'
-    | 'paid'
-    | 'shipped'
-    | 'canceled'
-    | 'refunded';
-
-export type OrderItemDownloads = {
-    refusal: string | null;
-    files: {
-        id: number;
-        original_name: string;
-        size: number;
-        url: string;
-    }[];
-};
-
-export type OrderItemData = {
-    id: number;
-    product_name: string;
-    product_kind?: ProductKind;
-    unit_price: number;
-    quantity: number;
-    /** The buyer's files of a digital work (the buyer's order page only). */
-    downloads?: OrderItemDownloads | null;
 };

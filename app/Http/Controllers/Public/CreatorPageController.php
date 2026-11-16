@@ -6,9 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
-use App\Models\PostCategory;
-use App\Models\PostLike;
-use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Presenters\PostPresenter;
@@ -27,28 +24,14 @@ class CreatorPageController extends Controller
         $isOwner = $viewer !== null && $creator->user_id === $viewer->id;
         $support = self::activeSupport($viewer, $creator);
 
-        $shopVisible = $creator->isShopVisible() && $creator->products()->listed()->exists();
-        $tab = $shopVisible && $request->query('tab') === 'shop' ? 'shop' : 'posts';
-        $sort = $request->query('sort') === 'popular' ? 'popular' : 'new';
-
-        $postCategories = PostCategory::active()
-            ->ordered()
-            ->whereHas('posts', fn ($query) => $query->where('creator_id', $creator->id)->published())
-            ->get();
-        $slug = $request->query('post_category');
-        $postCategory = is_string($slug) ? $postCategories->firstWhere('slug', $slug) : null;
-
         $posts = $creator->posts()
             ->published()
-            ->when($postCategory, fn ($query, PostCategory $postCategory) => $query->inCategory($postCategory))
             ->with('cover')
-            ->paginate(20)
-            ->withQueryString();
-        $liked = PostLike::idsLikedBy($viewer, $posts->pluck('id'));
-        $posts->through(function (Post $post) use ($creator, $presenter, $entitlement, $liked) {
+            ->paginate(20);
+        $posts->through(function (Post $post) use ($creator, $presenter, $entitlement) {
             $post->setRelation('creator', $creator);
 
-            return $presenter->summary($post, $entitlement, $liked);
+            return $presenter->summary($post, $entitlement);
         });
 
         return Inertia::render('public/creator', [
@@ -60,40 +43,14 @@ class CreatorPageController extends Controller
             ],
             'plans' => self::visiblePlans($creator, $isOwner, $support),
             'posts' => $posts,
-            'postCategory' => $postCategory?->slug,
-            'postCategories' => array_values($postCategories->map->toSummary()->all()),
             'isOwner' => $isOwner,
             'viewerSupportPrice' => $entitlement->supportPriceFor($creator->id),
             'viewerPlanId' => $support?->plan_id,
             'viewerSupportId' => $support?->id,
             'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
-            'viewerFollows' => $creator->isFollowedBy($viewer),
             'acceptsSupports' => $creator->canAcceptSupports(),
             'closed' => $creator->isClosed(),
-            'tab' => $tab,
-            'can_buy' => $creator->canSell(),
-            'shop' => [
-                'visible' => $shopVisible,
-                'notice' => $shopVisible ? $creator->shop_notice : null,
-                'sort' => $sort,
-                'products' => $tab === 'shop' ? self::shopProducts($creator, $sort) : [],
-            ],
         ]);
-    }
-
-    /**
-     * @return list<array{id: int, kind: string, name: string, price: int, sold_out: bool, cover_url: string|null}>
-     */
-    private static function shopProducts(Creator $creator, string $sort): array
-    {
-        $products = $creator->products()
-            ->listed()
-            ->with(['images', 'variants'])
-            ->when($sort === 'popular', fn ($query) => $query->popular(), fn ($query) => $query->latest('id'))
-            ->get()
-            ->map(fn (Product $product) => $product->toSummary());
-
-        return array_values($products->all());
     }
 
     public static function activeSupport(?User $viewer, Creator $creator): ?Support

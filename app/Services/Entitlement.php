@@ -78,14 +78,6 @@ final class Entitlement
         return $price !== null && $price >= $post->required_price;
     }
 
-    /**
-     * Only posts the viewer can read, and never their own. Callers still require a verified login to act on it.
-     */
-    public function canLike(Post $post): bool
-    {
-        return ! $this->isAuthorOf($post) && $this->canView($post);
-    }
-
     public function isAuthorOf(Post $post): bool
     {
         return $this->viewerCreatorId !== null && $post->creator_id === $this->viewerCreatorId;

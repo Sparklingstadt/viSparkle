@@ -24,7 +24,6 @@ class PlanController extends Controller
 
         return Inertia::render('creator/plans/index', [
             'plans' => $plans->map->toData()->values(),
-            'acceptsSupports' => $creator->canAcceptSupports(),
             'limits' => [
                 'min' => config('fanbox.plan_min_price'),
                 'max' => config('fanbox.plan_max_price'),

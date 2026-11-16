@@ -1,5 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { FilePlus2, Heart } from 'lucide-react';
+import { FilePlus2 } from 'lucide-react';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
 import { AccessBadge } from '@/components/access-badge';
 import Heading from '@/components/heading';
@@ -17,7 +17,6 @@ type Row = {
     required_price: number;
     published_at: string | null;
     updated_at: string;
-    like_count: number;
 };
 
 type StatusFilter = 'published' | 'draft' | null;
@@ -123,13 +122,6 @@ export default function PostsIndex({
                                             </span>
                                         </div>
                                     </div>
-                                    <span
-                                        className="flex w-14 items-center gap-1 text-sm font-bold text-support"
-                                        aria-label={`いいね ${post.like_count}件`}
-                                    >
-                                        <Heart className="size-3.5 fill-current" />
-                                        {post.like_count}
-                                    </span>
                                     <span className="inline-flex h-9 items-center rounded-full border px-4 text-sm font-bold">
                                         編集
                                     </span>

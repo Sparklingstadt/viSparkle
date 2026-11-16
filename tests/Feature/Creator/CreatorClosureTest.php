@@ -6,7 +6,6 @@ use App\Enums\SupportStatus;
 use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
-use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
 use App\Services\Billing\SubscriptionSync;
@@ -113,17 +112,12 @@ it('marks closed creators on the supporting page', function () {
         ->assertInertia(fn (Assert $page) => $page->where('supports.0.creator_closed', true));
 });
 
-it('hides a closed creator from the home page and shows the notice on its page', function () {
+it('shows the notice on the page of a closed creator', function () {
     $this->actingAs($this->creator->user)->post(route('creator.closure.store'));
-    Product::factory()->for($this->creator)->create();
-    $open = Product::factory()->create();
-
-    $this->get(route('home'))->assertInertia(fn (Assert $page) => $page
-        ->has('products', 1)
-        ->where('products.0.id', $open->id));
+    $open = Creator::factory()->create();
 
     $this->get(route('creators.show', $this->creator))->assertOk()->assertInertia(fn (Assert $page) => $page->where('closed', true));
-    $this->get(route('creators.show', $open->creator))->assertInertia(fn (Assert $page) => $page->where('closed', false));
+    $this->get(route('creators.show', $open))->assertInertia(fn (Assert $page) => $page->where('closed', false));
 });
 
 it('blocks new checkout for a closed creator', function () {

@@ -6,23 +6,14 @@ use Random\Engine\Mt19937;
 use Random\Randomizer;
 
 /**
- * Draws the picture of a demo product with GD: the shape of the goods (an acrylic stand, cheki, can badges, a T-shirt…)
- * carrying the creator's motif in the creator's colours, so the shop looks like theirs. The motif follows the profile:
+ * Draws the cover of a demo post with GD: the creator's motif in the creator's colours. The motif follows the profile:
  * cherry blossoms for the illustrator, a cat for the cat manga, a slime sprite for the pixel artist, and so on.
  *
- * Everything is drawn at twice the size and scaled down, which smooths the edges GD leaves jagged. The scattered dots
- * in the background come from a random engine seeded by the slug and the product name, so a product gets the same
- * picture on every run.
+ * Everything is drawn at twice the size and scaled down, which smooths the edges GD leaves jagged. The layout comes
+ * from a random engine seeded by the slug and the post title, so a post gets the same picture on every run.
  */
-class DemoProductPainter
+class DemoCoverPainter
 {
-    /**
-     * The size of the PNG, in pixels (square, like the product cards).
-     */
-    public const SIZE = 800;
-
-    private const CANVAS = self::SIZE * 2;
-
     /**
      * The motif of each demo creator, after their profile.
      */
@@ -45,56 +36,11 @@ class DemoProductPainter
     private string $motif;
 
     /**
-     * The background colour of the picture being painted.
-     */
-    private string $ground = '#ffffff';
-
-    /**
      * @param  array{string, string}  $palette  the creator's main and accent colours
      */
     public function __construct(private string $slug, private array $palette)
     {
-        // The crowd creators (DemoCrowdSeeder) are named "<name>-<genre>"; their genre picks the motif.
-        $this->motif = self::MOTIFS[$slug] ?? match (true) {
-            str_ends_with($slug, '-photo') => 'camera',
-            str_ends_with($slug, '-craft') => 'sheep',
-            default => 'sparkle',
-        };
-    }
-
-    /**
-     * A PNG of the product, picked by its name. $kinds is the number of kinds (the designs of the can badges).
-     */
-    public function paint(string $name, int $kinds): string
-    {
-        [$main, $accent] = $this->palette;
-        $flipped = str_ends_with($name, 'B');
-        $palette = $flipped ? [$accent, $main] : $this->palette;
-
-        $image = $this->layer(self::CANVAS, self::CANVAS);
-        $this->ground = $this->mix($flipped ? $main : $accent, '#ffffff', $flipped ? 0.82 : 0.7);
-        imagefilledrectangle($image, 0, 0, self::CANVAS, self::CANVAS, $this->color($image, $this->ground));
-        $this->scatter($image, new Randomizer(new Mt19937(crc32("{$this->slug}/{$name}"))));
-
-        match (true) {
-            str_starts_with($name, 'アクリルスタンド') => $this->stand($image, $palette),
-            str_starts_with($name, 'ランダムチェキ') => $this->cheki($image, $palette),
-            $name === '缶バッジ' => $this->badges($image, $palette, max(1, min(5, $kinds))),
-            $name === 'アクリルチャーム' => $this->charm($image, $palette),
-            $name === 'パスケース' => $this->passCase($image, $palette),
-            $name === 'タペストリー' => $this->tapestry($image, $palette),
-            $name === 'Tシャツ' => $this->shirt($image, $palette),
-            $name === 'ラフ画集' => $this->book($image, $palette),
-            default => $this->place($image, $this->motif($palette, 900), 800, 800),
-        };
-
-        $out = imagecreatetruecolor(self::SIZE, self::SIZE);
-        imagecopyresampled($out, $image, 0, 0, 0, 0, self::SIZE, self::SIZE, self::CANVAS, self::CANVAS);
-
-        ob_start();
-        imagepng($out);
-
-        return (string) ob_get_clean();
+        $this->motif = self::MOTIFS[$slug] ?? 'sparkle';
     }
 
     /**
@@ -115,7 +61,6 @@ class DemoProductPainter
             imagefilledrectangle($image, $x, 0, $x + 1, $height, $this->color($image, $this->mix($from, $to, $x / $width)));
         }
 
-        $this->ground = $from;
         $this->scatterOver($image, $random, $width, $height);
 
         $side = $flipped ? 0.3 : 0.7;
@@ -143,204 +88,7 @@ class DemoProductPainter
         }
     }
 
-    private function scatter(\GdImage $image, Randomizer $random): void
-    {
-        $dot = $this->mix($this->palette[0], '#ffffff', 0.45);
-
-        for ($i = 0; $i < 18; $i++) {
-            $d = $random->getInt(16, 64);
-            imagefilledellipse($image, $random->getInt(0, self::CANVAS), $random->getInt(0, self::CANVAS), $d, $d, $this->color($image, $dot, 80));
-        }
-    }
-
     // Goods
-
-    /**
-     * @param  array{string, string}  $palette
-     */
-    private function stand(\GdImage $image, array $palette): void
-    {
-        [$main] = $palette;
-        imagefilledellipse($image, 800, 1395, 840, 210, $this->color($image, $this->mix($main, '#000000', 0.25)));
-        imagefilledellipse($image, 800, 1365, 840, 180, $this->color($image, $this->mix($main, '#ffffff', 0.35)));
-        $this->roundRect($image, 412, 122, 1188, 1368, 104, '#ffffff', 30);
-        $this->roundRect($image, 430, 140, 1170, 1350, 90, $this->mix($palette[1], '#ffffff', 0.85));
-        $this->place($image, $this->motif($palette, 640), 800, 690);
-        imagefilledpolygon($image, [470, 520, 640, 180, 720, 180, 470, 680], $this->color($image, '#ffffff', 85));
-    }
-
-    /**
-     * Three cheki fanned out, the front one on top.
-     *
-     * @param  array{string, string}  $palette
-     */
-    private function cheki(\GdImage $image, array $palette): void
-    {
-        $cards = [[-11, 600, 770, 0.65], [8, 1000, 790, 0.45], [-2, 800, 840, 0.75]];
-
-        foreach ($cards as [$angle, $x, $y, $tint]) {
-            // The shadow is drawn on the same layer, so each card is turned once.
-            $card = $this->layer(654, 780);
-            $this->roundRect($card, 14, 20, 654, 780, 18, '#000000', 105);
-            $this->roundRect($card, 0, 0, 640, 760, 18, '#ffffff');
-            imagefilledrectangle($card, 44, 44, 596, 596, $this->color($card, $this->mix($palette[1], '#ffffff', $tint)));
-            $this->place($card, $this->motif($palette, 440), 320, 320);
-            imagefilledrectangle($card, 200, 664, 440, 676, $this->color($card, $this->mix($palette[0], '#ffffff', 0.5)));
-
-            $this->place($image, $this->rotate($card, $angle), $x + 7, $y + 10);
-        }
-    }
-
-    /**
-     * One badge per design, each in its own colour.
-     *
-     * @param  array{string, string}  $palette
-     */
-    private function badges(\GdImage $image, array $palette, int $count): void
-    {
-        [$main, $accent] = $palette;
-        $layouts = [
-            1 => [[[800, 800]], 760],
-            2 => [[[540, 800], [1060, 800]], 500],
-            3 => [[[480, 600], [1120, 600], [800, 1080]], 470],
-            4 => [[[560, 560], [1040, 560], [560, 1040], [1040, 1040]], 430],
-            5 => [[[420, 580], [800, 580], [1180, 580], [610, 1020], [990, 1020]], 360],
-        ];
-        $faces = [$this->mix($accent, '#ffffff', 0.3), $this->mix($main, '#ffffff', 0.8), '#ffffff', $this->mix($accent, '#ffffff', 0.65), $this->mix($main, '#ffffff', 0.6)];
-        [$centres, $d] = $layouts[$count];
-
-        foreach ($centres as $i => [$x, $y]) {
-            imagefilledellipse($image, $x + 14, $y + 20, $d, $d, $this->color($image, '#000000', 100));
-            imagefilledellipse($image, $x, $y, $d, $d, $this->color($image, $this->mix($faces[$i], '#000000', 0.15)));
-            imagefilledellipse($image, $x, $y, (int) ($d * 0.93), (int) ($d * 0.93), $this->color($image, $faces[$i]));
-            $this->place($image, $this->motif($palette, (int) ($d * 0.62)), $x, $y);
-            imagefilledellipse($image, (int) ($x - $d * 0.2), (int) ($y - $d * 0.24), (int) ($d * 0.3), (int) ($d * 0.16), $this->color($image, '#ffffff', 80));
-        }
-    }
-
-    /**
-     * @param  array{string, string}  $palette
-     */
-    private function charm(\GdImage $image, array $palette): void
-    {
-        $metal = '#94a3b8';
-
-        for ($y = 100; $y <= 330; $y += 40) {
-            imagefilledellipse($image, 800, $y, 36, 36, $this->color($image, $this->mix($metal, '#000000', 0.3)));
-            imagefilledellipse($image, 800, $y, 28, 28, $this->color($image, $metal));
-            imagefilledellipse($image, 794, $y - 6, 10, 10, $this->color($image, '#ffffff', 40));
-        }
-
-        // GD draws outlines one pixel thick whatever the thickness, so the ring is a disc with its middle filled back in.
-        imagefilledellipse($image, 800, 420, 150, 150, $this->color($image, $this->mix($metal, '#000000', 0.3)));
-        imagefilledellipse($image, 800, 420, 140, 140, $this->color($image, $metal));
-        imagefilledellipse($image, 800, 420, 104, 104, $this->color($image, $this->ground));
-
-        imagefilledellipse($image, 800, 900, 840, 840, $this->color($image, '#ffffff', 25));
-        imagefilledellipse($image, 800, 900, 790, 790, $this->color($image, $this->mix($palette[1], '#ffffff', 0.6)));
-        imagefilledellipse($image, 800, 545, 50, 50, $this->color($image, '#ffffff'));
-        $this->place($image, $this->motif($palette, 560), 800, 930);
-        imagefilledellipse($image, 640, 720, 200, 110, $this->color($image, '#ffffff', 90));
-    }
-
-    /**
-     * @param  array{string, string}  $palette
-     */
-    private function passCase(\GdImage $image, array $palette): void
-    {
-        [$main, $accent] = $palette;
-        imagesetthickness($image, 8);
-        imageline($image, 800, 300, 800, 420, $this->color($image, '#94a3b8'));
-        imagesetthickness($image, 1);
-        imagefilledellipse($image, 800, 230, 170, 170, $this->color($image, $this->mix($main, '#000000', 0.25)));
-        imagefilledellipse($image, 800, 230, 96, 96, $this->color($image, $accent));
-        $this->roundRect($image, 760, 392, 840, 440, 12, '#94a3b8');
-
-        $this->roundRect($image, 454, 434, 1174, 1454, 60, '#000000', 105);
-        $this->roundRect($image, 440, 420, 1160, 1440, 60, $main);
-        $this->roundRect($image, 500, 490, 1100, 1270, 36, $this->mix($accent, '#ffffff', 0.8));
-        $this->place($image, $this->motif($palette, 500), 800, 880);
-        $this->roundRect($image, 560, 1330, 1040, 1350, 10, '#ffffff', 80);
-    }
-
-    /**
-     * @param  array{string, string}  $palette
-     */
-    private function tapestry(\GdImage $image, array $palette): void
-    {
-        [$main, $accent] = $palette;
-        $wood = '#92400e';
-        imagesetthickness($image, 8);
-        imageline($image, 800, 150, 440, 300, $this->color($image, '#78716c'));
-        imageline($image, 800, 150, 1160, 300, $this->color($image, '#78716c'));
-        imagesetthickness($image, 1);
-        imagefilledellipse($image, 800, 140, 44, 44, $this->color($image, '#78716c'));
-
-        [$top, $bottom] = [$this->mix($accent, '#ffffff', 0.35), $this->mix($main, '#ffffff', 0.6)];
-
-        for ($y = 320; $y < 1460; $y++) {
-            imageline($image, 420, $y, 1180, $y, $this->color($image, $this->mix($top, $bottom, ($y - 320) / 1140)));
-        }
-
-        imagefilledrectangle($image, 420, 1390, 1180, 1460, $this->color($image, $main));
-        $this->roundRect($image, 520, 1240, 1080, 1270, 15, $main, 60);
-        $this->roundRect($image, 620, 1300, 980, 1325, 12, $main, 80);
-        $this->place($image, $this->motif($palette, 640), 800, 780);
-
-        $this->roundRect($image, 360, 290, 1240, 334, 22, $wood);
-        imagefilledellipse($image, 360, 312, 70, 70, $this->color($image, $this->mix($wood, '#000000', 0.2)));
-        imagefilledellipse($image, 1240, 312, 70, 70, $this->color($image, $this->mix($wood, '#000000', 0.2)));
-    }
-
-    /**
-     * @param  array{string, string}  $palette
-     */
-    private function shirt(\GdImage $image, array $palette): void
-    {
-        $outline = [620, 240, 440, 300, 210, 570, 400, 700, 480, 610, 480, 1400, 1120, 1400, 1120, 610, 1200, 700, 1390, 570, 1160, 300, 980, 240, 930, 330, 800, 370, 670, 330];
-        $shadow = array_map(fn (int $v, int $i) => $v + ($i % 2 === 0 ? 14 : 20), $outline, array_keys($outline));
-
-        imagefilledpolygon($image, $shadow, $this->color($image, '#000000', 105));
-        imagefilledpolygon($image, $outline, $this->color($image, '#ffffff'));
-        imagesetthickness($image, 12);
-        imagepolygon($image, $outline, $this->color($image, $this->mix($palette[0], '#000000', 0.1)));
-        imagesetthickness($image, 1);
-        $this->place($image, $this->motif($palette, 520), 800, 780);
-    }
-
-    /**
-     * A sketchbook with a pencil lying on it.
-     *
-     * @param  array{string, string}  $palette
-     */
-    private function book(\GdImage $image, array $palette): void
-    {
-        [$main] = $palette;
-        $this->roundRect($image, 494, 264, 1234, 1344, 20, '#000000', 105);
-        $this->roundRect($image, 480, 250, 1220, 1330, 20, '#ffffff');
-        $this->roundRect($image, 400, 220, 1160, 1310, 24, $main);
-        imagefilledrectangle($image, 400, 220, 470, 1310, $this->color($image, $this->mix($main, '#000000', 0.25)));
-        $this->roundRect($image, 530, 330, 1070, 870, 24, '#ffffff');
-        $this->place($image, $this->motif($palette, 440), 800, 600);
-
-        // Pencil strokes over the picture, as in a rough sketch.
-        imagesetthickness($image, 5);
-
-        foreach ([[570, 810, 760, 770], [610, 840, 900, 790], [880, 380, 1030, 430]] as [$x1, $y1, $x2, $y2]) {
-            imageline($image, $x1, $y1, $x2, $y2, $this->color($image, '#64748b', 60));
-        }
-
-        imagesetthickness($image, 1);
-        $this->roundRect($image, 540, 960, 1040, 1000, 20, '#ffffff', 30);
-        $this->roundRect($image, 540, 1040, 880, 1072, 16, '#ffffff', 50);
-
-        // The pencil runs from the tip (bottom left) to the eraser (top right).
-        [$ax, $ay, $bx, $by, $n] = [980, 1420, 1380, 1020, 35];
-        imagefilledpolygon($image, [$bx + $n, $by + $n, $bx - $n, $by - $n, $bx + 45 - $n, $by - 45 - $n, $bx + 45 + $n, $by - 45 + $n], $this->color($image, '#f9a8d4'));
-        imagefilledpolygon($image, [$ax + $n, $ay + $n, $bx + $n, $by + $n, $bx - $n, $by - $n, $ax - $n, $ay - $n], $this->color($image, '#fbbf24'));
-        imagefilledpolygon($image, [$ax + $n, $ay + $n, $ax - $n, $ay - $n, $ax - 80, $ay + 80], $this->color($image, '#fde68a'));
-        imagefilledpolygon($image, [$ax - 56, $ay + 44, $ax - 44, $ay + 56, $ax - 80, $ay + 80], $this->color($image, '#374151'));
-    }
 
     // Motifs, each drawn on a transparent square of $s pixels
 
