@@ -59,14 +59,14 @@ it('renders the terms and the privacy policy with their version', function (stri
         ->assertInertia(fn (Assert $page) => $page
             ->component('legal/document')
             ->where('title', $title)
-            ->where('version', '2026-11-01')
+            ->where('version', '2026-11-17')
             ->where('html', fn (string $html) => str_contains($html, $text)
                 && ! str_contains($html, '公開前に専門家の確認を受けること')
                 && ! str_contains($html, 'version:')));
 
-    expect(LegalDocuments::version($name))->toBe('2026-11-01');
+    expect(LegalDocuments::version($name))->toBe('2026-11-17');
 })->with([
-    'terms' => ['legal.terms', 'terms', '利用規約', 'プラットフォーム手数料'],
+    'terms' => ['legal.terms', 'terms', '利用規約', '支援プラン'],
     'privacy' => ['legal.privacy', 'privacy', 'プライバシーポリシー', 'Stripe'],
 ]);
 
@@ -76,10 +76,6 @@ it('puts the privacy contact address from config into the policy', function () {
     $this->get(route('legal.privacy'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('html', fn (string $html) => str_contains($html, 'privacy@example.com')));
-});
-
-it('exposes the terms version', function () {
-    expect(LegalDocuments::termsVersion())->toBe('2026-11-01');
 });
 
 it('serves the legal pages to guests and members alike', function () {
@@ -105,28 +101,12 @@ it('is ready only when the required details are filled', function (array $overri
     'whitespace seller name' => [['seller_name' => '  '], false],
 ]);
 
-it('keeps the goods sales terms in the tokushoho page copy', function () {
+it('describes only the one creator and the monthly supports', function (string $text) {
     legalConfig();
 
-    $this->get(route('legal.tokushoho'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('legal/tokushoho'));
+    foreach (['terms', 'privacy'] as $name) {
+        expect(LegalDocuments::html($name))->not->toContain($text);
+    }
 
-    // The rows are static copy rendered by the page component, so this guards the source text.
-    expect(file_get_contents(resource_path('js/pages/legal/tokushoho.tsx')))
-        ->toContain('グッズの購入には送料がかかります（各クリエイターが定める一律の金額で、商品ページと購入前の確認画面に表示します）')
-        ->toContain('引き渡し時期（グッズ）')
-        ->toContain('返品・交換（グッズ）')
-        ->toContain('お客様都合による返品・交換は受け付けません');
-});
-
-it('describes digital sales on the tokushoho page', function () {
-    legalConfig();
-
-    expect(file_get_contents(resource_path('js/pages/legal/tokushoho.tsx')))
-        ->toContain('引き渡し時期（デジタル作品）')
-        ->toContain('返品・キャンセル（デジタル作品）')
-        ->toContain('動作環境（デジタル作品）')
-        ->toContain('ダウンロードできる期間（デジタル作品）')
-        ->toContain('作品が公開されているあいだ')
-        ->toContain('デジタル作品に送料はかかりません')
-        ->toContain('通信料は、お客様のご負担');
-});
+    expect(file_get_contents(resource_path('js/pages/legal/tokushoho.tsx')))->not->toContain($text);
+})->with(['Connect', '送金', 'ショップ', 'グッズ', 'デジタル作品', 'プラットフォーム手数料', 'クリエイター登録', '通報']);
