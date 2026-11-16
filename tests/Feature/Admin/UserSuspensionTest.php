@@ -20,18 +20,6 @@ beforeEach(function () {
     $this->admin = User::factory()->admin()->create();
 });
 
-/**
- * A support checked out on the fake gateway, with its first payment recorded.
- */
-function suspensionPayment(Plan $plan, User $fan): Payment
-{
-    $subscription = fakeCheckout(test()->gateway, $plan, $fan);
-    $payment = app(PaymentRecorder::class)->record((string) test()->gateway->latestInvoiceId($subscription->id));
-    assert($payment instanceof Payment);
-
-    return $payment;
-}
-
 it('lists and searches users', function () {
     $alice = User::factory()->create(['name' => 'Alice', 'email' => 'alice@example.com']);
     $bob = User::factory()->suspended('スパム')->create(['name' => 'Bob', 'email' => 'bob@example.com']);
@@ -91,7 +79,7 @@ it('does not let admins suspend themselves', function () {
 it('suspends a fan: blocks login and cancels their supports without refunds', function () {
     $fan = User::factory()->create();
     $plan = Plan::factory()->for(Creator::factory()->payable())->price(800)->create();
-    $payment = suspensionPayment($plan, $fan);
+    $payment = paidSupportPayment($plan, $fan);
 
     $this->actingAs($this->admin)->patch(route('admin.users.update', $fan), ['suspended' => true, 'reason' => '迷惑行為'])
         ->assertRedirect()
@@ -136,10 +124,10 @@ it('logs out a live session of a suspended user', function () {
 it('suspends a creator: cancels and refunds every supporter and hides their pages', function () {
     $creator = Creator::factory()->payable()->create();
     $plan = Plan::factory()->for($creator)->price(800)->create();
-    $first = suspensionPayment($plan, User::factory()->create());
-    $second = suspensionPayment($plan, User::factory()->create());
+    $first = paidSupportPayment($plan, User::factory()->create());
+    $second = paidSupportPayment($plan, User::factory()->create());
     // Already refunded: its support is cancelled but nothing more is refunded.
-    $refunded = suspensionPayment($plan, User::factory()->create());
+    $refunded = paidSupportPayment($plan, User::factory()->create());
     $refunded->forceFill(['refunded_amount' => 800, 'refunded_at' => now()])->save();
     // A support whose payment is not recorded yet.
     app(SubscriptionSync::class)->apply(fakeCheckout($this->gateway, $plan, User::factory()->create()));
@@ -171,8 +159,8 @@ it('suspends a creator: cancels and refunds every supporter and hides their page
 it('counts failures and carries on', function () {
     $creator = Creator::factory()->payable()->create();
     $plan = Plan::factory()->for($creator)->price(800)->create();
-    $broken = suspensionPayment($plan, User::factory()->create());
-    $ok = suspensionPayment($plan, User::factory()->create());
+    $broken = paidSupportPayment($plan, User::factory()->create());
+    $ok = paidSupportPayment($plan, User::factory()->create());
     $this->gateway->refundInvoice($broken->stripe_invoice_id); // the fake now refuses another refund
 
     $this->actingAs($this->admin)->patch(route('admin.users.update', $creator->user), ['suspended' => true, 'reason' => '詐欺'])
@@ -189,10 +177,10 @@ it('refunds only the latest payment of each support', function () {
     $recorder = app(PaymentRecorder::class);
 
     // Two months paid: only the second month is refunded.
-    $renewed = suspensionPayment($plan, User::factory()->create());
+    $renewed = paidSupportPayment($plan, User::factory()->create());
     $renewal = $recorder->record($this->gateway->advancePeriod((string) $renewed->support->stripe_subscription_id)->id);
     // Latest month already refunded: the older month is not refunded instead.
-    $refunded = suspensionPayment($plan, User::factory()->create());
+    $refunded = paidSupportPayment($plan, User::factory()->create());
     $refundedRenewal = $recorder->record($this->gateway->advancePeriod((string) $refunded->support->stripe_subscription_id)->id);
     $refundedRenewal->forceFill(['refunded_amount' => 800, 'refunded_at' => now()])->save();
 
@@ -208,7 +196,7 @@ it('refunds only the latest payment of each support', function () {
 it('re-runs the billing work for an already-suspended user without changing suspended_at', function () {
     $creator = Creator::factory()->payable()->create();
     $plan = Plan::factory()->for($creator)->price(800)->create();
-    $payment = suspensionPayment($plan, User::factory()->create());
+    $payment = paidSupportPayment($plan, User::factory()->create());
     // An earlier suspension whose billing work did not finish.
     $suspendedAt = now()->subDay()->startOfSecond();
     $creator->user->forceFill(['suspended_at' => $suspendedAt, 'suspended_reason' => '詐欺'])->save();

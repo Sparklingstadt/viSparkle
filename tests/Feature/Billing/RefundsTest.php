@@ -8,7 +8,6 @@ use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
-use App\Services\Billing\PaymentRecorder;
 use App\Services\Billing\Refunds;
 use Illuminate\Validation\ValidationException;
 
@@ -20,21 +19,9 @@ beforeEach(function () {
     $this->fan = User::factory()->create();
 });
 
-/**
- * Check out and record the first payment on the fake gateway.
- */
-function paidPayment(): Payment
-{
-    $subscription = fakeCheckout(test()->gateway, test()->plan, test()->fan);
-    $payment = app(PaymentRecorder::class)->record((string) test()->gateway->latestInvoiceId($subscription->id));
-    assert($payment instanceof Payment);
-
-    return $payment;
-}
-
 it('refunds a payment in full and records it', function () {
     $this->travelTo(now()->startOfSecond());
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
 
     app(Refunds::class)->refund($payment, $this->admin, false);
 
@@ -54,7 +41,7 @@ it('refunds a payment in full and records it', function () {
 });
 
 it('refuses to refund a payment twice', function () {
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     app(Refunds::class)->refund($payment, $this->admin, false);
 
     try {
@@ -69,7 +56,7 @@ it('refuses to refund a payment twice', function () {
 });
 
 it('also cancels the support when asked', function () {
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     $support = Support::sole();
 
     app(Refunds::class)->refund($payment, $this->admin, true);
@@ -81,7 +68,7 @@ it('also cancels the support when asked', function () {
 });
 
 it('does not cancel a support that has already ended', function () {
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     $support = Support::sole();
     $support->forceFill(['status' => SupportStatus::Ended, 'ended_at' => now()])->save();
 
@@ -92,7 +79,7 @@ it('does not cancel a support that has already ended', function () {
 });
 
 it('records nothing when the gateway refund fails', function () {
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     $this->gateway->refundInvoice($payment->stripe_invoice_id); // refunded elsewhere; the fake now refuses a second refund
 
     expect(fn () => app(Refunds::class)->refund($payment, $this->admin, false))->toThrow(BillingException::class);
@@ -103,7 +90,7 @@ it('records nothing when the gateway refund fails', function () {
 
 it('syncs a refund made on the stripe dashboard', function () {
     $this->travelTo(now()->startOfSecond());
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     $chargeId = $this->gateway->chargeIdForInvoice($payment->stripe_invoice_id);
     $this->gateway->refundInvoice($payment->stripe_invoice_id);
 
@@ -123,7 +110,7 @@ it('syncs a refund made on the stripe dashboard', function () {
 
 it('records a dispute', function () {
     $this->travelTo(now()->startOfSecond());
-    $payment = paidPayment();
+    $payment = paidSupportPayment(test()->plan, test()->fan);
     $chargeId = $this->gateway->chargeIdForInvoice($payment->stripe_invoice_id);
     $this->gateway->markDisputed($chargeId);
 
