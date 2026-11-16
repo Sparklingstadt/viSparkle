@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Creator;
 
 use App\Enums\PostFileKind;
+use App\Models\Plan;
 use App\Models\Post;
 use App\Services\Tiptap\TiptapDocumentValidator;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -14,7 +15,7 @@ use Illuminate\Validation\Validator;
 class UpdatePostRequest extends FormRequest
 {
     /**
-     * Another creator's post is reported as missing (404), never as forbidden.
+     * Only the creator manages posts; to anyone else a post is reported as missing (404), never as forbidden.
      */
     public function authorize(): bool
     {
@@ -68,13 +69,13 @@ class UpdatePostRequest extends FormRequest
     }
 
     /**
-     * 0 (free), the creator's plan prices, and the post's current value even if its plan is gone.
+     * 0 (free), the plan prices, and the post's current value even if its plan is gone.
      *
      * @return list<int>
      */
     public static function priceOptions(Post $post): array
     {
-        $prices = [0, $post->required_price, ...$post->creator->plans()->pluck('price')->all()];
+        $prices = [0, $post->required_price, ...Plan::query()->pluck('price')->all()];
         $prices = array_values(array_unique(array_map('intval', $prices)));
         sort($prices);
 

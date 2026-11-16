@@ -29,10 +29,10 @@ class ProfileController extends Controller
             'billingSupports' => Support::active()
                 ->billing()
                 ->where('user_id', $request->user()->id)
-                ->with('creator')
+                ->with('plan')
                 ->orderBy('id')
                 ->get()
-                ->map(fn (Support $support) => ['creator' => $support->creator->display_name, 'price' => $support->price])
+                ->map(fn (Support $support) => ['plan' => $support->plan?->name, 'price' => $support->price])
                 ->values(),
         ]);
     }

@@ -2,7 +2,6 @@
 
 use App\Enums\SupportStatus;
 use App\Jobs\ProcessStripeEvent;
-use App\Models\Creator;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\StripeEvent;
@@ -54,7 +53,7 @@ it('fails with a server error when the secret is not configured', function () {
 
 it('syncs a subscription on customer.subscription.updated', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $fan = User::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, $fan);
     app(SubscriptionSync::class)->sync($subscription->id);
@@ -69,7 +68,7 @@ it('syncs a subscription on customer.subscription.updated', function () {
 
 it('creates the support from checkout.session.completed', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $fan = User::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, $fan);
     expect(Support::count())->toBe(0);
@@ -84,7 +83,7 @@ it('creates the support from checkout.session.completed', function () {
 
 it('records a payment on invoice.paid', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(800)->create();
+    $plan = Plan::factory()->price(800)->create();
     $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
     $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
 
@@ -98,7 +97,7 @@ it('records a payment on invoice.paid', function () {
 
 it('syncs the subscription on invoice.payment_failed', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
     $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
     app(SubscriptionSync::class)->sync($subscription->id);
@@ -111,7 +110,7 @@ it('syncs the subscription on invoice.payment_failed', function () {
 
 it('ignores a replayed event id', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
     $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
 
@@ -137,7 +136,7 @@ it('dispatches nothing for a replayed event that was already processed', functio
 
 it('processes a redelivered event whose earlier delivery never ran', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
     // A previous delivery stored the id but could not enqueue the job.
     StripeEvent::query()->create(['id' => 'evt_retry', 'type' => 'checkout.session.completed']);

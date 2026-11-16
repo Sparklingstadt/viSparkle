@@ -10,9 +10,7 @@ class EnsureUserIsCreator
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->creator === null) {
-            return to_route('creator.register');
-        }
+        abort_unless($request->user()?->isCreator(), 403);
 
         return $next($request);
     }

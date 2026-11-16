@@ -13,9 +13,9 @@ import { placeholderCover } from '@/lib/placeholder';
 import { edit } from '@/routes/creator/posts';
 import type {
     CreatorProfile,
-    PlanData,
     PostDetail,
     PostSummary,
+    SupportPanel,
 } from '@/types';
 
 export default function PostPage({
@@ -23,21 +23,15 @@ export default function PostPage({
     creator,
     morePosts,
     plans,
-    isOwner,
+    isCreator,
     viewerSupportPrice,
     viewerPlanId,
     viewerSupportId,
     viewerSupportCancelling,
-}: {
+}: SupportPanel & {
     post: PostDetail;
-    creator: CreatorProfile & { id: number };
+    creator: CreatorProfile;
     morePosts: PostSummary[];
-    plans: PlanData[];
-    isOwner: boolean;
-    viewerSupportPrice: number | null;
-    viewerPlanId: number | null;
-    viewerSupportId: number | null;
-    viewerSupportCancelling: boolean;
 }) {
     const lastRefresh = useRef(0);
     // Signed image URLs expire after 5 minutes; when one fails, fetch fresh ones (at most once a minute).
@@ -84,7 +78,7 @@ export default function PostPage({
                             <span>投稿日 {formatDate(post.published_at)}</span>
                         )}
                         <span>最終更新日 {formatDate(post.updated_at)}</span>
-                        {isOwner && (
+                        {isCreator && (
                             <Link
                                 href={edit(post.id)}
                                 className="underline underline-offset-4"
@@ -123,7 +117,7 @@ export default function PostPage({
                         <LockedPost
                             requiredPrice={post.required_price}
                             supportPrice={viewerSupportPrice}
-                            creatorName={creator.display_name}
+                            creatorName={creator.name}
                         >
                             {unlocking.length > 0 && (
                                 <div id="plans" className="grid gap-3">
@@ -138,7 +132,6 @@ export default function PostPage({
                                             featuredLabel="この投稿がいちばん安く読めます"
                                             action={
                                                 <SupportButton
-                                                    creatorSlug={creator.slug}
                                                     plan={plan}
                                                     viewerPlanId={viewerPlanId}
                                                     viewerSupportId={
@@ -196,9 +189,7 @@ export default function PostPage({
 
                 {morePosts.length > 0 && (
                     <section className="space-y-4">
-                        <h2 className="text-xl font-bold">
-                            {creator.display_name}さんのほかの投稿
-                        </h2>
+                        <h2 className="text-xl font-bold">ほかの投稿</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {morePosts.map((other) => (
                                 <PostCard key={other.id} post={other} />

@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\PostFileKind;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\Support;
@@ -11,11 +10,11 @@ use Illuminate\Http\UploadedFile;
 
 beforeEach(function () {
     fakePrivateDisk();
-    $this->creator = Creator::factory()->create();
-    $this->plan = Plan::factory()->for($this->creator)->price(500)->create();
-    $this->post = Post::factory()->for($this->creator)->published()->requiring(500)->create();
+    $this->creator = User::factory()->creator()->create();
+    $this->plan = Plan::factory()->price(500)->create();
+    $this->post = Post::factory()->published()->requiring(500)->create();
     $this->file = app(PostFileStorer::class)->store($this->post, UploadedFile::fake()->createWithContent('a.zip', 'zip'), PostFileKind::Attachment);
-    $this->url = route('posts.files.show', [$this->creator, $this->post, $this->file]);
+    $this->url = route('posts.files.show', [$this->post, $this->file]);
 });
 
 it('redirects entitled viewers to a freshly signed download url', function () {
@@ -33,15 +32,15 @@ it('hides files from viewers who cannot see the post', function () {
 });
 
 it('404s a file that belongs to another post', function () {
-    $other = Post::factory()->for($this->creator)->published()->create();
+    $other = Post::factory()->published()->create();
 
-    $this->actingAs($this->creator->user)
-        ->get(route('posts.files.show', [$this->creator, $other, $this->file]))
+    $this->actingAs($this->creator)
+        ->get(route('posts.files.show', [$other, $this->file]))
         ->assertNotFound();
 });
 
 it('links attachments through the stable download route', function () {
-    $this->actingAs($this->creator->user)
-        ->get(route('posts.show', [$this->creator, $this->post]))
+    $this->actingAs($this->creator)
+        ->get(route('posts.show', $this->post))
         ->assertInertia(fn ($page) => $page->where('post.attachments.0.url', $this->url));
 });

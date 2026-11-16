@@ -53,7 +53,7 @@ class StripeGateway implements PaymentGateway
         }
 
         $product = $this->call(fn () => $this->client->products->create([
-            'name' => "{$plan->creator->display_name} {$plan->name}",
+            'name' => config('visparkle.creator.name').' '.$plan->name,
             'metadata' => ['plan_id' => (string) $plan->id],
         ], ['idempotency_key' => $this->idempotencyKey("plan-{$plan->id}-product")]));
 

@@ -5,16 +5,15 @@ import SupportController from '@/actions/App/Http/Controllers/Fan/SupportControl
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { formatYen } from '@/lib/format';
-import { show } from '@/routes/creators';
+import { home } from '@/routes';
 import { terms, tokushoho } from '@/routes/legal';
-import type { CreatorSummary } from '@/types';
 
 export default function CheckoutConfirm({
-    creator,
+    creatorName,
     plan,
     renewalDay,
 }: {
-    creator: CreatorSummary;
+    creatorName: string;
     plan: {
         id: number;
         name: string;
@@ -27,10 +26,7 @@ export default function CheckoutConfirm({
 
     const proceed = () =>
         router.post(
-            SupportController.store.url({
-                creator: creator.slug,
-                plan: plan.id,
-            }),
+            SupportController.store.url(plan.id),
             {},
             {
                 onStart: () => setProcessing(true),
@@ -41,7 +37,7 @@ export default function CheckoutConfirm({
         );
 
     const rows: [string, string][] = [
-        ['クリエイター', creator.display_name],
+        ['クリエイター', creatorName],
         ['プラン', plan.name],
         ['金額（税込）', `${formatYen(plan.price)} / 月`],
         [
@@ -107,7 +103,7 @@ export default function CheckoutConfirm({
                         variant="ghost"
                         size="sm"
                     >
-                        <Link href={show(creator.slug)}>戻る</Link>
+                        <Link href={home()}>戻る</Link>
                     </Button>
                 </div>
             </div>

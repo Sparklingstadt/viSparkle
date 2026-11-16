@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -27,7 +26,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property string|null $stripe_customer_id
- * @property bool $is_admin
+ * @property bool $is_creator
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -49,19 +48,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
-            'is_admin' => 'boolean',
+            'is_creator' => 'boolean',
         ];
     }
 
-    public function isAdmin(): bool
+    /**
+     * The site has one creator: the account that runs it, posts and receives the supports.
+     */
+    public function isCreator(): bool
     {
-        return (bool) $this->is_admin;
-    }
-
-    /** @return HasOne<Creator, $this> */
-    public function creator(): HasOne
-    {
-        return $this->hasOne(Creator::class);
+        return (bool) $this->is_creator;
     }
 
     /** @return HasMany<Support, $this> */

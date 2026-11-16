@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('supporting', SupportingController::class)->name('supporting.index');
 
-    Route::get('/@{creator}/plans/{plan}/confirm', CheckoutConfirmController::class)->name('supports.confirm');
-    Route::post('/@{creator}/plans/{plan}/support', [SupportController::class, 'store'])
+    Route::get('plans/{plan}/confirm', CheckoutConfirmController::class)->whereNumber('plan')->name('supports.confirm');
+    Route::post('plans/{plan}/support', [SupportController::class, 'store'])
+        ->whereNumber('plan')
         ->middleware('throttle:10,1')
         ->name('supports.store');
     // Its own bucket: the success page may be reloaded while waiting, without eating into the support actions' limit.

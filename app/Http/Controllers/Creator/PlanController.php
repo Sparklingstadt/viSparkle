@@ -17,29 +17,27 @@ use Inertia\Response;
 
 class PlanController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $creator = $request->user()->creator;
-        $plans = $creator->plans()->withCount('activeSupports')->get();
+        $plans = Plan::query()->withCount('activeSupports')->orderBy('sort')->orderBy('price')->get();
 
         return Inertia::render('creator/plans/index', [
             'plans' => $plans->map->toData()->values(),
             'limits' => [
                 'min' => config('fanbox.plan_min_price'),
                 'max' => config('fanbox.plan_max_price'),
-                'count' => config('fanbox.plans_per_creator'),
+                'count' => config('fanbox.plans_max'),
             ],
         ]);
     }
 
     public function store(StorePlanRequest $request): RedirectResponse
     {
-        $creator = $request->user()->creator;
-        $plan = $creator->plans()->make($request->safe()->only(['name', 'description', 'price']));
-        $plan->sort = $creator->plans()->count();
+        $plan = new Plan($request->safe()->only(['name', 'description', 'price']));
+        $plan->sort = Plan::query()->count();
 
         if ($request->hasFile('cover')) {
-            $plan->cover_path = $this->storeCover($creator->id, $request->file('cover'));
+            $plan->cover_path = $this->storeCover($request->file('cover'));
         }
 
         $plan->save();
@@ -57,7 +55,7 @@ class PlanController extends Controller
 
         if ($request->hasFile('cover')) {
             $oldCover = $plan->cover_path;
-            $plan->cover_path = $this->storeCover($plan->creator_id, $request->file('cover'));
+            $plan->cover_path = $this->storeCover($request->file('cover'));
         }
 
         $plan->fill([
@@ -95,8 +93,8 @@ class PlanController extends Controller
         return to_route('creator.plans.index');
     }
 
-    private function storeCover(int $creatorId, UploadedFile $file): string
+    private function storeCover(UploadedFile $file): string
     {
-        return app(ImageSanitizer::class)->storePublic($file, "creators/{$creatorId}/plans", 'cover');
+        return app(ImageSanitizer::class)->storePublic($file, 'plans', 'cover');
     }
 }

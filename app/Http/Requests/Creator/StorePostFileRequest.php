@@ -12,7 +12,7 @@ use Illuminate\Validation\Validator;
 class StorePostFileRequest extends FormRequest
 {
     /**
-     * Another creator's post is reported as missing (404), never as forbidden.
+     * Only the creator manages posts; to anyone else a post is reported as missing (404), never as forbidden.
      */
     public function authorize(): bool
     {

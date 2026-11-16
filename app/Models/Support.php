@@ -15,7 +15,6 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $user_id
- * @property int $creator_id
  * @property int|null $plan_id
  * @property int $price
  * @property SupportStatus $status
@@ -25,11 +24,11 @@ use Illuminate\Support\Carbon;
  * @property string|null $stripe_status
  * @property Carbon|null $current_period_end
  * @property bool $cancel_at_period_end
- * @property string|null $current_key
+ * @property int|null $current_key
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'creator_id', 'plan_id', 'price', 'status', 'started_at', 'ended_at'])]
+#[Fillable(['user_id', 'plan_id', 'price', 'status', 'started_at', 'ended_at'])]
 class Support extends Model
 {
     /** @use HasFactory<SupportFactory> */
@@ -74,12 +73,6 @@ class Support extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    /** @return BelongsTo<Creator, $this> */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(Creator::class);
     }
 
     /** @return BelongsTo<Plan, $this> */

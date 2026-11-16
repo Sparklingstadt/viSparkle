@@ -46,7 +46,6 @@ class PaymentRecorder
         return Payment::firstOrCreate(['stripe_invoice_id' => $invoice->id], [
             'support_id' => $support->id,
             'user_id' => $support->user_id,
-            'creator_id' => $support->creator_id,
             'amount' => $invoice->amountPaid,
             'paid_at' => $invoice->paidAt ?? now(),
         ]);

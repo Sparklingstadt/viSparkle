@@ -2,7 +2,6 @@
 
 use App\Billing\Data\InvoiceData;
 use App\Billing\PaymentGateway;
-use App\Models\Creator;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Support;
@@ -12,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 it('records a paid invoice once', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(800)->create();
+    $plan = Plan::factory()->price(800)->create();
     $fan = User::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, $fan);
     $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
@@ -27,7 +26,6 @@ it('records a paid invoice once', function () {
         ->and($payment->stripe_invoice_id)->toBe($invoiceId)
         ->and($payment->support_id)->toBe($support->id)
         ->and($payment->user_id)->toBe($fan->id)
-        ->and($payment->creator_id)->toBe($plan->creator_id)
         ->and($payment->amount)->toBe(800)
         ->and($payment->paid_at)->not->toBeNull()
         ->and($support->stripe_subscription_id)->toBe($subscription->id);
@@ -35,7 +33,7 @@ it('records a paid invoice once', function () {
 
 it('skips zero-amount invoices', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(0)->create();
+    $plan = Plan::factory()->price(0)->create();
     $subscription = fakeCheckout($gateway, $plan, User::factory()->create());
 
     expect(app(PaymentRecorder::class)->record((string) $gateway->latestInvoiceId($subscription->id)))->toBeNull()
@@ -45,11 +43,10 @@ it('skips zero-amount invoices', function () {
 it('logs a paid invoice it cannot attribute to a support', function () {
     Log::spy();
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $fan = User::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, $fan, [
         'user_id' => (string) User::factory()->create()->id,
-        'creator_id' => (string) $plan->creator_id,
         'plan_id' => (string) $plan->id,
     ]);
     $invoiceId = (string) $gateway->latestInvoiceId($subscription->id);
@@ -62,7 +59,7 @@ it('logs a paid invoice it cannot attribute to a support', function () {
 it('marks the unattributed payment of an orphan-cancelled subscription', function () {
     Log::spy();
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
     $fan = User::factory()->create();
     $subscription = fakeCheckout($gateway, $plan, $fan);
     $fan->delete();

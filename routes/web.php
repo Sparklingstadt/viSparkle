@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Public\CreatorPageController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LegalController;
 use App\Http\Controllers\Public\PostFileDownloadController;
@@ -24,9 +23,8 @@ require __DIR__.'/creator.php';
 require __DIR__.'/fan.php';
 require __DIR__.'/billing.php';
 
-Route::get('/@{creator}', CreatorPageController::class)->name('creators.show');
-Route::get('/@{creator}/posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
-Route::get('/@{creator}/posts/{post}/files/{file}', PostFileDownloadController::class)
+Route::get('posts/{post}', PostPageController::class)->whereNumber('post')->name('posts.show');
+Route::get('posts/{post}/files/{file}', PostFileDownloadController::class)
     ->whereNumber(['post', 'file'])
     ->middleware('throttle:120,1')
     ->name('posts.files.show');

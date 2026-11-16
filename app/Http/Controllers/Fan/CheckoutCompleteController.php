@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Fan;
 
 use App\Billing\BillingException;
 use App\Http\Controllers\Controller;
-use App\Models\Creator;
 use App\Services\Billing\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,8 +27,7 @@ class CheckoutCompleteController extends Controller
             return $this->unreachable(to_route('supporting.index'));
         }
 
-        $creator = Creator::query()->findOrFail((int) ($session->metadata['creator_id'] ?? 0));
-        $target = to_route('creators.show', $creator);
+        $target = to_route('home');
 
         try {
             $support = $checkout->finish($session);
@@ -44,7 +42,7 @@ class CheckoutCompleteController extends Controller
         } elseif ($support === null) {
             Inertia::flash('toast', ['type' => 'error', 'message' => 'お支払いが完了していません。']);
         } else {
-            Inertia::flash('toast', ['type' => 'success', 'message' => "{$creator->display_name} さんの支援を開始しました。"]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => '支援を開始しました。']);
         }
 
         return $target;

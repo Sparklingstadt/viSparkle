@@ -17,7 +17,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { formatYen } from '@/lib/format';
 
-export type BillingSupport = { creator: string; price: number };
+export type BillingSupport = { plan: string | null; price: number };
 
 export default function DeleteUser({
     billingSupports,
@@ -53,7 +53,7 @@ export default function DeleteUser({
                     <DialogContent>
                         <DialogTitle>本当に退会しますか？</DialogTitle>
                         <DialogDescription>
-                            退会すると、アカウントと関連するデータ（クリエイターページ、投稿、支援情報を含む）はすべて完全に削除されます。確認のため、パスワードを入力してください。
+                            退会すると、アカウントと関連するデータ（支援情報を含む）はすべて完全に削除されます。確認のため、パスワードを入力してください。
                         </DialogDescription>
 
                         {billingSupports.length > 0 && (
@@ -61,7 +61,7 @@ export default function DeleteUser({
                                 <ul className="list-inside list-disc">
                                     {billingSupports.map((support, index) => (
                                         <li key={index}>
-                                            {support.creator}（月額
+                                            {support.plan ?? '支援'}（月額
                                             {formatYen(support.price)}）
                                         </li>
                                     ))}

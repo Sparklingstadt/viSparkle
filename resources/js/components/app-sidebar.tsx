@@ -1,12 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import {
-    CreditCard,
-    FileText,
-    Heart,
-    Palette,
-    Ticket,
-    Users,
-} from 'lucide-react';
+import { CreditCard, FileText, Heart, Ticket, Users } from 'lucide-react';
 import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -21,12 +14,10 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { home } from '@/routes';
-import { register as creatorRegister } from '@/routes/creator';
 import { index as creatorPlans } from '@/routes/creator/plans';
 import { index as creatorPosts } from '@/routes/creator/posts';
 import { index as creatorSupporters } from '@/routes/creator/supporters';
 import { index as supporting } from '@/routes/supporting';
-import { edit as creatorProfile } from '@/routes/creator/profile';
 import type { NavItem } from '@/types';
 
 const fanNavItems: NavItem[] = [
@@ -38,11 +29,6 @@ const fanNavItems: NavItem[] = [
 ];
 
 const creatorNavItems: NavItem[] = [
-    {
-        title: 'クリエイター管理',
-        href: creatorProfile(),
-        icon: Palette,
-    },
     {
         title: 'プラン管理',
         href: creatorPlans(),
@@ -60,13 +46,6 @@ const creatorNavItems: NavItem[] = [
     },
 ];
 
-// The only way into creator registration, so it stands in for the creator items.
-const creatorRegisterNavItem: NavItem = {
-    title: 'クリエイター登録',
-    href: creatorRegister(),
-    icon: Palette,
-};
-
 // Opens Stripe's customer portal, so only fans who have paid before get it.
 const billingNavItem: NavItem = {
     title: 'お支払い方法・請求履歴',
@@ -79,7 +58,7 @@ export function AppSidebar() {
     const items = [
         ...fanNavItems,
         ...(auth.user?.has_billing_account ? [billingNavItem] : []),
-        ...(auth.creator ? creatorNavItems : [creatorRegisterNavItem]),
+        ...(auth.isCreator ? creatorNavItems : []),
     ];
 
     return (

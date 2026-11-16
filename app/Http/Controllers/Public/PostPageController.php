@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\Creator;
 use App\Models\Post;
+use App\Presenters\CreatorPresenter;
 use App\Presenters\PostPresenter;
 use App\Services\Entitlement;
 use Illuminate\Http\Request;
@@ -13,42 +13,28 @@ use Inertia\Response;
 
 class PostPageController extends Controller
 {
-    public function __invoke(Request $request, Creator $creator, Post $post, PostPresenter $presenter): Response
+    public function __invoke(Request $request, Post $post, CreatorPresenter $creator, PostPresenter $presenter): Response
     {
         $viewer = $request->user();
         $entitlement = Entitlement::for($viewer);
 
-        abort_unless($post->creator_id === $creator->id, 404);
-        abort_unless($post->isPublished() || $entitlement->isAuthorOf($post), 404);
+        // A draft does not exist for anyone but the creator.
+        abort_unless($post->isPublished() || $entitlement->isCreator(), 404);
 
-        $post->setRelation('creator', $creator)->load('cover');
-        $isOwner = $entitlement->isAuthorOf($post);
-        $support = CreatorPageController::activeSupport($viewer, $creator);
+        $post->load('cover');
 
-        $morePosts = $creator->posts()
-            ->published()
+        $morePosts = Post::published()
             ->whereKeyNot($post->id)
             ->with('cover')
-            ->latest('published_at')
             ->limit(4)
-            ->get();
-        $morePosts = $morePosts->map(fn (Post $other) => $presenter->summary($other->setRelation('creator', $creator), $entitlement));
+            ->get()
+            ->map(fn (Post $other) => $presenter->summary($other, $entitlement));
 
         return Inertia::render('public/post', [
             'post' => $presenter->detail($post, $entitlement),
-            'creator' => [
-                'id' => $creator->id,
-                ...$creator->toSummary(),
-                'bio' => $creator->bio,
-                'header_url' => $creator->headerUrl(),
-            ],
+            'creator' => $creator->profile(),
             'morePosts' => $morePosts,
-            'plans' => CreatorPageController::visiblePlans($creator, $isOwner, $support),
-            'isOwner' => $isOwner,
-            'viewerSupportPrice' => $entitlement->supportPriceFor($creator->id),
-            'viewerPlanId' => $support?->plan_id,
-            'viewerSupportId' => $support?->id,
-            'viewerSupportCancelling' => $support->cancel_at_period_end ?? false,
+            ...$creator->supportPanel($viewer, $entitlement),
         ]);
     }
 }

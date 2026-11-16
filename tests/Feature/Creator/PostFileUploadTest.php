@@ -1,18 +1,18 @@
 <?php
 
 use App\Enums\PostFileKind;
-use App\Models\Creator;
 use App\Models\Post;
 use App\Models\PostFile;
+use App\Models\User;
 use App\Services\PostFileStorer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     fakePrivateDisk();
-    $this->creator = Creator::factory()->create();
-    $this->post = Post::factory()->for($this->creator)->create();
-    $this->actingAs($this->creator->user);
+    $this->creator = User::factory()->creator()->create();
+    $this->post = Post::factory()->create();
+    $this->actingAs($this->creator);
 });
 
 it('uploads an image and returns signed urls', function () {
@@ -77,7 +77,7 @@ it('deletes a file of its own post', function () {
 });
 
 it('returns 404 when deleting a file of another post', function () {
-    $other = PostFile::factory()->for(Post::factory()->for($this->creator))->create();
+    $other = PostFile::factory()->for(Post::factory())->create();
 
     $this->deleteJson(route('creator.posts.files.destroy', [$this->post, $other]))->assertNotFound();
     expect(PostFile::find($other->id))->not->toBeNull();

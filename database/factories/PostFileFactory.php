@@ -20,8 +20,8 @@ class PostFileFactory extends Factory
         return [
             'post_id' => Post::factory(),
             'kind' => PostFileKind::Image,
-            'path' => "creators/0/posts/0/{$ulid}.jpg",
-            'thumb_path' => "creators/0/posts/0/{$ulid}_thumb.jpg",
+            'path' => "posts/0/{$ulid}.jpg",
+            'thumb_path' => "posts/0/{$ulid}_thumb.jpg",
             'original_name' => 'image.jpg',
             'mime' => 'image/jpeg',
             'size' => 1024,
@@ -38,7 +38,7 @@ class PostFileFactory extends Factory
 
             return [
                 'kind' => PostFileKind::Attachment,
-                'path' => "creators/0/posts/0/{$ulid}.zip",
+                'path' => "posts/0/{$ulid}.zip",
                 'thumb_path' => null,
                 'original_name' => 'files.zip',
                 'mime' => 'application/zip',

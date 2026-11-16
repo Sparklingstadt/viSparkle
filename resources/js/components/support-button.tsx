@@ -8,14 +8,12 @@ import { login } from '@/routes';
 import type { PlanData } from '@/types';
 
 export function SupportButton({
-    creatorSlug,
     plan,
     viewerPlanId,
     viewerSupportId,
     viewerSupportPrice,
     viewerSupportCancelling,
 }: {
-    creatorSlug: string;
     plan: PlanData;
     viewerPlanId: number | null;
     viewerSupportId: number | null;
@@ -113,12 +111,7 @@ export function SupportButton({
     if (viewerPlanId === null) {
         return (
             <Button asChild className="w-full">
-                <Link
-                    href={CheckoutConfirmController.url({
-                        creator: creatorSlug,
-                        plan: plan.id,
-                    })}
-                >
+                <Link href={CheckoutConfirmController.url(plan.id)}>
                     このプランで支援する
                 </Link>
             </Button>

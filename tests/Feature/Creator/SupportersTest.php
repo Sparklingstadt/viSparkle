@@ -1,20 +1,18 @@
 <?php
 
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 
 it('lists active supporters and counts per plan', function () {
-    $creator = Creator::factory()->create();
-    $plan = Plan::factory()->for($creator)->price(500)->create(['name' => 'ベーシック']);
-    Plan::factory()->for($creator)->price(1000)->create();
+    $creator = User::factory()->creator()->create();
+    $plan = Plan::factory()->price(500)->create(['name' => 'ベーシック']);
+    Plan::factory()->price(1000)->create();
     $alice = User::factory()->create(['name' => 'Alice']);
     Support::factory()->for($alice)->forPlan($plan)->active()->create();
     Support::factory()->forPlan($plan)->ended()->create();
-    Support::factory()->forPlan(Plan::factory()->create())->active()->create();
 
-    $this->actingAs($creator->user)->get(route('creator.supporters.index'))
+    $this->actingAs($creator)->get(route('creator.supporters.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('creator/supporters')

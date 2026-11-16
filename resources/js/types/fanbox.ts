@@ -1,12 +1,19 @@
-export type CreatorSummary = {
-    slug: string;
-    display_name: string;
-    avatar_url: string | null;
+/** The site's one creator, as config/visparkle.php describes them. */
+export type CreatorProfile = {
+    name: string;
+    bio: string | null;
+    avatar_url: string;
+    header_url: string;
 };
 
-export type CreatorProfile = CreatorSummary & {
-    bio: string | null;
-    header_url: string | null;
+/** The plans and the viewer's own support, shared by the home and post pages. */
+export type SupportPanel = {
+    plans: PlanData[];
+    isCreator: boolean;
+    viewerSupportPrice: number | null;
+    viewerPlanId: number | null;
+    viewerSupportId: number | null;
+    viewerSupportCancelling: boolean;
 };
 
 export type PlanData = {
@@ -75,7 +82,6 @@ export type PostSummary = {
     published_at: string | null;
     cover_thumb_url: string | null;
     locked: boolean;
-    creator: CreatorSummary;
 };
 
 export type PostAttachment = {

@@ -4,16 +4,13 @@ import { toast } from 'sonner';
 import BillingPortalController from '@/actions/App/Http/Controllers/Fan/BillingPortalController';
 import SupportController from '@/actions/App/Http/Controllers/Fan/SupportController';
 import Heading from '@/components/heading';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatYen } from '@/lib/format';
-import { show } from '@/routes/creators';
+import { home } from '@/routes';
 import { index } from '@/routes/supporting';
-import type { CreatorSummary } from '@/types';
 
 type Row = {
     id: number;
-    creator: CreatorSummary;
     plan_name: string | null;
     price: number;
     started_at: string;
@@ -54,32 +51,14 @@ export default function Supporting({ supports }: { supports: Row[] }) {
                                 key={support.id}
                                 className="flex items-center justify-between gap-4 p-4"
                             >
-                                <Link
-                                    href={show(support.creator.slug)}
-                                    className="flex min-w-0 items-center gap-3"
-                                >
-                                    <Avatar>
-                                        {support.creator.avatar_url && (
-                                            <AvatarImage
-                                                src={support.creator.avatar_url}
-                                                alt=""
-                                            />
-                                        )}
-                                        <AvatarFallback>
-                                            {support.creator.display_name.slice(
-                                                0,
-                                                1,
-                                            )}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                <Link href={home()} className="min-w-0">
                                     <div className="min-w-0">
                                         <p className="truncate font-medium">
-                                            {support.creator.display_name}
+                                            {support.plan_name ??
+                                                '（削除されたプラン）'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {support.plan_name ??
-                                                '（削除されたプラン）'}{' '}
-                                            · {formatYen(support.price)}/月 ·{' '}
+                                            {formatYen(support.price)}/月 ·{' '}
                                             {formatDate(support.started_at)}〜
                                         </p>
                                     </div>

@@ -29,14 +29,7 @@ export function PublicUserMenu() {
                 className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted"
             >
                 <Avatar className="size-7">
-                    <AvatarImage
-                        src={
-                            auth.user.avatar ??
-                            auth.creator?.avatar_url ??
-                            undefined
-                        }
-                        alt=""
-                    />
+                    <AvatarImage src={auth.user.avatar ?? undefined} alt="" />
                     <AvatarFallback className="text-xs">
                         {getInitials(auth.user.name)}
                     </AvatarFallback>

@@ -15,6 +15,6 @@ class PostPolicy
 
     public function manage(User $user, Post $post): bool
     {
-        return Entitlement::for($user)->isAuthorOf($post);
+        return $user->isCreator();
     }
 }

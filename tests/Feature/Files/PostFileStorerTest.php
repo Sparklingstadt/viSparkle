@@ -26,7 +26,7 @@ it('strips exif and scales down jpeg images', function () {
         ->and($file->original_name)->toBe('photo.jpg')
         ->and($file->mime)->toBe('image/jpeg')
         ->and($file->size)->toBe(strlen($disk->get($file->path)))
-        ->and($file->path)->toMatch("#^creators/{$post->creator_id}/posts/{$post->id}/[0-9a-z]{26}\\.jpg$#")
+        ->and($file->path)->toMatch("#^posts/{$post->id}/[0-9a-z]{26}\\.jpg$#")
         ->and($file->thumb_path)->toBe(str_replace('.jpg', '_thumb.jpg', $file->path));
 
     [$thumbWidth] = getimagesizefromstring($disk->get($file->thumb_path));

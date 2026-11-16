@@ -6,8 +6,10 @@ use App\Enums\PostFileKind;
 use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Creator\UpdatePostRequest;
+use App\Models\Plan;
 use App\Models\Post;
 use App\Models\PostFile;
+use App\Models\Support;
 use App\Services\PostFileStorer;
 use App\Services\PostFileUrls;
 use App\Services\Tiptap\TiptapDocumentValidator;
@@ -26,11 +28,10 @@ class PostController extends Controller
 
     public function index(Request $request): Response
     {
-        $creator = $request->user()->creator;
         $status = PostStatus::tryFrom((string) $request->query('status'));
-        $counts = $creator->posts()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $counts = Post::query()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        $posts = $creator->posts()
+        $posts = Post::query()
             ->when($status, fn ($query, PostStatus $status) => $query->where('status', $status))
             ->latest('updated_at')
             ->paginate(20)
@@ -55,9 +56,9 @@ class PostController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(): RedirectResponse
     {
-        $post = $request->user()->creator->posts()->create([
+        $post = Post::create([
             'title' => '無題',
             'status' => PostStatus::Draft,
             'required_price' => 0,
@@ -87,7 +88,6 @@ class PostController extends Controller
             ],
             'priceOptions' => UpdatePostRequest::priceOptions($post),
             'audiences' => $this->audiences($post),
-            'creatorSlug' => $request->user()->creator->slug,
         ]);
     }
 
@@ -98,9 +98,8 @@ class PostController extends Controller
      */
     private function audiences(Post $post): array
     {
-        $creator = $post->creator;
-        $plans = $creator->plans()->get(['name', 'price']);
-        $supportPrices = $creator->supports()->active()->pluck('price')->map(fn ($price) => (int) $price);
+        $plans = Plan::query()->get(['name', 'price']);
+        $supportPrices = Support::active()->pluck('price')->map(fn ($price) => (int) $price);
 
         return array_map(fn (int $price) => [
             'price' => $price,

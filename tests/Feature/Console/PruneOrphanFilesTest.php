@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\PostFile;
 use Illuminate\Console\Scheduling\Schedule;
@@ -23,14 +22,12 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
     $file = PostFile::factory()->create();
     $referenced = putFile('private', $file->path, 48);
     $referencedThumb = putFile('private', $file->thumb_path, 48);
-    $orphan = putFile('private', 'creators/1/posts/1/orphan.jpg', 48);
-    $fresh = putFile('private', 'creators/1/posts/1/uploading.jpg', 1);
+    $orphan = putFile('private', 'posts/1/orphan.jpg', 48);
+    $fresh = putFile('private', 'posts/1/uploading.jpg', 1);
 
-    $creator = Creator::factory()->create(['avatar_path' => 'creators/9/avatar/a.jpg']);
-    $plan = Plan::factory()->for($creator)->create(['cover_path' => 'creators/9/plans/c.jpg']);
-    $avatar = putFile('public', $creator->avatar_path, 48);
+    $plan = Plan::factory()->create(['cover_path' => 'plans/c.jpg']);
     $cover = putFile('public', $plan->cover_path, 48);
-    $oldAvatar = putFile('public', 'creators/9/avatar/old.jpg', 48);
+    $oldCover = putFile('public', 'plans/old.jpg', 48);
 
     $this->artisan('visparkle:prune-orphan-files')
         ->expectsOutputToContain('2')
@@ -38,12 +35,12 @@ it('deletes old unreferenced files and keeps referenced or recent ones', functio
 
     Storage::disk('private')->assertExists([$referenced, $referencedThumb, $fresh]);
     Storage::disk('private')->assertMissing($orphan);
-    Storage::disk('public')->assertExists([$avatar, $cover]);
-    Storage::disk('public')->assertMissing($oldAvatar);
+    Storage::disk('public')->assertExists($cover);
+    Storage::disk('public')->assertMissing($oldCover);
 });
 
 it('only reports in dry-run mode', function () {
-    $orphan = putFile('private', 'creators/1/posts/1/orphan.jpg', 48);
+    $orphan = putFile('private', 'posts/1/orphan.jpg', 48);
 
     $this->artisan('visparkle:prune-orphan-files', ['--dry-run' => true])->assertSuccessful();
 

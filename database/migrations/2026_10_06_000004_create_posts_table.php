@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('creator_id')->constrained()->cascadeOnDelete();
             $table->string('title', 100);
             $table->json('body')->nullable();
             $table->string('excerpt', 300)->nullable();
@@ -20,7 +19,6 @@ return new class extends Migration
             $table->dateTime('published_at')->nullable();
             $table->timestamps();
 
-            $table->index(['creator_id', 'status', 'published_at']);
             $table->index(['status', 'required_price', 'published_at']);
         });
     }

@@ -7,14 +7,12 @@ use Database\Factories\PlanFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
- * @property int $creator_id
  * @property string $name
  * @property string|null $description
  * @property int $price
@@ -35,7 +33,6 @@ class Plan extends Model
     protected function casts(): array
     {
         return [
-            'creator_id' => 'integer',
             'price' => 'integer',
             'is_accepting' => 'boolean',
         ];
@@ -60,12 +57,6 @@ class Plan extends Model
             'is_accepting' => $this->is_accepting,
             'active_supporters_count' => (int) ($this->active_supports_count ?? 0),
         ];
-    }
-
-    /** @return BelongsTo<Creator, $this> */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(Creator::class);
     }
 
     /** @return HasMany<Support, $this> */

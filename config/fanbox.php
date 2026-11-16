@@ -27,20 +27,8 @@ return [
 
     'plan_min_price' => 100,
     'plan_max_price' => 50000,
-    'plans_per_creator' => 10,
+    'plans_max' => 10,
     'body_max_bytes' => 524288,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Creator slugs
-    |--------------------------------------------------------------------------
-    */
-
-    'reserved_slugs' => [
-        'admin', 'api', 'creator', 'creators', 'login', 'logout', 'register',
-        'feed', 'supporting', 'settings', 'dashboard', 'posts', 'plans',
-        'storage', 'assets', 'help', 'terms', 'privacy', 'cart', 'orders', 'shop',
-    ],
 
     /*
     |--------------------------------------------------------------------------

@@ -178,7 +178,7 @@ function fakeCheckout(FakeGateway $gateway, Plan $plan, User $user, ?array $meta
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: (string) $user->stripe_customer_id,
         priceId: $gateway->ensurePrice($plan)->priceId,
-        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        metadata: $metadata ?? ['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $user->id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
         expiresAt: CarbonImmutable::now()->addMinutes(30),

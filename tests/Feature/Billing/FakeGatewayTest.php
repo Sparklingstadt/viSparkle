@@ -6,7 +6,6 @@ use App\Billing\Data\SubscriptionData;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentFailedException;
 use App\Billing\PaymentGateway;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use App\Providers\BillingServiceProvider;
@@ -22,7 +21,7 @@ function subscribeFake(FakeGateway $gateway, Plan $plan, ?User $user = null): Su
     $session = $gateway->createCheckoutSession(new CheckoutRequest(
         customerId: $gateway->createCustomer($user),
         priceId: $price->priceId,
-        metadata: ['user_id' => (string) $user->id, 'creator_id' => (string) $plan->creator_id, 'plan_id' => (string) $plan->id],
+        metadata: ['user_id' => (string) $user->id, 'plan_id' => (string) $plan->id],
         successUrl: 'https://app.test/success',
         cancelUrl: 'https://app.test/cancel',
         expiresAt: CarbonImmutable::now()->addMinutes(30),
@@ -33,7 +32,7 @@ function subscribeFake(FakeGateway $gateway, Plan $plan, ?User $user = null): Su
 
 it('completes a checkout into an active subscription carrying metadata', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $user = User::factory()->create();
 
     $subscription = subscribeFake($gateway, $plan, $user);
@@ -57,7 +56,7 @@ it('completes a checkout into an active subscription carrying metadata', functio
 
 it('schedules and undoes cancellation', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
 
     $cancelled = subscribeFake($gateway, $plan);
     expect($gateway->setCancelAtPeriodEnd($cancelled->id, true)->cancelAtPeriodEnd)->toBeTrue();
@@ -77,9 +76,8 @@ it('schedules and undoes cancellation', function () {
 
 it('does not apply an upgrade when payment fails', function () {
     $gateway = fakeBilling();
-    $creator = Creator::factory()->create();
-    $low = Plan::factory()->for($creator)->price(300)->create();
-    $high = Plan::factory()->for($creator)->price(1000)->create();
+    $low = Plan::factory()->price(300)->create();
+    $high = Plan::factory()->price(1000)->create();
     $subscription = subscribeFake($gateway, $low);
     $highPrice = $gateway->ensurePrice($high);
 
@@ -92,9 +90,8 @@ it('does not apply an upgrade when payment fails', function () {
 
 it('invoices the difference on upgrade and nothing on downgrade', function () {
     $gateway = fakeBilling();
-    $creator = Creator::factory()->create();
-    $low = Plan::factory()->for($creator)->price(300)->create();
-    $high = Plan::factory()->for($creator)->price(1000)->create();
+    $low = Plan::factory()->price(300)->create();
+    $high = Plan::factory()->price(1000)->create();
     $subscription = subscribeFake($gateway, $low);
 
     $upgraded = $gateway->changeSubscriptionPrice($subscription->id, $subscription->itemId, $gateway->ensurePrice($high)->priceId, true);
@@ -109,7 +106,7 @@ it('invoices the difference on upgrade and nothing on downgrade', function () {
 
 it('returns the same price for the same plan', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->create();
+    $plan = Plan::factory()->create();
 
     $first = $gateway->ensurePrice($plan);
 
@@ -123,7 +120,7 @@ it('returns the same price for the same plan', function () {
 
 it('tracks checkout session state and unknown ids', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $user = User::factory()->create();
     $request = new CheckoutRequest($gateway->createCustomer($user), $gateway->ensurePrice($plan)->priceId, [], 'https://a.test/s', 'https://a.test/c', now()->toImmutable()->addMinutes(30));
 
@@ -141,7 +138,7 @@ it('tracks checkout session state and unknown ids', function () {
 
 it('records immediate cancellations and sets past_due when renewal fails', function () {
     $gateway = fakeBilling();
-    $plan = Plan::factory()->for(Creator::factory())->price(500)->create();
+    $plan = Plan::factory()->price(500)->create();
     $subscription = subscribeFake($gateway, $plan);
 
     $gateway->failPayments();

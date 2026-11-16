@@ -19,8 +19,7 @@ it('exposes fanbox limits', function () {
         ->and(config('fanbox.signed_url_minutes'))->toBe(5)
         ->and(config('fanbox.plan_min_price'))->toBe(100)
         ->and(config('fanbox.plan_max_price'))->toBe(50000)
-        ->and(config('fanbox.plans_per_creator'))->toBe(10)
-        ->and(config('fanbox.reserved_slugs'))->toContain('admin', 'feed', 'creator');
+        ->and(config('fanbox.plans_max'))->toBe(10);
 });
 
 it('uses japanese locale and tokyo timezone', function () {

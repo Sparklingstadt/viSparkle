@@ -17,7 +17,6 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property int $creator_id
  * @property string $title
  * @property array<string, mixed>|null $body
  * @property string|null $excerpt
@@ -68,12 +67,6 @@ class Post extends Model
     public function isPublished(): bool
     {
         return $this->status === PostStatus::Published && $this->published_at !== null;
-    }
-
-    /** @return BelongsTo<Creator, $this> */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(Creator::class);
     }
 
     /** @return HasMany<PostFile, $this> */

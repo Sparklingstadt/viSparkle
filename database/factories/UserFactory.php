@@ -46,9 +46,9 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function admin(): static
+    public function creator(): static
     {
-        return $this->state(fn () => ['is_admin' => true]);
+        return $this->state(fn () => ['is_creator' => true]);
     }
 
     /**

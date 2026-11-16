@@ -4,7 +4,6 @@ use App\Billing\BillingException;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Post;
 use App\Models\Support;
@@ -14,9 +13,8 @@ use App\Services\Entitlement;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->create();
-    $this->low = Plan::factory()->for($this->creator)->price(1000)->create();
-    $this->high = Plan::factory()->for($this->creator)->price(3000)->create();
+    $this->low = Plan::factory()->price(1000)->create();
+    $this->high = Plan::factory()->price(3000)->create();
     $this->fan = User::factory()->create();
 });
 
@@ -25,7 +23,7 @@ beforeEach(function () {
  */
 function billingSupport(User $fan, Plan $plan): Support
 {
-    $response = test()->actingAs($fan)->post(route('supports.store', [$plan->creator, $plan]));
+    $response = test()->actingAs($fan)->post(route('supports.store', $plan));
     $sessionId = basename((string) $response->headers->get('Location'));
     app(FakeGateway::class)->completeCheckout($sessionId);
     test()->actingAs($fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]));
@@ -37,7 +35,7 @@ function billingSupport(User $fan, Plan $plan): Support
 }
 
 it('schedules cancellation and keeps access until the period ends', function () {
-    $post = Post::factory()->for($this->creator)->published()->requiring(1000)->create();
+    $post = Post::factory()->published()->requiring(1000)->create();
     $support = billingSupport($this->fan, $this->low);
 
     $this->actingAs($this->fan)->delete(route('supports.destroy', $support))
@@ -96,7 +94,7 @@ it('refuses stopping a support that already ended', function () {
 });
 
 it('ends a dummy support immediately', function () {
-    $post = Post::factory()->for($this->creator)->published()->requiring(1000)->create();
+    $post = Post::factory()->published()->requiring(1000)->create();
     $support = Support::factory()->for($this->fan)->forPlan($this->low)->active()->create();
 
     $this->actingAs($this->fan)->delete(route('supports.destroy', $support))
@@ -160,7 +158,7 @@ it('downgrades without charging', function () {
 
 it('ensures the new price exists before changing', function () {
     $support = billingSupport($this->fan, $this->low);
-    $fresh = Plan::factory()->for($this->creator)->price(5000)->create();
+    $fresh = Plan::factory()->price(5000)->create();
     expect($fresh->stripe_price_id)->toBeNull();
 
     $this->actingAs($this->fan)->put(route('supports.update', $support), ['plan_id' => $fresh->id])->assertRedirect();
@@ -188,7 +186,7 @@ it('refuses changing while cancellation is scheduled', function () {
 
 it('refuses changing to a plan that is not accepting', function () {
     $support = billingSupport($this->fan, $this->low);
-    $closed = Plan::factory()->for($this->creator)->price(2000)->notAccepting()->create();
+    $closed = Plan::factory()->price(2000)->notAccepting()->create();
 
     $this->actingAs($this->fan)->put(route('supports.update', $support), ['plan_id' => $closed->id])
         ->assertSessionHasErrors(['plan' => 'このプランは現在受付を停止しています。']);
@@ -203,11 +201,9 @@ it('refuses changing a dummy support', function () {
         ->assertSessionHasErrors(['plan' => 'この支援はプラン変更に対応していません。停止してから支援し直してください。']);
 });
 
-it('404s on another creators plan', function () {
+it('404s on a plan that does not exist', function () {
     $support = billingSupport($this->fan, $this->low);
-    $other = Plan::factory()->price(2000)->create();
 
-    $this->actingAs($this->fan)->put(route('supports.update', $support), ['plan_id' => $other->id])->assertNotFound();
     $this->actingAs($this->fan)->put(route('supports.update', $support), ['plan_id' => 999999])->assertNotFound();
     $this->actingAs($this->fan)->put(route('supports.update', $support), [])->assertSessionHasErrors('plan_id');
 });
@@ -270,23 +266,18 @@ it('refuses the portal without a billing account', function () {
 it('lists billing details on the supporting page', function () {
     $support = billingSupport($this->fan, $this->low);
     $this->actingAs($this->fan)->delete(route('supports.destroy', $support));
-    $dummy = Support::factory()->for($this->fan)->forPlan(Plan::factory()->price(500)->create())->active()->create(['started_at' => now()->addHour()]);
 
     $this->actingAs($this->fan)->get(route('supporting.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('fan/supporting')
             ->where('auth.user.has_billing_account', true)
-            ->has('supports', 2)
-            ->where('supports.0.id', $dummy->id)
-            ->where('supports.0.is_billing', false)
-            ->where('supports.0.cancel_at_period_end', false)
-            ->where('supports.0.current_period_end', null)
-            ->where('supports.1.id', $support->id)
-            ->where('supports.1.is_billing', true)
-            ->where('supports.1.stripe_status', 'active')
-            ->where('supports.1.cancel_at_period_end', true)
-            ->where('supports.1.current_period_end', $support->fresh()->current_period_end->toJSON()));
+            ->has('supports', 1)
+            ->where('supports.0.id', $support->id)
+            ->where('supports.0.is_billing', true)
+            ->where('supports.0.stripe_status', 'active')
+            ->where('supports.0.cancel_at_period_end', true)
+            ->where('supports.0.current_period_end', $support->fresh()->current_period_end->toJSON()));
 });
 
 it('reports no billing account for a fan without a customer', function () {

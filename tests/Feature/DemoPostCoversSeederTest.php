@@ -1,21 +1,13 @@
 <?php
 
-use App\Models\Creator;
 use App\Models\Post;
-use Database\Seeders\DemoCreatorsSeeder;
 use Database\Seeders\DemoPostCoversSeeder;
 use Illuminate\Support\Facades\Storage;
 
-beforeEach(function () {
-    fakePrivateDisk();
-    Storage::fake('public');
-});
+beforeEach(fn () => fakePrivateDisk());
 
-it('gives the posts of creators with a demo header a 16:9 cover and a thumbnail', function () {
-    $creator = Creator::factory()->create(['slug' => 'yuki-cooking']);
-    app(DemoCreatorsSeeder::class)->paintImages($creator, DemoCreatorsSeeder::palette('yuki-cooking'));
-    $posts = Post::factory()->count(2)->for($creator)->published()->sequence(['title' => 'a'], ['title' => 'c'])->create();
-    $noHeader = Post::factory()->published()->create();
+it('gives every post without a cover a 16:9 cover and a thumbnail', function () {
+    $posts = Post::factory()->count(2)->published()->sequence(['title' => 'a'], ['title' => 'c'])->create();
 
     $this->seed(DemoPostCoversSeeder::class);
 
@@ -25,14 +17,10 @@ it('gives the posts of creators with a demo header a 16:9 cover and a thumbnail'
         [$width, $height] = getimagesizefromstring(Storage::disk('private')->get($cover->path));
         expect([$width, $height])->toBe([1280, 720]);
     }
-
-    expect($noHeader->fresh()->cover_file_id)->toBeNull();
 });
 
 it('leaves posts that have a cover alone', function () {
-    $creator = Creator::factory()->create(['slug' => 'sakura-illust']);
-    app(DemoCreatorsSeeder::class)->paintImages($creator, DemoCreatorsSeeder::palette('sakura-illust'));
-    $post = Post::factory()->for($creator)->published()->create();
+    $post = Post::factory()->published()->create();
 
     $this->seed(DemoPostCoversSeeder::class);
     $cover = $post->fresh()->cover_file_id;

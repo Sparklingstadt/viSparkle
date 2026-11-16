@@ -10,16 +10,15 @@ return new class extends Migration
     {
         Schema::create('plans', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('creator_id')->constrained()->cascadeOnDelete();
             $table->string('name', 50);
             $table->text('description')->nullable();
-            $table->unsignedInteger('price');
+            $table->unsignedInteger('price')->unique();
             $table->string('cover_path')->nullable();
             $table->boolean('is_accepting')->default(true);
             $table->unsignedSmallInteger('sort')->default(0);
+            $table->string('stripe_product_id')->nullable();
+            $table->string('stripe_price_id')->nullable()->unique();
             $table->timestamps();
-
-            $table->unique(['creator_id', 'price']);
         });
     }
 

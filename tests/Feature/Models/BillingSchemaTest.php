@@ -1,17 +1,15 @@
 <?php
 
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 it('rejects a second active support for the same user and creator', function () {
-    $creator = Creator::factory()->create();
     $user = User::factory()->create();
-    $plan = Plan::factory()->for($creator)->create();
-    $other = Plan::factory()->for($creator)->create();
+    $plan = Plan::factory()->create();
+    $other = Plan::factory()->create();
 
     Support::factory()->forPlan($plan)->create(['user_id' => $user->id]);
 

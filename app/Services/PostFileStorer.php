@@ -30,7 +30,7 @@ class PostFileStorer
     public function store(Post $post, UploadedFile $upload, PostFileKind $kind): PostFile
     {
         $disk = Storage::disk('private');
-        $base = "creators/{$post->creator_id}/posts/{$post->id}/".Str::lower((string) Str::ulid());
+        $base = "posts/{$post->id}/".Str::lower((string) Str::ulid());
         $written = [];
 
         try {

@@ -58,7 +58,7 @@ class SupportService
     }
 
     /**
-     * Move to another plan of the same creator. An upgrade only takes effect once its proration is paid.
+     * Move to another plan. An upgrade only takes effect once its proration is paid.
      *
      * @throws ValidationException
      * @throws BillingException

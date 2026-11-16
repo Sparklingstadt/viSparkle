@@ -31,11 +31,9 @@ type FormData = {
 export default function PostEdit({
     post,
     audiences,
-    creatorSlug,
 }: {
     post: EditorPost;
     audiences: { price: number; plans: string[]; readers: number | null }[];
-    creatorSlug: string;
 }) {
     const form = useForm<FormData>({
         title: post.title,
@@ -148,10 +146,7 @@ export default function PostEdit({
                         </Badge>
                         {post.status === 'published' && (
                             <Link
-                                href={show({
-                                    creator: creatorSlug,
-                                    post: post.id,
-                                })}
+                                href={show(post.id)}
                                 className="text-sm underline underline-offset-4"
                             >
                                 公開ページを見る

@@ -5,7 +5,6 @@ use App\Billing\Data\CheckoutRequest;
 use App\Billing\PaymentFailedException;
 use App\Billing\PaymentGateway;
 use App\Billing\StripeGateway;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -230,8 +229,8 @@ it('builds the stripe driver when a secret is configured', function () {
 });
 
 it('creates the plan price once', function () {
-    $creator = Creator::factory()->create(['display_name' => 'Alice']);
-    $plan = Plan::factory()->for($creator)->price(500)->create(['name' => 'Basic']);
+    config(['visparkle.creator.name' => 'Alice']);
+    $plan = Plan::factory()->price(500)->create(['name' => 'Basic']);
 
     $this->http->queue(['id' => 'prod_x', 'object' => 'product'])
         ->queue(['id' => 'price_x', 'object' => 'price']);

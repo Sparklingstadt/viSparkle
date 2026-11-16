@@ -4,7 +4,6 @@ use App\Billing\BillingException;
 use App\Billing\FakeGateway;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Plan;
 use App\Models\Support;
 use App\Models\User;
@@ -13,8 +12,8 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->create(['display_name' => '星野']);
-    $this->plan = Plan::factory()->for($this->creator)->price(1000)->create();
+    $this->creator = User::factory()->creator()->create();
+    $this->plan = Plan::factory()->price(1000)->create(['name' => 'しっかり応援']);
     $this->fan = User::factory()->create();
 });
 
@@ -31,20 +30,17 @@ function syncedBillingSupport(FakeGateway $gateway, Plan $plan, User $fan): Supp
 
 it('lists the billing supports in the deletion dialog', function () {
     syncedBillingSupport($this->gateway, $this->plan, $this->fan);
-    Support::factory()->forPlan(Plan::factory()->price(500)->create())->create(['user_id' => $this->fan->id]);
 
     $this->actingAs($this->fan)
         ->get(route('profile.edit'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/profile')
-            ->where('billingSupports', [['creator' => '星野', 'price' => 1000]]));
+            ->where('billingSupports', [['plan' => 'しっかり応援', 'price' => 1000]]));
 });
 
-it('cancels billing supports immediately and deletes the user', function () {
-    $renewing = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
-    $otherCreator = Creator::factory()->create();
-    $cancelling = syncedBillingSupport($this->gateway, Plan::factory()->for($otherCreator)->create(), $this->fan);
-    $this->gateway->setCancelAtPeriodEnd((string) $cancelling->stripe_subscription_id, true);
+it('cancels the billing support immediately and deletes the user', function (bool $scheduledToStop) {
+    $support = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
+    $this->gateway->setCancelAtPeriodEnd((string) $support->stripe_subscription_id, $scheduledToStop);
 
     $this->actingAs($this->fan)
         ->delete(route('profile.destroy'), ['password' => 'password'])
@@ -53,9 +49,9 @@ it('cancels billing supports immediately and deletes the user', function () {
 
     $this->assertGuest();
     expect($this->fan->fresh())->toBeNull()
-        ->and($this->gateway->cancelledNow())->toEqualCanonicalizing([$renewing->stripe_subscription_id, $cancelling->stripe_subscription_id])
-        ->and($this->gateway->retrieveSubscription((string) $renewing->stripe_subscription_id)->status)->toBe('canceled');
-});
+        ->and($this->gateway->cancelledNow())->toBe([$support->stripe_subscription_id])
+        ->and($this->gateway->retrieveSubscription((string) $support->stripe_subscription_id)->status)->toBe('canceled');
+})->with(['renewing' => [false], 'scheduled to stop' => [true]]);
 
 it('aborts deletion when stripe fails', function () {
     $support = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
@@ -76,39 +72,6 @@ it('aborts deletion when stripe fails', function () {
     $this->assertAuthenticatedAs($this->fan);
     expect($this->fan->fresh())->not->toBeNull()
         ->and($support->fresh()->status)->toBe(SupportStatus::Active);
-});
-
-it('keeps the user when a later cancellation fails, and deletes on retry', function () {
-    $first = syncedBillingSupport($this->gateway, $this->plan, $this->fan);
-    $second = syncedBillingSupport($this->gateway, Plan::factory()->for(Creator::factory())->create(), $this->fan);
-
-    $fake = $this->gateway;
-    $failing = Mockery::mock($fake)->makePartial();
-    $failing->shouldReceive('cancelSubscriptionNow')->andReturnUsing(function (string $id) use ($fake, $second): void {
-        if ($id === $second->stripe_subscription_id) {
-            throw new BillingException('Stripe is down.');
-        }
-
-        $fake->cancelSubscriptionNow($id);
-    });
-    app()->instance(PaymentGateway::class, $failing);
-
-    $this->actingAs($this->fan)
-        ->delete(route('profile.destroy'), ['password' => 'password'])
-        ->assertSessionHas('inertia.flash_data.toast.type', 'error');
-
-    expect($this->fan->fresh())->not->toBeNull()
-        ->and($first->fresh()->status)->toBe(SupportStatus::Ended)
-        ->and($second->fresh()->status)->toBe(SupportStatus::Active);
-
-    app()->instance(PaymentGateway::class, $fake);
-
-    $this->actingAs($this->fan)
-        ->delete(route('profile.destroy'), ['password' => 'password'])
-        ->assertRedirect(route('home'));
-
-    expect($this->fan->fresh())->toBeNull()
-        ->and($fake->cancelledNow())->toEqualCanonicalizing([$first->stripe_subscription_id, $second->stripe_subscription_id]);
 });
 
 it('deletes the user when a subscription was already cancelled at stripe', function () {
@@ -138,16 +101,16 @@ it('deletes a user with only dummy supports without calling stripe', function ()
         ->and($this->gateway->cancelledNow())->toBe([]);
 });
 
-it('refuses deleting a creator with an active support, even one scheduled to stop', function (array $state) {
+it('refuses deleting the creator while a support is active, even one scheduled to stop', function (array $state) {
     Support::factory()->forPlan($this->plan)->create($state);
 
-    $this->actingAs($this->creator->user)
+    $this->actingAs($this->creator)
         ->from(route('profile.edit'))
         ->delete(route('profile.destroy'), ['password' => 'password'])
-        ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。『活動を終了する』で支援を停止し、期間の終了をお待ちください。'])
+        ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。'])
         ->assertRedirect(route('profile.edit'));
 
-    expect($this->creator->user->fresh())->not->toBeNull()
+    expect($this->creator->fresh())->not->toBeNull()
         ->and($this->gateway->cancelledNow())->toBe([]);
 })->with([
     'cancel-scheduled billing' => [['stripe_subscription_id' => 'sub_x', 'stripe_status' => 'active', 'cancel_at_period_end' => true]],

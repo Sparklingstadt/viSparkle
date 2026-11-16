@@ -5,7 +5,6 @@ use App\Billing\Data\CheckoutRequest;
 use App\Billing\Data\PriceRef;
 use App\Billing\PaymentGateway;
 use App\Enums\SupportStatus;
-use App\Models\Creator;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Post;
@@ -19,29 +18,29 @@ use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     $this->gateway = fakeBilling();
-    $this->creator = Creator::factory()->create();
-    $this->plan = Plan::factory()->for($this->creator)->price(1000)->create();
+    $this->creator = User::factory()->creator()->create();
+    $this->plan = Plan::factory()->price(1000)->create();
     $this->fan = User::factory()->create();
 });
 
-function checkoutRoute(Creator $creator, Plan $plan): string
+function checkoutRoute(Plan $plan): string
 {
-    return route('supports.store', [$creator, $plan]);
+    return route('supports.store', $plan);
 }
 
 /**
  * Begin a checkout as the fan and return the fake session id taken from the redirect URL.
  */
-function beginCheckout(User $fan, Creator $creator, Plan $plan): string
+function beginCheckout(User $fan, Plan $plan): string
 {
-    $response = test()->actingAs($fan)->post(checkoutRoute($creator, $plan));
+    $response = test()->actingAs($fan)->post(checkoutRoute($plan));
     $response->assertRedirectContains('/dev/fake-checkout/');
 
     return basename((string) $response->headers->get('Location'));
 }
 
 it('sends the fan to stripe checkout', function () {
-    $response = $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan));
+    $response = $this->actingAs($this->fan)->post(checkoutRoute($this->plan));
 
     $response->assertRedirectContains('/dev/fake-checkout/');
     expect($this->fan->fresh()->stripe_customer_id)->not->toBeNull()
@@ -49,28 +48,28 @@ it('sends the fan to stripe checkout', function () {
 });
 
 it('answers inertia requests with a location redirect', function () {
-    $response = $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan), [], ['X-Inertia' => 'true']);
+    $response = $this->actingAs($this->fan)->post(checkoutRoute($this->plan), [], ['X-Inertia' => 'true']);
 
     $response->assertStatus(409);
     expect($response->headers->get('X-Inertia-Location'))->toContain('/dev/fake-checkout/');
 });
 
 it('reuses the fans stripe customer', function () {
-    beginCheckout($this->fan, $this->creator, $this->plan);
+    beginCheckout($this->fan, $this->plan);
     $customerId = $this->fan->fresh()->stripe_customer_id;
-    beginCheckout($this->fan, $this->creator, $this->plan);
+    beginCheckout($this->fan, $this->plan);
 
     expect($this->fan->fresh()->stripe_customer_id)->toBe($customerId);
 });
 
 it('activates the support when the fan returns from checkout', function () {
-    $post = Post::factory()->for($this->creator)->published()->requiring(1000)->create();
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $post = Post::factory()->published()->requiring(1000)->create();
+    $sessionId = beginCheckout($this->fan, $this->plan);
     $this->gateway->completeCheckout($sessionId);
 
     $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]))
-        ->assertRedirect(route('creators.show', $this->creator))
-        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => "{$this->creator->display_name} さんの支援を開始しました。"]);
+        ->assertRedirect(route('home'))
+        ->assertSessionHas('inertia.flash_data.toast', ['type' => 'success', 'message' => '支援を開始しました。']);
 
     $support = Support::sole();
     expect($support->status)->toBe(SupportStatus::Active)
@@ -79,17 +78,17 @@ it('activates the support when the fan returns from checkout', function () {
 });
 
 it('tells the fan when payment is not complete', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
 
     $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]))
-        ->assertRedirect(route('creators.show', $this->creator))
+        ->assertRedirect(route('home'))
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => 'お支払いが完了していません。']);
 
     expect(Support::count())->toBe(0);
 });
 
 it('rejects completing someone elses session', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
     $this->gateway->completeCheckout($sessionId);
 
     $this->actingAs(User::factory()->create())
@@ -107,22 +106,22 @@ it('requires login and a session id to complete', function () {
 it('refuses a second checkout while supporting', function () {
     Support::factory()->for($this->fan)->forPlan($this->plan)->active()->create();
 
-    $this->actingAs($this->fan)->post(checkoutRoute($this->creator, Plan::factory()->for($this->creator)->price(300)->create()))
+    $this->actingAs($this->fan)->post(checkoutRoute(Plan::factory()->price(300)->create()))
         ->assertSessionHasErrors(['plan' => 'すでに支援中です。プランの変更は「このプランに変更」から行ってください。']);
 });
 
 it('expires the previous open checkout session', function () {
-    $first = beginCheckout($this->fan, $this->creator, $this->plan);
-    $second = beginCheckout($this->fan, $this->creator, $this->plan);
+    $first = beginCheckout($this->fan, $this->plan);
+    $second = beginCheckout($this->fan, $this->plan);
 
     expect($this->gateway->describeSession($first)['status'])->toBe('expired')
         ->and($this->gateway->describeSession($second)['status'])->toBe('open');
 });
 
 it('forgets the open session once the checkout completes', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
     $this->gateway->completeCheckout($sessionId);
-    $key = "checkout:{$this->fan->id}:{$this->creator->id}";
+    $key = "checkout:{$this->fan->id}";
     expect(Cache::get($key))->toBe($sessionId);
 
     $this->actingAs($this->fan)->get(route('supports.checkout.complete', ['session_id' => $sessionId]));
@@ -144,17 +143,17 @@ it('sends the metadata, destination and expiry to the gateway', function () {
     app()->instance(PaymentGateway::class, $gateway);
     $this->freezeTime();
 
-    $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $this->plan));
+    $this->actingAs($this->fan)->post(checkoutRoute($this->plan));
 
     expect($captured)->toBeInstanceOf(CheckoutRequest::class)
-        ->and($captured->metadata)->toBe(['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $this->fan->id, 'creator_id' => (string) $this->creator->id, 'plan_id' => (string) $this->plan->id])
-        ->and($captured->cancelUrl)->toBe(route('creators.show', $this->creator))
+        ->and($captured->metadata)->toBe(['app' => (string) config('fanbox.billing.idempotency_prefix'), 'user_id' => (string) $this->fan->id, 'plan_id' => (string) $this->plan->id])
+        ->and($captured->cancelUrl)->toBe(route('home'))
         ->and($captured->successUrl)->toBe(route('supports.checkout.complete').'?session_id={CHECKOUT_SESSION_ID}')
         // One minute past the configured 30 so Stripe's own clock still sees at least 30 minutes.
         ->and($captured->expiresAt->getTimestamp())->toBe(now()->addMinutes(31)->getTimestamp());
 
     // The open-session key itself still lasts the configured 30 minutes.
-    $key = "checkout:{$this->fan->id}:{$this->creator->id}";
+    $key = "checkout:{$this->fan->id}";
     $this->travel(29)->minutes();
     expect(Cache::has($key))->toBeTrue();
     $this->travel(2)->minutes();
@@ -162,31 +161,29 @@ it('sends the metadata, destination and expiry to the gateway', function () {
 });
 
 it('refuses supporting yourself', function () {
-    $this->actingAs($this->creator->user)->post(checkoutRoute($this->creator, $this->plan))
+    $this->actingAs($this->creator)->post(checkoutRoute($this->plan))
         ->assertSessionHasErrors(['plan' => '自分自身を支援することはできません。']);
 
     expect(Support::count())->toBe(0);
 });
 
 it('refuses a plan that is not accepting', function () {
-    $closed = Plan::factory()->for($this->creator)->price(2000)->notAccepting()->create();
+    $closed = Plan::factory()->price(2000)->notAccepting()->create();
 
-    $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $closed))
+    $this->actingAs($this->fan)->post(checkoutRoute($closed))
         ->assertSessionHasErrors(['plan' => 'このプランは現在受付を停止しています。']);
 
     expect(Support::count())->toBe(0);
 });
 
-it('404s a plan that belongs to another creator', function () {
-    $other = Plan::factory()->create();
-
-    $this->actingAs($this->fan)->post(checkoutRoute($this->creator, $other))->assertNotFound();
+it('404s a plan that does not exist', function () {
+    $this->actingAs($this->fan)->post(route('supports.store', 999999))->assertNotFound();
 });
 
 it('requires login and a verified email', function () {
-    $this->post(checkoutRoute($this->creator, $this->plan))->assertRedirect(route('login'));
+    $this->post(checkoutRoute($this->plan))->assertRedirect(route('login'));
     $this->actingAs(User::factory()->unverified()->create())
-        ->post(checkoutRoute($this->creator, $this->plan))
+        ->post(checkoutRoute($this->plan))
         ->assertRedirect(route('verification.notice'));
 });
 
@@ -197,16 +194,16 @@ it('shows a toast when stripe is unreachable', function () {
     $gateway->shouldReceive('createCheckoutSession')->andThrow(new BillingException('down'));
     app()->instance(PaymentGateway::class, $gateway);
 
-    $this->actingAs($this->fan)->from(route('creators.show', $this->creator))
-        ->post(checkoutRoute($this->creator, $this->plan))
-        ->assertRedirect(route('creators.show', $this->creator))
+    $this->actingAs($this->fan)->from(route('home'))
+        ->post(checkoutRoute($this->plan))
+        ->assertRedirect(route('home'))
         ->assertSessionHas('inertia.flash_data.toast', ['type' => 'error', 'message' => '決済サービスに接続できませんでした。時間をおいてお試しください。']);
 
     expect(Support::count())->toBe(0);
 });
 
 it('shows the fake checkout page', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
 
     $this->actingAs($this->fan)->get(route('dev.fake-checkout.show', $sessionId))
         ->assertOk()
@@ -215,13 +212,13 @@ it('shows the fake checkout page', function () {
             ->where('amount', 1000)
             ->where('plan_name', $this->plan->name)
             ->where('status', 'open')
-            ->where('cancel_url', route('creators.show', $this->creator)));
+            ->where('cancel_url', route('home')));
 
     $this->actingAs($this->fan)->get(route('dev.fake-checkout.show', 'cs_missing'))->assertNotFound();
 });
 
 it('completes the fake checkout page', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
 
     $this->actingAs($this->fan)->post(route('dev.fake-checkout.pay', $sessionId))
         ->assertRedirect(route('supports.checkout.complete', ['session_id' => $sessionId]));
@@ -230,19 +227,18 @@ it('completes the fake checkout page', function () {
 });
 
 it('records the first payment when the fake checkout page is paid', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
 
     $this->actingAs($this->fan)->post(route('dev.fake-checkout.pay', $sessionId));
 
     $payment = Payment::sole();
     expect($payment->amount)->toBe(1000)
         ->and($payment->user_id)->toBe($this->fan->id)
-        ->and($payment->creator_id)->toBe($this->creator->id)
         ->and($payment->support_id)->toBe(Support::sole()->id);
 });
 
 it('hides another users fake checkout session', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
     $other = User::factory()->create();
 
     $this->actingAs($other)->get(route('dev.fake-checkout.show', $sessionId))->assertNotFound();
@@ -257,7 +253,7 @@ it('requires login for the fake checkout page', function () {
 });
 
 it('limits the checkout return separately, at 30 a minute', function () {
-    $sessionId = beginCheckout($this->fan, $this->creator, $this->plan);
+    $sessionId = beginCheckout($this->fan, $this->plan);
     $url = route('supports.checkout.complete', ['session_id' => $sessionId]);
 
     for ($i = 0; $i < 30; $i++) {
