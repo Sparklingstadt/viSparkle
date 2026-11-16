@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
-import { Badge } from '@/components/ui/badge';
 import { formatDate, formatYen } from '@/lib/format';
 import { index as reportsIndex } from '@/routes/admin/reports';
 import { update } from '@/routes/admin/posts';
@@ -8,6 +7,7 @@ import type { PostStatus } from '@/types';
 import { PostStatusBadge } from '@/components/post-status-badge';
 import { ModerationPanel } from '@/components/admin/moderation-panel';
 import { ReportList, type ItemReport } from '@/components/admin/report-list';
+import { HiddenByAdminBadge } from '@/components/hidden-by-admin';
 
 type ModeratedPost = {
     id: number;
@@ -43,9 +43,7 @@ export default function AdminPost({
                             {post.title}
                         </span>
                         <PostStatusBadge status={post.status} />
-                        {post.hidden && (
-                            <Badge variant="destructive">非公開（運営）</Badge>
-                        )}
+                        {post.hidden && <HiddenByAdminBadge />}
                     </div>
                     <p className="text-muted-foreground">
                         {post.creator.name}（@{post.creator.slug}） /{' '}

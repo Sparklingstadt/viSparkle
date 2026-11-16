@@ -2,6 +2,7 @@
 
 namespace App\Services\Billing;
 
+use App\Billing\AppStamp;
 use App\Billing\BillingException;
 use App\Billing\Data\SubscriptionData;
 use App\Billing\PaymentGateway;
@@ -45,10 +46,8 @@ class SubscriptionSync
         $this->lastOutcome = null;
 
         // Another environment's subscription (test-mode accounts are shared, and `stripe listen` forwards everything): not ours to touch.
-        $app = $data->metadata['app'] ?? null;
-
-        if ($app !== null && $app !== config('fanbox.billing.idempotency_prefix')) {
-            Log::info('billing.foreign_subscription', ['subscription' => $data->id, 'app' => $app]);
+        if (AppStamp::isForeign($data->metadata)) {
+            Log::info('billing.foreign_subscription', ['subscription' => $data->id, 'app' => $data->metadata[AppStamp::KEY]]);
             $this->lastOutcome = SyncOutcome::Foreign;
 
             return null;
@@ -60,7 +59,7 @@ class SubscriptionSync
 
         try {
             // Locking a missing subscription id takes a gap lock, so two first syncs can deadlock; write() is idempotent, so retry.
-            $result = DB::transaction(fn () => $this->write($data, $userId, $app !== null), 3);
+            $result = DB::transaction(fn () => $this->write($data, $userId, AppStamp::isOurs($data->metadata)), 3);
         } catch (UniqueConstraintViolationException $e) {
             // Another active support for the same user and creator was committed by a writer that skipped our lock.
             $ids = $this->metadataIds($data);

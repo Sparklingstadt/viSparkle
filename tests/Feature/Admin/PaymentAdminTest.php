@@ -9,7 +9,6 @@ use App\Models\Plan;
 use App\Models\Product;
 use App\Models\Support;
 use App\Models\User;
-use App\Services\Billing\PaymentRecorder;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -22,12 +21,7 @@ beforeEach(function () {
  */
 function recordedPayment(Creator $creator, User $fan, int $price = 800): Payment
 {
-    $plan = Plan::factory()->for($creator)->price($price)->create();
-    $subscription = fakeCheckout(test()->gateway, $plan, $fan);
-    $payment = app(PaymentRecorder::class)->record((string) test()->gateway->latestInvoiceId($subscription->id));
-    assert($payment instanceof Payment);
-
-    return $payment;
+    return paidSupportPayment(Plan::factory()->for($creator)->price($price)->create(), $fan);
 }
 
 it('lists payments newest first with refund and dispute state', function () {

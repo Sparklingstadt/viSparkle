@@ -1,10 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
-import { CategoryLinks } from '@/components/category-links';
+import { Head } from '@inertiajs/react';
 import { CreatorHeader } from '@/components/creator-header';
 import { FollowButton } from '@/components/follow-button';
 import { PlanCard } from '@/components/plan-card';
-import { PostCard } from '@/components/post-card';
-import { ProductCard } from '@/components/product-card';
 import {
     ReportDialog,
     type ReportReasonOption,
@@ -17,19 +14,17 @@ import type {
     Paginated,
     PlanData,
     PostSummary,
-    ShopProductSummary,
 } from '@/types';
 import { Button } from '@/components/ui/button';
-import { formatYen } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { Pagination } from '@/components/pagination';
-
-type ShopSort = 'new' | 'popular';
-
-const shopSortTabs: { label: string; sort: ShopSort }[] = [
-    { label: '公開順', sort: 'new' },
-    { label: '人気順', sort: 'popular' },
-];
+import { summarizePlans } from '@/components/creator-page/plan-summary';
+import { PostsSection } from '@/components/creator-page/posts-section';
+import {
+    ShopSection,
+    type CreatorShop,
+} from '@/components/creator-page/shop-section';
+import { SupportBar } from '@/components/creator-page/support-bar';
+import { UnderlineTabs } from '@/components/underline-tabs';
 
 export default function CreatorPage({
     creator,
@@ -66,25 +61,13 @@ export default function CreatorPage({
     reportReasons: ReportReasonOption[];
     tab: 'posts' | 'shop';
     can_buy: boolean;
-    shop: {
-        visible: boolean;
-        notice: string | null;
-        sort: ShopSort;
-        products: ShopProductSummary[];
-    };
+    shop: CreatorShop;
 }) {
-    const acceptingPlans = plans.filter((plan) => plan.is_accepting);
-    const cheapestPlan = acceptingPlans.reduce<PlanData | null>(
-        (min, plan) => (min === null || plan.price < min.price ? plan : min),
-        null,
-    );
-    // The top accepting plan reads every post the others do and more, so it is the one drawn as featured.
-    const featuredPlanId =
-        acceptingPlans.length > 1
-            ? acceptingPlans.reduce((max, plan) =>
-                  plan.price > max.price ? plan : max,
-              ).id
-            : null;
+    const {
+        accepting: acceptingPlans,
+        cheapest: cheapestPlan,
+        featuredId: featuredPlanId,
+    } = summarizePlans(plans);
     // A visitor who could start supporting right now gets a "支援する" next to the name and, on phones, a bar fixed to the bottom.
     const showSupportBar =
         !isOwner &&
@@ -188,165 +171,50 @@ export default function CreatorPage({
 
                     <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1">
                         {shop.visible && (
-                            <nav
-                                className="flex gap-2 border-b"
-                                aria-label="コンテンツ"
-                            >
-                                {(
-                                    [
-                                        ['posts', '投稿'],
-                                        ['shop', 'ショップ'],
-                                    ] as const
-                                ).map(([key, label]) => (
-                                    <Link
-                                        key={key}
-                                        href={
-                                            key === 'shop'
-                                                ? show(creator.slug, {
-                                                      query: { tab: 'shop' },
-                                                  })
-                                                : show(creator.slug)
-                                        }
-                                        preserveScroll
-                                        aria-current={
-                                            tab === key ? 'page' : undefined
-                                        }
-                                        className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-                                            tab === key
-                                                ? 'border-primary'
-                                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                                        }`}
-                                    >
-                                        {label}
-                                    </Link>
-                                ))}
-                            </nav>
+                            <UnderlineTabs
+                                label="コンテンツ"
+                                tabs={[
+                                    {
+                                        key: 'posts',
+                                        label: '投稿',
+                                        href: show.url(creator.slug),
+                                        current: tab === 'posts',
+                                    },
+                                    {
+                                        key: 'shop',
+                                        label: 'ショップ',
+                                        href: show.url(creator.slug, {
+                                            query: { tab: 'shop' },
+                                        }),
+                                        current: tab === 'shop',
+                                    },
+                                ]}
+                            />
                         )}
 
                         {tab === 'shop' ? (
-                            <section className="space-y-4">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <h2 className="text-lg font-semibold">
-                                        ショップ
-                                    </h2>
-                                    <div className="flex gap-1" role="tablist">
-                                        {shopSortTabs.map((sortTab) => (
-                                            <Button
-                                                key={sortTab.sort}
-                                                size="sm"
-                                                variant="ghost"
-                                                asChild
-                                                className={cn({
-                                                    'bg-muted':
-                                                        sortTab.sort ===
-                                                        shop.sort,
-                                                })}
-                                            >
-                                                <Link
-                                                    href={show(creator.slug, {
-                                                        query:
-                                                            sortTab.sort ===
-                                                            'popular'
-                                                                ? {
-                                                                      tab: 'shop',
-                                                                      sort: 'popular',
-                                                                  }
-                                                                : {
-                                                                      tab: 'shop',
-                                                                  },
-                                                    })}
-                                                    role="tab"
-                                                    aria-selected={
-                                                        sortTab.sort ===
-                                                        shop.sort
-                                                    }
-                                                    preserveScroll
-                                                    only={['shop']}
-                                                >
-                                                    {sortTab.label}
-                                                </Link>
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                                {shop.notice && (
-                                    <p className="rounded-md border bg-muted p-4 text-sm whitespace-pre-wrap">
-                                        {shop.notice}
-                                    </p>
-                                )}
-                                {!canBuy && (
-                                    <p className="text-sm text-muted-foreground">
-                                        現在購入できません
-                                    </p>
-                                )}
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {shop.products.map((product) => (
-                                        <ProductCard
-                                            key={product.id}
-                                            product={product}
-                                            creatorSlug={creator.slug}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
+                            <ShopSection
+                                creatorSlug={creator.slug}
+                                shop={shop}
+                                canBuy={canBuy}
+                            />
                         ) : (
-                            <section className="space-y-4">
-                                <h2 className="text-lg font-semibold">投稿</h2>
-                                {postCategories.length > 0 && (
-                                    <CategoryLinks
-                                        categories={postCategories}
-                                        current={postCategory}
-                                        allLabel="すべて"
-                                        href={(slug) =>
-                                            show(creator.slug, {
-                                                query: slug
-                                                    ? { post_category: slug }
-                                                    : {},
-                                            }).url
-                                        }
-                                    />
-                                )}
-                                {posts.data.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        まだ投稿がありません。
-                                    </p>
-                                ) : (
-                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        {posts.data.map((post) => (
-                                            <PostCard
-                                                key={post.id}
-                                                post={post}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                                <Pagination page={posts} />
-                            </section>
+                            <PostsSection
+                                creatorSlug={creator.slug}
+                                posts={posts}
+                                categories={postCategories}
+                                currentCategory={postCategory}
+                            />
                         )}
                     </div>
                 </div>
             </div>
 
             {showSupportBar && cheapestPlan && (
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
-                    <div className="mx-auto flex max-w-5xl items-center gap-3">
-                        <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">
-                                支援プラン {acceptingPlans.length} 件
-                            </p>
-                            <p className="text-lg font-bold">
-                                {formatYen(cheapestPlan.price)}
-                                <span className="text-xs font-normal text-muted-foreground">
-                                    {' '}
-                                    / 月から
-                                </span>
-                            </p>
-                        </div>
-                        <Button asChild size="lg">
-                            <a href="#plans">支援する</a>
-                        </Button>
-                    </div>
-                </div>
+                <SupportBar
+                    planCount={acceptingPlans.length}
+                    cheapest={cheapestPlan}
+                />
             )}
         </>
     );

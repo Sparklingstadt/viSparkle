@@ -3,14 +3,14 @@ import { FilePlus2, Heart } from 'lucide-react';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
 import { AccessBadge } from '@/components/access-badge';
 import Heading from '@/components/heading';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import { index } from '@/routes/creator/posts';
 import type { Paginated, PostStatus } from '@/types';
 import { Pagination } from '@/components/pagination';
 import { PostStatusBadge } from '@/components/post-status-badge';
+import { SegmentedTabs } from '@/components/segmented-tabs';
+import { HiddenByAdminBadge } from '@/components/hidden-by-admin';
 
 type Row = {
     id: number;
@@ -57,33 +57,18 @@ export default function PostsIndex({
                     </Form>
                 </div>
 
-                <nav
-                    aria-label="状態で絞り込む"
-                    className="flex gap-1 self-start rounded-full bg-muted p-1"
-                >
-                    {statusTabs.map((tab) => (
-                        <Link
-                            key={tab.label}
-                            href={index({
-                                query: tab.status ? { status: tab.status } : {},
-                            })}
-                            aria-current={
-                                tab.status === status ? 'page' : undefined
-                            }
-                            className={cn(
-                                'rounded-full px-4 py-1.5 text-sm font-bold transition-colors',
-                                tab.status === status
-                                    ? 'bg-background shadow-xs'
-                                    : 'text-muted-foreground hover:text-foreground',
-                            )}
-                        >
-                            {tab.label}{' '}
-                            <span className="font-normal">
-                                {counts[tab.status ?? 'all']}
-                            </span>
-                        </Link>
-                    ))}
-                </nav>
+                <SegmentedTabs
+                    label="状態で絞り込む"
+                    tabs={statusTabs.map((tab) => ({
+                        key: tab.label,
+                        label: tab.label,
+                        href: index.url({
+                            query: tab.status ? { status: tab.status } : {},
+                        }),
+                        current: tab.status === status,
+                        count: counts[tab.status ?? 'all'],
+                    }))}
+                />
 
                 {posts.data.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -111,9 +96,7 @@ export default function PostsIndex({
                                                 price={post.required_price}
                                             />
                                             {post.hidden && (
-                                                <Badge variant="destructive">
-                                                    非公開（運営）
-                                                </Badge>
+                                                <HiddenByAdminBadge />
                                             )}
                                             <span>
                                                 {post.status === 'published'

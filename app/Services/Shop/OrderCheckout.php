@@ -2,6 +2,7 @@
 
 namespace App\Services\Shop;
 
+use App\Billing\AppStamp;
 use App\Billing\BillingException;
 use App\Billing\Data\LineItem;
 use App\Billing\Data\PaymentCheckoutRequest;
@@ -76,7 +77,7 @@ class OrderCheckout
                 destinationAccountId: (string) $creator->stripe_account_id,
                 applicationFeeAmount: $order->platformFeeAmount(),
                 metadata: [
-                    'app' => (string) config('fanbox.billing.idempotency_prefix'),
+                    AppStamp::KEY => AppStamp::value(),
                     'user_id' => (string) $buyer->id,
                     'creator_id' => (string) $creator->id,
                     'order_id' => (string) $order->id,

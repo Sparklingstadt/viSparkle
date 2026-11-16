@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import PostController from '@/actions/App/Http/Controllers/Creator/PostController';
 import InputError from '@/components/input-error';
 import { PostEditor } from '@/components/tiptap/post-editor';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,7 @@ import {
 } from '@/components/creator/post-form/audience-picker';
 import { CoverPicker } from '@/components/creator/post-form/cover-picker';
 import { usePostFiles } from '@/hooks/use-post-files';
+import { HiddenByAdminAlert } from '@/components/hidden-by-admin';
 
 type Action = 'save' | 'publish' | 'unpublish';
 
@@ -90,12 +90,7 @@ export default function PostEdit({
 
             <div className="mx-auto w-full max-w-6xl space-y-6 p-4 pt-0">
                 {post.hidden && (
-                    <Alert variant="destructive">
-                        <AlertDescription>
-                            運営により非公開になっています（理由:{' '}
-                            {post.hidden_reason}）
-                        </AlertDescription>
-                    </Alert>
+                    <HiddenByAdminAlert reason={post.hidden_reason} />
                 )}
                 <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2">

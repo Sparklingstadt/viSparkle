@@ -65,9 +65,11 @@ use App\Models\CartItem;
 use App\Models\Creator;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Billing\PaymentRecorder;
 use App\Services\Shop\Orders;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -296,4 +298,16 @@ function paidOrder(Product $product, int $quantity = 1, int $supportAmount = 0):
 function digitalWork(Creator $creator, array $attributes = []): Product
 {
     return Product::factory()->withFile()->for($creator)->create(['price' => 800, ...$attributes]);
+}
+
+/**
+ * Check out the plan as the fan on the test's fake gateway and record the first invoice's payment, as the webhook would.
+ */
+function paidSupportPayment(Plan $plan, User $fan): Payment
+{
+    $subscription = fakeCheckout(test()->gateway, $plan, $fan);
+    $payment = app(PaymentRecorder::class)->record((string) test()->gateway->latestInvoiceId($subscription->id));
+    assert($payment instanceof Payment);
+
+    return $payment;
 }
