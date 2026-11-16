@@ -21,7 +21,7 @@ docker run --rm -v "$PWD":/app -w /app composer:latest composer install --ignore
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan visparkle:init-storage   # RustFS(S3互換) にバケットを作成
-./vendor/bin/sail artisan migrate --seed       # デモデータ投入
+./vendor/bin/sail artisan migrate --seed       # デモデータ投入（縮小前の DB が残っているなら migrate:fresh --seed）
 ./vendor/bin/sail npm install
 ./vendor/bin/sail npm run dev
 ```

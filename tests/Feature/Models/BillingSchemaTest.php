@@ -6,7 +6,7 @@ use App\Models\Support;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 
-it('rejects a second active support for the same user and creator', function () {
+it('rejects a second active support for the same user', function () {
     $user = User::factory()->create();
     $plan = Plan::factory()->create();
     $other = Plan::factory()->create();

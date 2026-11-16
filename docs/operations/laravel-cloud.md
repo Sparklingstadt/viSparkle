@@ -75,6 +75,21 @@ php artisan migrate --force
 ```
 
 - `--seed` は付けない。デモデータ（パスワード `password` のアカウント）が本番に入ってしまう。
+
+### 縮小前の環境を移すとき（一度だけ）
+
+2026-11-17 の縮小で、マイグレーションはファイル名を変えずに中身を最終形へ書き直した。すでにマイグレーション済みの DB では `migrate` が何もしないので、古いスキーマ（`creators` テーブルや `plans.creator_id`）が残り、プランの作成などが失敗する。本番にデータがない前提で、次を一度だけ行う。
+
+1. Cloud の **Commands** タブで、DB を作り直す（**すべてのデータが消える**）。
+
+    ```bash
+    php artisan migrate:fresh --force
+    ```
+
+2. Stripe ダッシュボードで、Connect 用の Webhook 宛先（`/stripe/connect-webhook`）を削除する。残すと 404 が返り続け、Stripe が再送を繰り返す。
+3. 環境変数から `STRIPE_CONNECT_WEBHOOK_SECRET`・`BILLING_PLATFORM_FEE_PERCENT`・`BILLING_SUPPORT_ENABLED`・`BILLING_SUPPORT_FEE_PERCENT` を消し、`CREATOR_NAME` / `CREATOR_BIO` を足して（§4）再デプロイする。
+4. 会員登録してから、クリエイターのアカウントを決める（§6）。
+
 - `storage:link`、`optimize:clear`、`queue:restart` は入れない（Cloud では不要か、害がある）。
 
 ## 4. 環境変数

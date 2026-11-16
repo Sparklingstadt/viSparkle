@@ -85,15 +85,6 @@ class UpdatePostRequest extends FormRequest
     /**
      * @return array<string, string>
      */
-    public function messages(): array
-    {
-        return [
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
     public function attributes(): array
     {
         return ['title' => 'タイトル', 'excerpt' => '公開部分（抜粋）', 'body' => '本文', 'required_price' => '閲覧に必要な金額', 'cover_file_id' => 'カバー画像'];

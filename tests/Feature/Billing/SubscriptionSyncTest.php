@@ -173,7 +173,7 @@ it('ignores an existing support whose user no longer owns the customer', functio
     Log::shouldHaveReceived('warning')->with('billing.metadata_mismatch', Mockery::type('array'))->once();
 });
 
-it('cancels a duplicate subscription for the same creator', function () {
+it('cancels a duplicate subscription for a user who already supports', function () {
     Log::spy();
     $first = fakeCheckout($this->gateway, $this->plan, $this->fan);
     $second = fakeCheckout($this->gateway, $this->plan, $this->fan);

@@ -53,17 +53,6 @@ class Post extends Model
             ->orderByDesc('id');
     }
 
-    /**
-     * Posts anyone can read (no plan required).
-     *
-     * @param  Builder<self>  $query
-     */
-    #[Scope]
-    protected function free(Builder $query): void
-    {
-        $query->where('required_price', 0);
-    }
-
     public function isPublished(): bool
     {
         return $this->status === PostStatus::Published && $this->published_at !== null;

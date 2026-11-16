@@ -21,3 +21,12 @@ it('takes the creator role back with --revoke', function () {
 it('fails for an unknown email', function () {
     $this->artisan('visparkle:creator', ['email' => 'nobody@example.com'])->assertExitCode(1);
 });
+
+it('refuses a second creator while another account holds the role', function () {
+    User::factory()->creator()->create(['email' => 'creator@example.com']);
+    $fan = User::factory()->create(['email' => 'fan@example.com']);
+
+    $this->artisan('visparkle:creator', ['email' => 'fan@example.com'])->assertExitCode(1);
+
+    expect($fan->fresh()->isCreator())->toBeFalse();
+});

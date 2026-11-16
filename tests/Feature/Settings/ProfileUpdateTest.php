@@ -111,7 +111,7 @@ class ProfileUpdateTest extends TestCase
             ]);
 
         $response
-            ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。'])
+            ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。すべてのプランの受付を停止して支援の期間が終わるのを待つか、Stripe ダッシュボードでサブスクリプションを解約してください。'])
             ->assertRedirect(route('profile.edit'));
 
         $this->assertNotNull($creator->fresh());

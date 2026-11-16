@@ -42,7 +42,7 @@ class ProfileDeleteRequest extends FormRequest
                 /** @var User $user */
                 $user = $this->user();
                 if ($user->isCreator() && Support::active()->exists()) {
-                    $validator->errors()->add('password', '有効な支援者がいるため削除できません。');
+                    $validator->errors()->add('password', '有効な支援者がいるため削除できません。すべてのプランの受付を停止して支援の期間が終わるのを待つか、Stripe ダッシュボードでサブスクリプションを解約してください。');
                 }
             },
         ];

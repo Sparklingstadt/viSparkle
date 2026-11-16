@@ -107,7 +107,7 @@ it('refuses deleting the creator while a support is active, even one scheduled t
     $this->actingAs($this->creator)
         ->from(route('profile.edit'))
         ->delete(route('profile.destroy'), ['password' => 'password'])
-        ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。'])
+        ->assertSessionHasErrors(['password' => '有効な支援者がいるため削除できません。すべてのプランの受付を停止して支援の期間が終わるのを待つか、Stripe ダッシュボードでサブスクリプションを解約してください。'])
         ->assertRedirect(route('profile.edit'));
 
     expect($this->creator->fresh())->not->toBeNull()

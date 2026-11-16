@@ -129,7 +129,7 @@ it('forgets the open session once the checkout completes', function () {
     expect(Cache::has($key))->toBeFalse();
 });
 
-it('sends the metadata, destination and expiry to the gateway', function () {
+it('sends the metadata, urls and expiry to the gateway', function () {
     $captured = null;
     $real = $this->gateway;
     $gateway = Mockery::mock(PaymentGateway::class);

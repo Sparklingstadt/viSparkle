@@ -21,6 +21,15 @@ class ManageCreator extends Command
             return self::FAILURE;
         }
 
+        // The site has one creator: hand the role over by revoking it from the current holder first.
+        $current = User::query()->where('is_creator', true)->whereKeyNot($user->id)->value('email');
+
+        if (! $this->option('revoke') && $current !== null) {
+            $this->error("{$current} is already the creator. Revoke it first: php artisan visparkle:creator {$current} --revoke");
+
+            return self::FAILURE;
+        }
+
         $user->forceFill(['is_creator' => ! $this->option('revoke')])->save();
 
         $this->info($user->is_creator ? "{$user->email} is now the creator." : "{$user->email} is no longer the creator.");
